@@ -1,7 +1,7 @@
 // Tipo para os dados do login
 export type loginRequest = {
     email: string,
-    password: string
+    senha: string
 }
 
 export type loginResponse = {
