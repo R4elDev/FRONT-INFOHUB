@@ -1,0 +1,19 @@
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL, // ou API_BASE_URL dependendo da sua config
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Antes de cada requisição, adicionamos o token (jwt)
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export default api;
