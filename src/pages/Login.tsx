@@ -16,7 +16,6 @@ function Login() {
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col">
       
-      {/* Div branca do topo com imagens */}
       <div className="h-[45vh] bg-white relative flex items-center justify-center">
         <img
           src={bolalaranjacombranconomeioGrande}
@@ -35,7 +34,6 @@ function Login() {
         />
       </div>
 
-      {/* Div laranja com o conteúdo de login */}
       <div className="flex-1 bg-[#F9A01B] flex flex-col items-center justify-center px-4">
         <h1 className="text-[40px] font-semibold text-center font-[Poppins] text-black">
           Bem vindo de volta!
