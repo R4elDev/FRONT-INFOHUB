@@ -101,7 +101,7 @@ function Login() {
             </button>
           </div>
 
-          <div className="w-full flex justify-end">
+          <div className="w-full flex justify-end" onClick={() => navigate("/recuperar-senha")}>
             <p className="text-[24px] font-[Poppins] text-black cursor-pointer hover:text-[#25992E] transition-colors">
               Recuperar senha
             </p>
