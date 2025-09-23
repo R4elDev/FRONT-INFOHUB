@@ -5,7 +5,9 @@ import './index.css'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Cadastro from './pages/Cadastro'
-import RecuperarSenha from './pages/RecuperarSenha'
+import RecuperarSenha from './pages/RecuperarSenha1'
+import RecuperarSenha2 from './pages/RecuperarSenha2'
+import RecuperarSenhaFinal from './pages/RecuperarSenhaFinal'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -15,6 +17,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Cadastro />} />
         <Route path="/recuperar-senha" element={<RecuperarSenha/>} />
+        <Route path="/recuperar-senha2" element={<RecuperarSenha2/>} />
+        <Route path="/recuperar-senha-final" element={<RecuperarSenhaFinal/>} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
