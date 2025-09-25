@@ -36,7 +36,39 @@ export type cadastroResponse = {
 
 
 
+// Solicitar código por email
+export interface solicitarCodigoRequest {
+  email: string;
+}
 
+export interface solicitarCodigoResponse {
+  status: boolean;
+  status_code?: number;
+  message: string;
+}
 
+// Validar código
+export interface validarCodigoRequest {
+  email: string;
+  codigo: string;
+}
 
+export interface validarCodigoResponse {
+  status: boolean;
+  status_code?: number;
+  message: string;
+  // Pode retornar dados adicionais se necessário
+  data?: any;
+}
 
+// Redefinir senha
+export interface redefinirSenhaRequest {
+  codigo: string;
+  novaSenha: string;
+}
+
+export interface redefinirSenhaResponse {
+  status: boolean;
+  status_code?: number;
+  message: string;
+}

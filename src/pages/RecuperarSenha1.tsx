@@ -3,24 +3,55 @@ import { Input } from "../components/ui/input";
 import bolaVermelhaBrancaDireta from "../assets/BolaVermelhaBrancaDireta.png";
 import bolaVermelhaBrancaEsquerda from "../assets/BolaVermelhaBrancaEsquerda.png";
 import LogoDeRecuperarSenha from "../assets/LogoDeRecuperarSenha.png";
-import iconTelefone from "../assets/iconDeTelefone.png";
+import iconEmail from "../assets/iconEmail.png";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom"; // Importação do useNavigate
+import { useNavigate } from "react-router-dom";
+import { solicitarCodigoRecuperacao } from "../services/requests";
 
 function RecuperarSenha() {
-  const [telefone, setTelefone] = useState("");
-  const navigate = useNavigate(); // Hook para navegação
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleNextStep = () => {
-    // Lógica para validar o telefone (opcional)
-    if (telefone.trim() === "") {
-      alert("Por favor, insira um número de telefone válido.");
+  // Função que chama a API para solicitar código
+  async function handleNextStep() {
+    setErrorMsg(null);
+
+    if (!email) {
+      setErrorMsg("Preencha o campo email");
       return;
     }
 
-    // Redireciona para a próxima tela
-    navigate("/recuperar-senha2"); // Substitua "/proxima-tela" pela rota correta
-  };
+    // Validação simples de formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setErrorMsg("Por favor, insira um email com formato válido");
+      return;
+    }
+
+    const payload = { email };
+
+    try {
+      setLoading(true);
+      await solicitarCodigoRecuperacao(payload); // 👉 Chamada da API aqui
+      
+      // Se chegou até aqui, deu certo
+      navigate("/recuperar-senha2", { state: { email } });
+      
+    } catch (err: any) {
+      console.error("Erro ao solicitar código:", err);
+      if (err.response?.status === 404) {
+        setErrorMsg("Email não encontrado");
+      } else if (err.response?.status >= 500) {
+        setErrorMsg("Erro no servidor. Tente novamente mais tarde");
+      } else {
+        setErrorMsg("Erro ao enviar código de recuperação");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col">
@@ -38,7 +69,6 @@ function RecuperarSenha() {
         />
 
         <div className="bg-white w-[600px] h-[800px] p-6 rounded-4xl shadow-lg flex flex-col items-center">
-          {/* Logo dentro do card, centralizada */}
           <img
             src={LogoDeRecuperarSenha}
             alt="logo recuperar"
@@ -48,40 +78,45 @@ function RecuperarSenha() {
           <h2 className="text-3xl font-bold mb-1 text-center">
             Recuperar Senha
           </h2>
-          <p className="text-1xl text-center">
-            Preencha o campo abaixo com o seu telefone
+          <p className="text-1xl text-center mb-4">
+            Preencha o campo abaixo com o seu email
           </p>
 
+          {/* Mensagem de erro */}
+          {errorMsg && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
+              {errorMsg}
+            </div>
+          )}
 
           <div className="relative w-[400px]">
             <img
-              src={iconTelefone}
-              alt="icon telefone"
-              className="absolute left-3 bottom-0.25 transform -translate-y-1/2 w-6 h-5 text-gray-400"
+              src={iconEmail}
+              alt="icon email"
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-6 h-5 text-gray-400 z-10"
             />
 
             <Input
-              type="tel"
-              placeholder="Telefone"
-              value={telefone}
-              onChange={(e) => setTelefone(e.target.value)}
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
               className="h-[40px] bg-gray rounded-[36px] text-[16px] px-10 
                          placeholder:text-[20px] placeholder:text-gray-20 font-[Poppins]
-                         border-2 border-[#b2b1b1] mt-7 left-3"
+                         border-2 border-[#b2b1b1] mt-7"
             />
           </div>
 
-          {/* Botão para avançar */}
           <Button
-            onClick={handleNextStep}
+            onClick={handleNextStep} // 👉 chama a API
+            disabled={loading}
             className="mt-10 bg-[#25992E] w-[200px] h-[50px] 
-            text-white px-10 py-2 rounded-full text-lg font-bold hover:bg-[#4D8832]"
+            text-white px-10 py-2 rounded-full text-lg font-bold hover:bg-[#4D8832]
+            disabled:opacity-50"
           >
-            Avançar
+            {loading ? "Enviando..." : "Avançar"}
           </Button>
-
-
-
         </div>
       </div>
     </div>
