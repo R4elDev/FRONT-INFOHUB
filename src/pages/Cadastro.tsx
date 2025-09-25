@@ -56,14 +56,21 @@ function Cadastro() {
       return
     }
 
+    // Validações adicionais
+    if (!nome || !email || !senha || (tipoPessoa === 'consumidor' && !cpf) || (tipoPessoa === 'estabelecimento' && !cnpj)) {
+      setErrorMsg("Por favor, preencha todos os campos obrigatórios")
+      return
+    }
+
     const payload: cadastroRequest = {
       nome,
       email,
-      senha_hash: senha, // ⚠ se sua API quiser hash mesmo, troque aqui
-      perfil: tipoPessoa === "consumidor" ? "admin" : "estabelecimento",
-      cpf: tipoPessoa === "consumidor" ? cpf : "",
+      senha_hash: senha,
+      perfil: tipoPessoa, // Usa o tipo de pessoa diretamente
+      cpf: tipoPessoa === "consumidor" ? cpf : null,
       cnpj: tipoPessoa === "estabelecimento" ? cnpj : null,
-      data_nascimento: dataNascimento || "1900-01-01"
+      telefone: celular || null, // Inclui o telefone
+      data_nascimento: dataNascimento || new Date().toISOString().split('T')[0] // Data atual se não informada
     }
 
     try {
@@ -72,7 +79,7 @@ function Cadastro() {
 
       if (res.status) {
         setSuccessMsg(res.message)
-        setTimeout(() => navigate("/login"), 1000)
+        setTimeout(() => navigate("/CadastroDeEndereco"), 1000)
       } else {
         setErrorMsg(res.message)
       }
@@ -87,8 +94,8 @@ function Cadastro() {
     <div className='h-screen w-screen overflow-hidden flex flex-col'>
       <div className='bg-[#FFFF] relative min-h-screen'>
         {/* Imagens decorativas */}
-        <img src={bolalaranjaCadastro} alt="bola laranja" className="absolute top-0 right-0" />
-        <img src={bolavermelhaCadastro} alt="bola vermelha" className="absolute top-36 left-0" />
+        <img src={bolalaranjaCadastro} alt="bola laranja" className="absolute top-0 right-0 w-40 sm:w-52 md:w-94 max-w-full" />
+        <img src={bolavermelhaCadastro} alt="bola vermelha" className="absolute top-36 left-0 w-16 sm:w-28 md:w-66 max-w-full" />
 
         <div className="flex-1 flex flex-col items-center justify-center px-4">
           <img

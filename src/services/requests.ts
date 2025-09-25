@@ -1,6 +1,7 @@
 import api from '../lib/api'
 import type  { loginRequest,loginResponse,cadastroRequest,cadastroResponse  } from './types'
 
+
 // Endpoint de login
 export async function login(payload: loginRequest){
     const { data } = await api.post<loginResponse>("/login", payload)

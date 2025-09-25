@@ -23,6 +23,7 @@ export type cadastroRequest = {
   perfil: 'consumidor' | 'admin' | 'estabelecimento';
   cpf?: string | null;
   cnpj?: string | null;
+  telefone?: string | null
   data_nascimento: string;
 };
 
@@ -32,6 +33,8 @@ export type cadastroResponse = {
   status_code: number,
   message: string,
 }
+
+
 
 
 

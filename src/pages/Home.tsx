@@ -29,7 +29,7 @@ function Home() {
         >
           LOGIN
         </Button>
-        <Button 
+        <Button                 
           onClick={() => navigate('/cadastro')}
           className='w-[410px] h-[92px] bg-white rounded-[66px] text-[#25992E] text-[36px] font-bold font-[Poppins]'
         >
