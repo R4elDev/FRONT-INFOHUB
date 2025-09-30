@@ -34,6 +34,7 @@ function RecuperarSenha() {
 
     try {
       setLoading(true);
+      
       await solicitarCodigoRecuperacao(payload); // 👉 Chamada da API aqui
       
       // Se chegou até aqui, deu certo
@@ -68,7 +69,8 @@ function RecuperarSenha() {
           className="absolute bottom-0 left-0"
         />
 
-        <div className="bg-white w-[600px] h-[800px] p-6 rounded-4xl shadow-lg flex flex-col items-center">
+        <div className="bg-white w-[600px] h-[800px] 
+                        p-6 rounded-4xl shadow-lg flex flex-col items-center">
           <img
             src={LogoDeRecuperarSenha}
             alt="logo recuperar"
@@ -84,7 +86,8 @@ function RecuperarSenha() {
 
           {/* Mensagem de erro */}
           {errorMsg && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
+            <div className="bg-red-100 border border-red-400 text-red-700 
+                            px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
               {errorMsg}
             </div>
           )}

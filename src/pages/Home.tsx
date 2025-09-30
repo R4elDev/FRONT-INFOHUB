@@ -14,8 +14,8 @@ function Home() {
       <img src={bolaLaranjaBaixo} alt="bola laranja" className='absolute bottom-0 right-0' />
       <img src={bolaLaranjaCima} alt="bola laranja" className='absolute top-0 left-0' />
       <div className='flex flex-col items-center justify-center h-screen gap-10'>
-        <div className='flex items-center justify-center bg-white w-[400px] h-[370px] rounded-[400px]'>
-          <img src={imgLogo} alt="Logo InfoHub" className='w-[300px] h-[300px] object-contain' />  
+        <div className='flex items-center justify-center bg-white w-[350px] h-[350px] rounded-[320px]'>
+          <img src={imgLogo} alt="Logo InfoHub" className='w-[320px] h-[320px] object-contain' />  
         </div>
         <div className='w-[252px] h-[10px] bg-[#25992E] rounded-full'></div>
         <div>
