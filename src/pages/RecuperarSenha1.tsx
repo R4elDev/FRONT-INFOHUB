@@ -93,7 +93,7 @@ function RecuperarSenha() {
             <img
               src={iconEmail}
               alt="icon email"
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-6 h-5 text-gray-400 z-10"
+              className="absolute left-3 top-1/2 transform  w-6 h-6 text-gray-400 z-10"
             />
 
             <Input
@@ -102,7 +102,7 @@ function RecuperarSenha() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className="h-[40px] bg-gray rounded-[36px] text-[16px] px-10 
+              className="h-[55px] bg-gray rounded-[36px] text-[16px] px-10 
                          placeholder:text-[20px] placeholder:text-gray-20 font-[Poppins]
                          border-2 border-[#b2b1b1] mt-7"
             />
