@@ -14,16 +14,41 @@ function CadastroDeEndereco() {
   const [bairro, setBairro] = useState("")
   const [cidade, setCidade] = useState("")
   const [estado, setEstado] = useState("")
+  const [latitude, setLatitude] = useState("")
+  const [longitude, setLongitude] = useState("")
   const [carregandoCep, setCarregandoCep] = useState(false)
 
   const navigate = useNavigate()
 
-  // Função para buscar CEP na API ViaCEP
+  // Função para buscar coordenadas usando Nominatim (OpenStreetMap)
+  const buscarCoordenadas = async (endereco: string, cidadeNome: string, estadoUF: string) => {
+    try {
+      const query = `${endereco}, ${cidadeNome}, ${estadoUF}, Brasil`
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`
+      )
+      
+      if (!response.ok) {
+        throw new Error('Erro ao buscar coordenadas')
+      }
+
+      const data = await response.json()
+      
+      if (data && data.length > 0) {
+        setLatitude(data[0].lat)
+        setLongitude(data[0].lon)
+        console.log('Coordenadas encontradas:', { lat: data[0].lat, lon: data[0].lon })
+      }
+    } catch (error) {
+      console.error('Erro ao buscar coordenadas:', error)
+      // Não exibe alerta para não interromper o fluxo
+    }
+  }
+
+  // Função para buscar CEP (usa ViaCEP diretamente)
   const buscarCep = async (cepValue: string) => {
-    // Remove caracteres não numéricos
     const cepLimpo = cepValue.replace(/\D/g, '')
     
-    // Valida se tem 8 dígitos
     if (cepLimpo.length !== 8) {
       return
     }
@@ -52,6 +77,9 @@ function CadastroDeEndereco() {
       setEstado(data.uf || "")
       setComplemento(data.complemento || "")
 
+      // Busca as coordenadas geográficas
+      await buscarCoordenadas(data.logradouro, data.localidade, data.uf)
+
     } catch (error) {
       console.error('Erro ao buscar CEP:', error)
       alert('Erro ao buscar CEP. Tente novamente.')
@@ -59,6 +87,8 @@ function CadastroDeEndereco() {
       setCarregandoCep(false)
     }
   }
+
+
 
   // Função para formatar CEP com máscara
   const formatarCep = (value: string) => {
@@ -91,7 +121,7 @@ function CadastroDeEndereco() {
       return
     }
 
-    // Salva os dados (opcional - localStorage, context, etc)
+    // Salva os dados incluindo latitude e longitude
     const enderecoData = {
       cep,
       rua,
@@ -99,18 +129,18 @@ function CadastroDeEndereco() {
       complemento,
       bairro,
       cidade,
-      estado
+      estado,
+      latitude,
+      longitude
     }
     
-    console.log('Dados do endereço:', enderecoData)
+    console.log('Dados do endereço com geolocalização:', enderecoData)
 
     // Redireciona para a tela de login
     try {
       navigate("/login")
     } catch (error) {
       console.error('Erro ao navegar:', error)
-      // Tente outras rotas possíveis
-      // navigate("/") ou navigate("/home")
     }
   }
 
@@ -138,7 +168,7 @@ function CadastroDeEndereco() {
 
           {/* Área de título/especificação */}
           <div className="flex bg-gray-100 rounded-full p-1 mb-6">
-            <div className="px-6 py-2 rounded-full text-sm font-medium text-white bg-orange-500 shadow-md">
+            <div className="px-6 py-2 rounded-full text-sm font-medium text-white bg-green-500 shadow-md">
               Cadastro de Endereço
             </div>
           </div>
@@ -223,7 +253,7 @@ function CadastroDeEndereco() {
             <Button 
               type="submit"
               disabled={carregandoCep}
-              className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50"
+              className="w-full bg-orange-500 hover:bg-green-600 disabled:opacity-50"
             >
               Cadastrar Endereço
             </Button>
@@ -234,4 +264,4 @@ function CadastroDeEndereco() {
   )
 }
 
-export default CadastroDeEndereco   
+export default CadastroDeEndereco
