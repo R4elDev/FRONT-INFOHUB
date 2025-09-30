@@ -34,8 +34,8 @@ function Login() {
       if (res.status) {
         // Salva token
         localStorage.setItem("auth_token", res.token);
-        // Redireciona para dashboard ou home
-        navigate("/dashboard");
+        // Redireciona para tela de localização
+        navigate("/localizacao");
       } else {
         setErrorMsg("E-mail ou senha incorretos");
       }
@@ -139,4 +139,4 @@ function Login() {
   );
 }
 
-export default Login;
+export default Login;
