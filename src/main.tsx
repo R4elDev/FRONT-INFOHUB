@@ -14,6 +14,9 @@ import HomeInicial from './pages/HomeInicial'
 import ChatPrecos from './pages/ChatPrecos'
 import Promocoes from './pages/Promocoes'
 import DetalhesProduto from './pages/DetalhesProduto'
+import Carrinho from './pages/Carrinho'
+import Checkout from './pages/Checkout'
+import PagamentoSucesso from './pages/PagamentoSucesso'
 
 
 
@@ -33,6 +36,9 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/ChatPrecos" element={<ChatPrecos/>} />
         <Route path="/promocoes" element={<Promocoes/>} />
         <Route path="/produto/:id" element={<DetalhesProduto/>} />
+        <Route path="/carrinho" element={<Carrinho/>} />
+        <Route path="/checkout" element={<Checkout/>} />
+        <Route path="/pagamento-sucesso" element={<PagamentoSucesso/>} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

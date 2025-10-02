@@ -19,7 +19,7 @@ const menuItems = [
   { to: "/infocash", label: "InfoCash", icon: iconDolar },
   { to: "/ChatPrecos", label: "IA", icon: iconChat },
   { to: "/favoritos", label: "Favoritos", icon: iconFavorito },
-  { to: "/lista-de-compras", label: "Lista de compras", icon: iconCompras },
+  { to: "/carrinho", label: "Carrinho", icon: iconCompras },
 ]
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {

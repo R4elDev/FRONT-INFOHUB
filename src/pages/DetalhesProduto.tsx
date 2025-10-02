@@ -30,7 +30,8 @@ function DetalhesProduto() {
 
   const handleAdicionarCarrinho = () => {
     console.log(`Adicionado ${quantidade} unidade(s) ao carrinho`)
-    // Aqui você implementará a lógica de adicionar ao carrinho
+    // Navega para o carrinho
+    navigate('/carrinho')
   }
 
   const incrementarQuantidade = () => {
