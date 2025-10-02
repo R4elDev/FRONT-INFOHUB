@@ -34,6 +34,7 @@ function RecuperarSenha() {
 
     try {
       setLoading(true);
+      
       await solicitarCodigoRecuperacao(payload); // 👉 Chamada da API aqui
       
       // Se chegou até aqui, deu certo
@@ -68,7 +69,8 @@ function RecuperarSenha() {
           className="absolute bottom-0 left-0"
         />
 
-        <div className="bg-white w-[600px] h-[800px] p-6 rounded-4xl shadow-lg flex flex-col items-center">
+        <div className="bg-white w-[600px] h-[800px] 
+                        p-6 rounded-4xl shadow-lg flex flex-col items-center">
           <img
             src={LogoDeRecuperarSenha}
             alt="logo recuperar"
@@ -84,7 +86,8 @@ function RecuperarSenha() {
 
           {/* Mensagem de erro */}
           {errorMsg && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
+            <div className="bg-red-100 border border-red-400 text-red-700 
+                            px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
               {errorMsg}
             </div>
           )}
@@ -93,7 +96,7 @@ function RecuperarSenha() {
             <img
               src={iconEmail}
               alt="icon email"
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-6 h-5 text-gray-400 z-10"
+              className="absolute left-3 top-1/2 transform  w-6 h-6 text-gray-400 z-10"
             />
 
             <Input
@@ -102,7 +105,7 @@ function RecuperarSenha() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className="h-[40px] bg-gray rounded-[36px] text-[16px] px-10 
+              className="h-[55px] bg-gray rounded-[36px] text-[16px] px-10 
                          placeholder:text-[20px] placeholder:text-gray-20 font-[Poppins]
                          border-2 border-[#b2b1b1] mt-7"
             />
