@@ -32,7 +32,7 @@ function Login() {
 
       if (res.status) {
         localStorage.setItem("auth_token", res.token);
-        navigate("/HomeInicial");
+        navigate("/localizacao");
       } else {
         setErrorMsg("E-mail ou senha incorretos");
       }
@@ -152,3 +152,4 @@ function Login() {
 }
 
 export default Login;
+

@@ -9,21 +9,22 @@ import RecuperarSenha from './pages/RecuperarSenha1'
 import RecuperarSenha2 from './pages/RecuperarSenha2'
 import RecuperarSenhaFinal from './pages/RecuperarSenhaFinal'
 import CadastroDeEndereco from './pages/CadastroDeEndereco'
-import HomeInicial from './pages/HomeInicial'
+
+import Localizacao from './pages/TelaLocalizacao'
+
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route path="/" element={<Localizacao />} />
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Cadastro />} />
         <Route path="/recuperar-senha" element={<RecuperarSenha/>} />
         <Route path="/recuperar-senha2" element={<RecuperarSenha2/>} />
         <Route path="/recuperar-senha-final" element={<RecuperarSenhaFinal/>} />
         <Route path="/CadastroDeEndereco" element={<CadastroDeEndereco/>} />
-        <Route path="/HomeInicial" element={<HomeInicial/>} />
-
+        <Route path="/Localizacao" element={<Localizacao/>} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
