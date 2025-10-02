@@ -251,14 +251,8 @@ function Home() {
         
         {/* Botão CADASTRE-SE com efeito 3D avançado */}
         <Button                 
-          onClick={() => navigate('/cadastro')}
-          className='w-[410px] h-[92px] bg-white rounded-[66px] text-[#25992E] text-[36px] font-bold font-[Poppins] transition-all 
-                      duration-300 ease-out transform hover:translate-y-[-4px] active:scale-95 active:translate-y-0 cursor-pointer 
-                      group relative overflow-hidden button-3d-white'
-          style={{
-            boxShadow: '0 15px 30px rgba(255, 255, 255, 0.3), 0 5px 15px rgba(0,0,0,0.2)',
-            border: '2px solid rgba(37, 153, 46, 0.2)'
-          }}
+          onClick={() => navigate('/ChatPrecos')}
+          className='w-[410px] h-[92px] bg-white rounded-[66px] text-[#25992E] text-[36px] font-bold font-[Poppins]'
         >
           <span className='relative z-10 transition-all duration-300 group-hover:text-shadow-sm'>CADASTRE-SE</span>
           <div className='absolute inset-0 bg-gradient-to-r from-transparent via-[#25992E] to-transparent 
