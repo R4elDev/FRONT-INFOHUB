@@ -1,11 +1,18 @@
 import { Button as Botao } from "../components/ui/button"
 import { Input as CampoTexto } from "../components/ui/input"
+import { useNavigate } from "react-router-dom"
 import iconJarra from "../assets/icon de jara.png"
 import lupaPesquisa from "../assets/lupa de pesquisa .png"
 import microfoneVoz from "../assets/microfone de voz.png"
 import SidebarLayout from "../components/layouts/SidebarLayout"
 
 function HomeInicial() {
+  const navigate = useNavigate()
+
+  const handleProdutoClick = (produtoId: number) => {
+    navigate(`/produto/${produtoId}`)
+  }
+
   return (
     <SidebarLayout>
         {/* Banner Principal */}
@@ -86,9 +93,10 @@ function HomeInicial() {
 
           {/* Cards de Produtos */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-30">
-            {[0, 1, 2, 3].map((i) => (
+            {[1, 2, 3, 4].map((i) => (
               <article
                 key={i}
+                onClick={() => handleProdutoClick(i)}
                 className="rounded-2xl border border-gray-200 bg-white p-4 cursor-pointer
                            shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all 
                            hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] hover:-translate-y-1"
@@ -103,6 +111,10 @@ function HomeInicial() {
                     OFERTA
                   </span>
                   <button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      console.log('Favorito clicado')
+                    }}
                     className="text-gray-300 hover:text-red-500 transition-colors text-xl"
                   >
                     ♡

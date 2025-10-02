@@ -12,6 +12,8 @@ import CadastroDeEndereco from './pages/CadastroDeEndereco'
 import Localizacao from './pages/TelaLocalizacao'
 import HomeInicial from './pages/HomeInicial'
 import ChatPrecos from './pages/ChatPrecos'
+import Promocoes from './pages/Promocoes'
+import DetalhesProduto from './pages/DetalhesProduto'
 
 
 
@@ -29,6 +31,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/Localizacao" element={<Localizacao/>} />
         <Route path="/HomeInicial" element={<HomeInicial/>} />
         <Route path="/ChatPrecos" element={<ChatPrecos/>} />
+        <Route path="/promocoes" element={<Promocoes/>} />
+        <Route path="/produto/:id" element={<DetalhesProduto/>} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
