@@ -248,36 +248,35 @@ function RecuperarSenhaFinal() {
 
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col">
-      <div className="flex-1 bg-[#F9A01B] flex flex-col items-center justify-center px-4">
+      <div className="flex-1 bg-[#F9A01B] flex flex-col items-center justify-center px-4 py-4">
         <img
           src={bolaVermelhaBrancaDireta}
           alt="bola vermelha"
-          className="absolute top-0 right-0"
+          className="absolute top-0 right-0 w-24 sm:w-32 md:w-auto"
         />
-
         <img
           src={bolaVermelhaBrancaEsquerda}
           alt="bola vermelha"
-          className="absolute bottom-0 left-0"
+          className="absolute bottom-0 left-0 w-24 sm:w-32 md:w-auto"
         />
 
-        <div className="bg-white w-[600px] h-[800px] p-6 rounded-4xl 
+        <div className="bg-white w-full max-w-[90%] sm:max-w-[500px] md:max-w-[600px] max-h-[90vh] p-4 sm:p-6 rounded-3xl md:rounded-4xl 
                         shadow-lg flex flex-col items-center overflow-y-auto">
           <img
             src={LogoDeRecuperarSenha}
             alt="logo recuperar"
-            className="w-70 h-90 mb-3"
+            className="w-48 h-56 sm:w-56 sm:h-64 md:w-70 md:h-90 mb-3 object-contain"
           />
 
-          <h2 className="text-3xl font-bold mb-1 text-left w-[400px]">Criar nova senha</h2>
-          <p className="text-1xl text-left w-[400px] mb-2">
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 text-left w-full max-w-[350px] sm:max-w-[400px]">Criar nova senha</h2>
+          <p className="text-sm sm:text-base md:text-lg text-left w-full max-w-[350px] sm:max-w-[400px] mb-2">
             Redefinindo senha para: {email ? mascarEmail(email) : ""}
           </p>
 
           {/* Mensagem de erro */}
           {errorMsg && (
             <div className="bg-red-100 border border-red-400 text-red-700 
-                            px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
+                            px-4 py-3 rounded mb-4 w-full max-w-[350px] sm:max-w-[400px] text-center text-sm">
               {errorMsg}
             </div>
           )}
@@ -285,20 +284,20 @@ function RecuperarSenhaFinal() {
           {/* Mensagem de sucesso */}
           {successMsg && (
             <div className="bg-green-100 border border-green-400 
-                            text-green-700 px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
+                            text-green-700 px-4 py-3 rounded mb-4 w-full max-w-[350px] sm:max-w-[400px] text-center text-sm">
               {successMsg}
             </div>
           )}
 
-          <div className="relative w-[400px] mb-2">
+          <div className="relative w-full max-w-[350px] sm:max-w-[400px] mb-2">
             <Input
               type={showNovaSenha ? "text" : "password"}
               placeholder="Nova senha"
               value={novaSenha}
               onChange={(e) => setNovaSenha(e.target.value)}
               disabled={loading}
-              className="h-[40px] bg-gray rounded-[36px] text-[16px] px-10 pr-12
-                         placeholder:text-[20px] placeholder:text-gray-20 font-[Poppins]
+              className="h-[45px] sm:h-[50px] bg-gray rounded-[36px] text-[14px] sm:text-[16px] px-10 pr-12
+                         placeholder:text-[16px] sm:placeholder:text-[20px] placeholder:text-gray-20 font-[Poppins]
                          border-2 border-[#b2b1b1]"
             />
             <button
@@ -308,32 +307,32 @@ function RecuperarSenhaFinal() {
               disabled={loading}
             >
               {showNovaSenha ? (
-                <EyeOff className="h-5 w-5 text-gray-400" />
+                <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
               ) : (
-                <Eye className="h-5 w-5 text-gray-400" />
+                <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
               )}
             </button>
           </div>
 
           {/* Indicador de força da senha */}
           {novaSenha && (
-            <p className={`text-sm w-[400px] mb-2 ${getPasswordStrengthColor()}`}>
+            <p className={`text-xs sm:text-sm w-full max-w-[350px] sm:max-w-[400px] mb-2 ${getPasswordStrengthColor()}`}>
               Força da senha: {getPasswordStrength()}
             </p>
           )}
 
-          <h2 className="text-3xl font-bold mb-1 text-left w-[400px]">Confirmar nova senha</h2>
-          <p className="text-1xl text-left w-[400px] mb-4">Confirme sua nova senha:</p>
+          <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 text-left w-full max-w-[350px] sm:max-w-[400px]">Confirmar nova senha</h2>
+          <p className="text-sm sm:text-base md:text-lg text-left w-full max-w-[350px] sm:max-w-[400px] mb-4">Confirme sua nova senha:</p>
 
-          <div className="relative w-[400px] mb-6">
+          <div className="relative w-full max-w-[350px] sm:max-w-[400px] mb-6">
             <Input
               type={showConfirmarSenha ? "text" : "password"}
               placeholder="Confirmar senha"
               value={confirmarSenha}
               onChange={(e) => setConfirmarSenha(e.target.value)}
               disabled={loading}
-              className="h-[40px] bg-gray rounded-[36px] text-[16px] px-10 pr-12
-                         placeholder:text-[20px] placeholder:text-gray-20 font-[Poppins]
+              className="h-[45px] sm:h-[50px] bg-gray rounded-[36px] text-[14px] sm:text-[16px] px-10 pr-12
+                         placeholder:text-[16px] sm:placeholder:text-[20px] placeholder:text-gray-20 font-[Poppins]
                          border-2 border-[#b2b1b1]"
             />
             <button
@@ -343,16 +342,16 @@ function RecuperarSenhaFinal() {
               disabled={loading}
             >
               {showConfirmarSenha ? (
-                <EyeOff className="h-5 w-5 text-gray-400" />
+                <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
               ) : (
-                <Eye className="h-5 w-5 text-gray-400" />
+                <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
               )}
             </button>
           </div>
 
           {/* Indicador de senhas iguais */}
           {confirmarSenha && (
-            <p className={`text-sm w-[400px] mb-4 ${
+            <p className={`text-xs sm:text-sm w-full max-w-[350px] sm:max-w-[400px] mb-4 ${
               novaSenha === confirmarSenha ? "text-green-500" : "text-red-500"
             }`}>
               {novaSenha === confirmarSenha ? "✓ Senhas coincidem" : "✗ Senhas não coincidem"}
@@ -362,17 +361,17 @@ function RecuperarSenhaFinal() {
           <Button
             onClick={handleNextStep}
             disabled={loading || !novaSenha || !confirmarSenha || novaSenha !== confirmarSenha}
-            className="mt-2 bg-[#25992E] w-[200px] h-[50px] 
-                       text-white px-10 py-2 rounded-full text-lg font-bold hover:bg-[#4D8832]
-                       disabled:opacity-50"
+            className="mt-2 bg-[#25992E] w-[180px] sm:w-[200px] h-[45px] sm:h-[50px] 
+                       text-white px-8 sm:px-10 py-2 rounded-full text-base sm:text-lg font-bold hover:bg-[#4D8832]
+                       disabled:opacity-50 hover:scale-105 active:scale-95 transition-all duration-300"
           >
             {loading ? "Salvando..." : "Redefinir Senha"}
           </Button>
 
-          <p className="text-sm mt-4">
+          <p className="text-xs sm:text-sm mt-4 text-center">
             Código expirou?{" "}
             <span 
-              className="font-bold text-green-500 text-1xl cursor-pointer hover:text-green-600"
+              className="font-bold text-green-500 cursor-pointer hover:text-green-600"
               onClick={handleReenviarCodigo}
             >
               {reenvioLoading ? "Enviando..." : "Solicitar novo código"}
