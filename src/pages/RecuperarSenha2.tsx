@@ -183,34 +183,34 @@ function RecuperarSenha2() {
         <img
           src={bolaVermelhaBrancaDireta}
           alt="bola vermelha"
-          className="absolute top-0 right-0"
+          className="absolute top-0 right-0 w-24 sm:w-32 md:w-auto"
         />
 
         <img
           src={bolaVermelhaBrancaEsquerda}
           alt="bola vermelha"
-          className="absolute bottom-0 left-0"
+          className="absolute bottom-0 left-0 w-24 sm:w-32 md:w-auto"
         />
 
-        <div className="bg-white w-[600px] h-[800px] p-6 
-                        rounded-4xl shadow-lg flex flex-col items-center">
+        <div className="bg-white w-full max-w-[90%] sm:max-w-[500px] md:max-w-[600px] min-h-[600px] sm:min-h-[700px] md:h-[800px] p-4 sm:p-6 
+                        rounded-3xl md:rounded-4xl shadow-lg flex flex-col items-center">
           <img
             src={LogoDeRecuperarSenha}
             alt="logo recuperar"
-            className="w-70 h-90 mb-3"
+            className="w-48 h-56 sm:w-56 sm:h-64 md:w-70 md:h-90 mb-3 object-contain"
           />
 
-          <h2 className="text-3xl font-bold mb-1 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-1 text-center">
             Confirme seu código
           </h2>
-          <p className="text-1xl text-center mb-4">
+          <p className="text-base sm:text-lg md:text-xl text-center mb-4">
             Código enviado para: {email ? mascarEmail(email) : ""}
           </p>
 
           {/* Mensagem de erro */}
           {errorMsg && (
             <div className="bg-red-100 border border-red-400 text-red-700 
-                            px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
+                            px-4 py-3 rounded mb-4 w-full max-w-[350px] sm:max-w-[400px] text-center text-sm">
               {errorMsg}
             </div>
           )}
@@ -218,12 +218,12 @@ function RecuperarSenha2() {
           {/* Mensagem de sucesso */}
           {successMsg && (
             <div className="bg-green-100 border border-green-400 text-green-700 
-                            px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
+                            px-4 py-3 rounded mb-4 w-full max-w-[350px] sm:max-w-[400px] text-center text-sm">
               {successMsg}
             </div>
           )}
 
-          <div className="flex gap-4 mt-4">
+          <div className="flex gap-2 sm:gap-4 mt-4">
             {code.map((digit, index) => (
               <Input
                 key={index}
@@ -234,7 +234,7 @@ function RecuperarSenha2() {
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 maxLength={1}
                 disabled={loading}
-                className="w-12 h-12 text-center text-xl mt-5 font-bold border-2
+                className="w-10 h-10 sm:w-12 sm:h-12 text-center text-lg sm:text-xl mt-5 font-bold border-2
                           border-gray-300 rounded-lg
                           focus:outline-none focus:border-[#F9A01B]
                           disabled:opacity-50"
@@ -245,17 +245,17 @@ function RecuperarSenha2() {
           <Button
             onClick={handleSubmit}
             disabled={loading || code.some((digit) => digit === "")}
-            className="bg-[#25992E] text-white w-[200px] h-[50px] px-6 py-2
-                      rounded-full text-lg font-bold hover:bg-[#4D8832] mt-6
-                      disabled:opacity-50"
+            className="bg-[#25992E] text-white w-[180px] sm:w-[200px] h-[45px] sm:h-[50px] px-6 py-2
+                      rounded-full text-base sm:text-lg font-bold hover:bg-[#4D8832] mt-6
+                      disabled:opacity-50 hover:scale-105 active:scale-95 transition-all duration-300"
           >
             {loading ? "Validando..." : "Continuar"}
           </Button>
 
-          <p className="text-sm mt-4">
+          <p className="text-xs sm:text-sm mt-4 text-center">
             Não recebeu código?{" "}
             <span 
-              className="font-bold text-green-500 text-1xl cursor-pointer hover:text-green-600"
+              className="font-bold text-green-500 cursor-pointer hover:text-green-600"
               onClick={handleReenviarCodigo}
             >
               {reenvioLoading ? "Enviando..." : "Enviar novamente"}

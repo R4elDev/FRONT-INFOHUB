@@ -17,7 +17,7 @@ const menuItems = [
   { to: "/promocoes", label: "Promoções", icon: iconProduto },
   { to: "/localizacao", label: "Localização", icon: iconDeLocalizacao },
   { to: "/infocash", label: "InfoCash", icon: iconDolar },
-  { to: "/ia", label: "IA", icon: iconChat },
+  { to: "/ChatPrecos", label: "IA", icon: iconChat },
   { to: "/favoritos", label: "Favoritos", icon: iconFavorito },
   { to: "/lista-de-compras", label: "Lista de compras", icon: iconCompras },
 ]

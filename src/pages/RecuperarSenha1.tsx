@@ -60,43 +60,43 @@ function RecuperarSenha() {
         <img
           src={bolaVermelhaBrancaDireta}
           alt="bola vermelha"
-          className="absolute top-0 right-0"
+          className="absolute top-0 right-0 w-24 sm:w-32 md:w-auto"
         />
 
         <img
           src={bolaVermelhaBrancaEsquerda}
           alt="bola vermelha"
-          className="absolute bottom-0 left-0"
+          className="absolute bottom-0 left-0 w-24 sm:w-32 md:w-auto"
         />
 
-        <div className="bg-white w-[600px] h-[800px] 
-                        p-6 rounded-4xl shadow-lg flex flex-col items-center">
+        <div className="bg-white w-full max-w-[90%] sm:max-w-[500px] md:max-w-[600px] min-h-[600px] sm:min-h-[700px] md:h-[800px] 
+                        p-4 sm:p-6 rounded-3xl md:rounded-4xl shadow-lg flex flex-col items-center">
           <img
             src={LogoDeRecuperarSenha}
             alt="logo recuperar"
-            className="w-70 h-90 mb-3"
+            className="w-48 h-56 sm:w-56 sm:h-64 md:w-70 md:h-90 mb-3 object-contain"
           />
 
-          <h2 className="text-3xl font-bold mb-1 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold mb-1 text-center">
             Recuperar Senha
           </h2>
-          <p className="text-1xl text-center mb-4">
+          <p className="text-base sm:text-lg md:text-xl text-center mb-4">
             Preencha o campo abaixo com o seu email
           </p>
 
           {/* Mensagem de erro */}
           {errorMsg && (
             <div className="bg-red-100 border border-red-400 text-red-700 
-                            px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
+                            px-4 py-3 rounded mb-4 w-full max-w-[350px] sm:max-w-[400px] text-center text-sm">
               {errorMsg}
             </div>
           )}
 
-          <div className="relative w-[400px]">
+          <div className="relative w-full max-w-[350px] sm:max-w-[400px]">
             <img
               src={iconEmail}
               alt="icon email"
-              className="absolute left-3 top-1/2 transform  w-6 h-6 text-gray-400 z-10"
+              className="absolute left-3 top-1/2 transform -translate-y-1/15 w-5 h-5 sm:w-6 sm:h-6 text-gray-400 z-10"
             />
 
             <Input
@@ -105,18 +105,18 @@ function RecuperarSenha() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              className="h-[55px] bg-gray rounded-[36px] text-[16px] px-10 
-                         placeholder:text-[20px] placeholder:text-gray-20 font-[Poppins]
-                         border-2 border-[#b2b1b1] mt-7"
+              className="h-[50px] sm:h-[55px] bg-gray rounded-[36px] text-[14px] sm:text-[16px] px-10 
+                         placeholder:text-[16px] sm:placeholder:text-[20px] placeholder:text-gray-20 font-[Poppins]
+                         border-2 border-[#b2b1b1] mt-6 sm:mt-7"
             />
           </div>
 
           <Button
-            onClick={handleNextStep} // 👉 chama a API
+            onClick={handleNextStep}
             disabled={loading}
-            className="mt-10 bg-[#25992E] w-[200px] h-[50px] 
-            text-white px-10 py-2 rounded-full text-lg font-bold hover:bg-[#4D8832]
-            disabled:opacity-50"
+            className="mt-8 sm:mt-10 bg-[#25992E] w-[180px] sm:w-[200px] h-[45px] sm:h-[50px] 
+            text-white px-8 sm:px-10 py-2 rounded-full text-base sm:text-lg font-bold hover:bg-[#4D8832]
+            disabled:opacity-50 hover:scale-105 active:scale-95 transition-all duration-300"
           >
             {loading ? "Enviando..." : "Avançar"}
           </Button>

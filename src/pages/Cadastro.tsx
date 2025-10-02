@@ -23,7 +23,6 @@ function Cadastro() {
   const [cpf, setCpf] = useState('')
   const [cnpj, setCnpj] = useState('')
   const [telefone, setTelefone] = useState('')
-  const [dataNascimento, setDataNascimento] = useState('')
 
   // Senhas
   const [senha, setSenha] = useState('')
@@ -68,7 +67,7 @@ function Cadastro() {
       cpf: tipoPessoa === "consumidor" ? cpf : null,
       cnpj: tipoPessoa === "estabelecimento" ? cnpj : null,
       telefone: telefone,
-      data_nascimento: dataNascimento || new Date().toISOString().split('T')[0]
+      data_nascimento: new Date().toISOString().split('T')[0]
     }
 
     try {
@@ -91,21 +90,21 @@ function Cadastro() {
   return (
     <div className='h-screen w-screen overflow-hidden flex flex-col bg-white'>
       {/* Imagens decorativas flutuantes */}
-      <img src={bolalaranjaCadastro} alt="bola laranja" className="absolute top-0 right-0 w-40 sm:w-52 md:w-94 animate-float-slow" />
-      <img src={bolavermelhaCadastro} alt="bola vermelha" className="absolute top-36 left-0 w-16 sm:w-28 md:w-66 animate-float-fast" />
+      <img src={bolalaranjaCadastro} alt="bola laranja" className="absolute top-0 right-0 w-24 sm:w-32 md:w-40 lg:w-52 animate-float-slow" />
+      <img src={bolavermelhaCadastro} alt="bola vermelha" className="absolute top-20 sm:top-28 md:top-36 left-0 w-12 sm:w-16 md:w-20 lg:w-28 animate-float-fast" />
 
-      <div className="flex-1 flex flex-col items-center justify-center px-4 relative z-10">
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 relative z-10 overflow-y-auto">
         <img
           src={muiemexendonoscompuiter}
           alt="mulher mexendo no computador"
-          className="w-auto h-[25%] object-contain animate-zoom-in"
+          className="w-auto h-[15%] sm:h-[20%] md:h-[25%] object-contain animate-zoom-in mb-4"
         />
 
         {/* Toggle Pessoa */}
-        <div className="flex bg-gray-100 rounded-full p-1 mb-6 shadow-md animate-slide-up">
+        <div className="flex bg-gray-100 rounded-full p-1 mb-4 sm:mb-6 shadow-md animate-slide-up">
           <button
             onClick={() => handleToggle('consumidor')}
-            className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+            className={`px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 ${
               tipoPessoa === 'consumidor'
                 ? 'text-white bg-green-500 shadow-md'
                 : 'text-gray-600 hover:text-gray-800'
@@ -115,7 +114,7 @@ function Cadastro() {
           </button>
           <button
             onClick={() => handleToggle('estabelecimento')}
-            className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+            className={`px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-medium transition-all duration-300 ${
               tipoPessoa === 'estabelecimento'
                 ? 'text-white bg-green-500 shadow-md'
                 : 'text-gray-600 hover:text-gray-800'
@@ -126,28 +125,28 @@ function Cadastro() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="w-full max-w-md space-y-4 animate-fade-in">
+        <form onSubmit={handleSubmit} className="w-full max-w-md space-y-3 sm:space-y-4 animate-fade-in">
           {tipoPessoa === 'consumidor' ? (
             <>
               <Input 
                 placeholder="Nome completo *" 
                 value={nome} 
                 onChange={(e) => setNome(e.target.value)}
-                className="h-[59px] bg-white rounded-[10px] text-[22px] px-6 placeholder:text-[20px] 
+                className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
               <Input 
                 placeholder="CPF *" 
                 value={cpf} 
                 onChange={(e) => setCpf(e.target.value)}
-                className="h-[59px] bg-white rounded-[10px] text-[22px] px-6 placeholder:text-[20px] 
+                className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
               <Input 
                 placeholder="Telefone *" 
                 value={telefone} 
                 onChange={(e) => setTelefone(e.target.value)}
-                className="h-[59px] bg-white rounded-[10px] text-[22px] px-6 placeholder:text-[20px] 
+                className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
               <Input 
@@ -155,7 +154,7 @@ function Cadastro() {
                 type="email" 
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-[59px] bg-white rounded-[10px] text-[22px] px-6 placeholder:text-[20px] 
+                className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
             </>
           ) : (
@@ -164,21 +163,21 @@ function Cadastro() {
                 placeholder="Nome Da Empresa *" 
                 value={nome} 
                 onChange={(e) => setNome(e.target.value)}
-                className="h-[59px] bg-white rounded-[10px] text-[22px] px-6 placeholder:text-[20px] 
+                className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
               <Input 
                 placeholder="CNPJ *" 
                 value={cnpj} 
                 onChange={(e) => setCnpj(e.target.value)}
-                className="h-[59px] bg-white rounded-[10px] text-[22px] px-6 placeholder:text-[20px] 
+                className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
               <Input 
                 placeholder="Telefone *" 
                 value={telefone} 
                 onChange={(e) => setTelefone(e.target.value)}
-                className="h-[59px] bg-white rounded-[10px] text-[22px] px-6 placeholder:text-[20px] 
+                className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
               <Input 
@@ -186,7 +185,7 @@ function Cadastro() {
                 type="email" 
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-[59px] bg-white rounded-[10px] text-[22px] px-6 placeholder:text-[20px] 
+                className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
             </>
           )}
@@ -198,14 +197,14 @@ function Cadastro() {
                 type={showPassword ? "text" : "password"} 
                 value={senha} 
                 onChange={(e) => setSenha(e.target.value)}
-                className="h-[59px] bg-white rounded-[10px] text-[22px] px-6 placeholder:text-[20px] 
+                className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
               <button 
                 type="button" 
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-4 top-4 text-gray-500 hover:text-orange-500 transition-colors"
+                className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-orange-500 transition-colors"
               >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword ? <EyeOff size={18} className="sm:w-5 sm:h-5" /> : <Eye size={18} className="sm:w-5 sm:h-5" />}
               </button>
             </div>
 
@@ -214,7 +213,7 @@ function Cadastro() {
               type="password" 
               value={confirmarSenha} 
               onChange={(e) => setConfirmarSenha(e.target.value)}
-              className={`h-[59px] bg-white rounded-[10px] text-[22px] px-6 placeholder:text-[20px] 
+              className={`h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                         focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02] ${mostrarErro ? "border-2 border-red-400" : ""}`} />
 
             {mostrarErro && <p className="text-red-500 text-sm mt-1 px-2">❌ As senhas não coincidem</p>}
@@ -225,7 +224,7 @@ function Cadastro() {
           {successMsg && <p className="text-green-500 text-sm animate-pulse">{successMsg}</p>}
 
           <Button type="submit" disabled={loading || mostrarErro}
-                  className="w-full bg-green-500 hover:bg-orange-600 hover:scale-105 active:scale-95 shadow-lg transition-all duration-300">
+                  className="w-full h-[50px] sm:h-[55px] md:h-[60px] text-[16px] sm:text-[18px] md:text-[20px] bg-green-500 hover:bg-orange-600 hover:scale-105 active:scale-95 shadow-lg transition-all duration-300">
             {loading ? "Cadastrando..." : tipoPessoa === "estabelecimento" ? "Cadastrar Empresa" : "Cadastrar "}
           </Button>
           </form>

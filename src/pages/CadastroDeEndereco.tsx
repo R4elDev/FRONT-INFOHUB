@@ -146,36 +146,36 @@ function CadastroDeEndereco() {
 
   return (
     <div className='h-screen w-screen overflow-hidden flex flex-col'>
-      <div className='bg-[#FFFF] relative min-h-screen'>
+      <div className='bg-[#FFFF] relative h-full'>
         {/* Imagens decorativas */}
         <img 
           src={bolalaranjaCadastro} 
           alt="bola laranja" 
-          className="absolute top-0 right-0 w-40 sm:w-52 md:w-94 max-w-full" 
+          className="absolute top-0 right-0 w-24 sm:w-32 md:w-40 lg:w-52 max-w-full" 
         />
         <img 
           src={bolavermelhaCadastro} 
           alt="bola vermelha" 
-          className="absolute top-36 left-0 w-16 sm:w-28 md:w-66 max-w-full" 
+          className="absolute top-20 sm:top-28 md:top-36 left-0 w-12 sm:w-16 md:w-20 lg:w-28 max-w-full" 
         />
 
-        <div className="flex-1 flex flex-col items-center justify-center px-4">
+        <div className="h-full flex flex-col items-center justify-center px-4 py-4 overflow-y-auto">
           <img
             src={muiemexendonoscompuiter}
             alt="mulher mexendo no computador"
-            className="w-40 sm:w-56 md:w-72 lg:w-80 h-auto object-contain mb-4"
+            className="w-32 sm:w-40 md:w-56 lg:w-72 h-auto object-contain mb-4"
           />
 
           {/* Área de título/especificação */}
-          <div className="flex bg-gray-100 rounded-full p-1 mb-6">
-            <div className="px-6 py-2 rounded-full text-sm font-medium text-white bg-green-500 shadow-md">
+          <div className="flex bg-gray-100 rounded-full p-1 mb-4 sm:mb-6">
+            <div className="px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-medium text-white bg-green-500 shadow-md">
               Cadastro de Endereço
             </div>
           </div>
 
           {/* Formulário de Endereço */}
           <form 
-            className="w-full max-w-md space-y-4 mt-4 px-2 sm:px-4"
+            className="w-full max-w-md space-y-3 sm:space-y-4 mt-4 px-2 sm:px-4"
             onSubmit={handleNextStep}
           >
             <div className="relative">
@@ -187,10 +187,10 @@ function CadastroDeEndereco() {
                 maxLength={9}
                 disabled={carregandoCep}
                 required
-                className="h-[48px] sm:h-[59px] bg-white rounded-[5px] text-[20px] sm:text-[32px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[22px]"
+                className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[5px] text-[16px] sm:text-[20px] md:text-[22px] px-4 sm:px-6 placeholder:text-[14px] sm:placeholder:text-[18px] md:placeholder:text-[20px] focus:ring-2 focus:ring-orange-500 transition-all shadow-md"
               />
               {carregandoCep && (
-                <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-orange-500 text-sm">
+                <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-orange-500 text-xs sm:text-sm">
                   Buscando...
                 </span>
               )}
@@ -202,7 +202,7 @@ function CadastroDeEndereco() {
               value={rua} 
               onChange={(e) => setRua(e.target.value)} 
               required
-              className="h-[48px] sm:h-[59px] bg-white rounded-[5px] text-[20px] sm:text-[32px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[22px]"
+              className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[5px] text-[16px] sm:text-[20px] md:text-[22px] px-4 sm:px-6 placeholder:text-[14px] sm:placeholder:text-[18px] md:placeholder:text-[20px] focus:ring-2 focus:ring-orange-500 transition-all shadow-md"
             />
             
             <Input 
@@ -211,7 +211,7 @@ function CadastroDeEndereco() {
               value={numero} 
               onChange={(e) => setNumero(e.target.value)} 
               required
-              className="h-[48px] sm:h-[59px] bg-white rounded-[5px] text-[20px] sm:text-[32px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[22px]"
+              className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[5px] text-[16px] sm:text-[20px] md:text-[22px] px-4 sm:px-6 placeholder:text-[14px] sm:placeholder:text-[18px] md:placeholder:text-[20px] focus:ring-2 focus:ring-orange-500 transition-all shadow-md"
             />
             
             <Input 
@@ -219,7 +219,7 @@ function CadastroDeEndereco() {
               placeholder="Complemento" 
               value={complemento} 
               onChange={(e) => setComplemento(e.target.value)} 
-              className="h-[48px] sm:h-[59px] bg-white rounded-[5px] text-[20px] sm:text-[32px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[22px]"
+              className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[5px] text-[16px] sm:text-[20px] md:text-[22px] px-4 sm:px-6 placeholder:text-[14px] sm:placeholder:text-[18px] md:placeholder:text-[20px] focus:ring-2 focus:ring-orange-500 transition-all shadow-md"
             />
             
             <Input 
@@ -228,7 +228,7 @@ function CadastroDeEndereco() {
               value={bairro} 
               onChange={(e) => setBairro(e.target.value)} 
               required
-              className="h-[48px] sm:h-[59px] bg-white rounded-[5px] text-[20px] sm:text-[32px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[22px]"
+              className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[5px] text-[16px] sm:text-[20px] md:text-[22px] px-4 sm:px-6 placeholder:text-[14px] sm:placeholder:text-[18px] md:placeholder:text-[20px] focus:ring-2 focus:ring-orange-500 transition-all shadow-md"
             />
             
             <Input 
@@ -237,7 +237,7 @@ function CadastroDeEndereco() {
               value={cidade} 
               onChange={(e) => setCidade(e.target.value)} 
               required
-              className="h-[48px] sm:h-[59px] bg-white rounded-[5px] text-[20px] sm:text-[32px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[22px]"
+              className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[5px] text-[16px] sm:text-[20px] md:text-[22px] px-4 sm:px-6 placeholder:text-[14px] sm:placeholder:text-[18px] md:placeholder:text-[20px] focus:ring-2 focus:ring-orange-500 transition-all shadow-md"
             />
             
             <Input 
@@ -247,13 +247,13 @@ function CadastroDeEndereco() {
               onChange={(e) => setEstado(e.target.value.toUpperCase())}
               maxLength={2}
               required
-              className="h-[48px] sm:h-[59px] bg-white rounded-[5px] text-[20px] sm:text-[32px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[22px]" 
+              className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[5px] text-[16px] sm:text-[20px] md:text-[22px] px-4 sm:px-6 placeholder:text-[14px] sm:placeholder:text-[18px] md:placeholder:text-[20px] focus:ring-2 focus:ring-orange-500 transition-all shadow-md"
             />
             
             <Button 
               type="submit"
               disabled={carregandoCep}
-              className="w-full bg-orange-500 hover:bg-green-600 disabled:opacity-50"
+              className="w-full h-[50px] sm:h-[55px] md:h-[60px] text-[16px] sm:text-[18px] md:text-[20px] bg-orange-500 hover:bg-green-600 disabled:opacity-50 hover:scale-105 active:scale-95 shadow-lg transition-all duration-300"
             >
               Cadastrar Endereço
             </Button>
