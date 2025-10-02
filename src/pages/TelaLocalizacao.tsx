@@ -354,15 +354,16 @@ function Localizacao() {
       {/* Mapa */}
       <section
         className="mt-6 bg-white rounded-3xl border border-gray-100 
-                   shadow-[0_4px_20px_rgba(0,0,0,0.06)] overflow-hidden"
+                   shadow-[0_4px_20px_RGBA(0,0,0,0.06)] overflow-hidden"
       >
-        <div className="w-full h-[calc(100vh-400px)] min-h-[500px]">
+        <div className="w-full h-[calc(100vh-450px)] min-h-[400px] max-h-[600px]">
           <iframe
-            key={`${latitude}-${longitude}-${zoom}`}
+            key={`map-${latitude}-${longitude}-${zoom}-${Date.now()}`}
             src={`https://www.openstreetmap.org/export/embed.html?bbox=${longitude - 0.01},${latitude - 0.01},${longitude + 0.01},${latitude + 0.01}&layer=mapnik&marker=${latitude},${longitude}`}
             className="w-full h-full border-0"
             loading="lazy"
             title="Mapa de Localização"
+            allow="geolocation"
           />
         </div>
         <div className="p-4 bg-gray-50 border-t border-gray-200">
