@@ -261,7 +261,8 @@ function RecuperarSenhaFinal() {
           className="absolute bottom-0 left-0"
         />
 
-        <div className="bg-white w-[600px] h-[800px] p-6 rounded-4xl shadow-lg flex flex-col items-center overflow-y-auto">
+        <div className="bg-white w-[600px] h-[800px] p-6 rounded-4xl 
+                        shadow-lg flex flex-col items-center overflow-y-auto">
           <img
             src={LogoDeRecuperarSenha}
             alt="logo recuperar"
@@ -275,14 +276,16 @@ function RecuperarSenhaFinal() {
 
           {/* Mensagem de erro */}
           {errorMsg && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
+            <div className="bg-red-100 border border-red-400 text-red-700 
+                            px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
               {errorMsg}
             </div>
           )}
 
           {/* Mensagem de sucesso */}
           {successMsg && (
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
+            <div className="bg-green-100 border border-green-400 
+                            text-green-700 px-4 py-3 rounded mb-4 w-[400px] text-center text-sm">
               {successMsg}
             </div>
           )}
