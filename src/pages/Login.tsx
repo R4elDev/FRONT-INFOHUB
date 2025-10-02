@@ -32,7 +32,7 @@ function Login() {
 
       if (res.status) {
         localStorage.setItem("auth_token", res.token);
-        navigate("/dashboard");
+        navigate("/HomeInicial");
       } else {
         setErrorMsg("E-mail ou senha incorretos");
       }
