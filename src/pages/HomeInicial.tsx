@@ -1,42 +1,13 @@
 import { Button as Botao } from "../components/ui/button"
 import { Input as CampoTexto } from "../components/ui/input"
-
 import iconJarra from "../assets/icon de jara.png"
-import iconMenu from "../assets/icon de menu.png"
-import iconNotificacao from "../assets/icon de notificacao.png"
-import logoHome from "../assets/logo da home.png"
 import lupaPesquisa from "../assets/lupa de pesquisa .png"
 import microfoneVoz from "../assets/microfone de voz.png"
+import SidebarLayout from "../components/layouts/SidebarLayout"
 
 function HomeInicial() {
   return (
-    <div className="min-h-screen w-screen overflow-x-hidden bg-gradient-to-b from-gray-50 to-white">
-      {/* Barra Superior */}
-      <header 
-        className="w-full h-20 bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] 
-                   shadow-lg flex items-center justify-between px-8 sticky top-0 z-50"
-      >
-        <img 
-          src={logoHome} 
-          alt="Início" 
-          className="h-14 drop-shadow-md transition-transform hover:scale-105" 
-        />
-        <div className="flex items-center gap-6">
-          <button className="relative transition-transform hover:scale-110">
-            <img src={iconNotificacao} alt="Notificações" className="w-9 h-11 drop-shadow-sm" />
-            <span 
-              className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full 
-                         text-white text-[10px] font-bold flex items-center justify-center"
-            ></span>
-          </button>
-          <button className="transition-transform hover:scale-110">
-            <img src={iconMenu} alt="Menu" className="w-16 h-12 drop-shadow-sm" />
-          </button>
-        </div>
-      </header>
-
-      {/* Conteúdo Principal */}
-      <main className="w-full px-6 md:px-12 pb-12">
+    <SidebarLayout>
         {/* Banner Principal */}
         <section className="mt-8">
           <div 
@@ -45,8 +16,7 @@ function HomeInicial() {
                        relative overflow-hidden"
           >
             <div 
-              className="absolute inset-0 opacity-30
-                         bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')]" 
+              className="absolute inset-0 opacity-30 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')']"
             ></div>
           </div>
           {/* Pontinhos do Carrossel */}
@@ -203,8 +173,7 @@ function HomeInicial() {
             />
           </div>
         </section>
-      </main>
-    </div>
+    </SidebarLayout>
   )
 }
 
