@@ -17,6 +17,11 @@ import DetalhesProduto from './pages/DetalhesProduto'
 import Carrinho from './pages/Carrinho'
 import Checkout from './pages/Checkout'
 import PagamentoSucesso from './pages/PagamentoSucesso'
+import PerfilUsuario from './pages/PerfilUsuario'
+import PerfilEmpresa from './pages/PerfilEmpresa'
+import DashboardEmpresa from './pages/DashboardEmpresa'
+import ConfiguracoesEmpresa from './pages/ConfiguracoesEmpresa'
+import ConfiguracoesUsuario from './pages/ConfiguracoesUsuario'
 
 
 
@@ -39,6 +44,11 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/carrinho" element={<Carrinho/>} />
         <Route path="/checkout" element={<Checkout/>} />
         <Route path="/pagamento-sucesso" element={<PagamentoSucesso/>} />
+        <Route path="/perfil" element={<PerfilUsuario/>} />
+        <Route path="/perfil-empresa" element={<DashboardEmpresa/>} />
+        <Route path="/editar-perfil-empresa" element={<PerfilEmpresa/>} />
+        <Route path="/configuracoes-empresa" element={<ConfiguracoesEmpresa/>} />
+        <Route path="/configuracoes" element={<ConfiguracoesUsuario/>} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

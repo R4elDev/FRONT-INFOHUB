@@ -59,20 +59,32 @@ function Cadastro() {
       return
     }
 
-    const payload: cadastroRequest = {
-      nome,
-      email,
-      senha_hash: senha,
-      perfil: tipoPessoa,
-      cpf: tipoPessoa === "consumidor" ? cpf : null,
-      cnpj: tipoPessoa === "estabelecimento" ? cnpj : null,
-      telefone: telefone,
-      data_nascimento: new Date().toISOString().split('T')[0]
-    }
+    const payload: any = tipoPessoa === "consumidor" 
+      ? {
+          nome,
+          email,
+          senha_hash: senha,
+          perfil: tipoPessoa,
+          cpf: cpf,
+          telefone: telefone,
+          data_nascimento: new Date().toISOString().split('T')[0]
+        }
+      : {
+          nome,
+          email,
+          senha_hash: senha,
+          perfil: tipoPessoa,
+          cnpj: cnpj,
+          telefone: telefone
+          // Removido data_nascimento para empresas
+        }
+
+    console.log("📤 Enviando payload:", payload)
 
     try {
       setLoading(true)
       const res = await cadastrarUsuario(payload)
+      console.log("📥 Resposta do servidor:", res)
 
       if (res.status) {
         setSuccessMsg(res.message)
@@ -81,7 +93,9 @@ function Cadastro() {
         setErrorMsg(res.message)
       }
     } catch (err: any) {
-      setErrorMsg("Erro ao cadastrar, tente novamente.")
+      console.error("❌ Erro completo:", err)
+      console.error("❌ Resposta do erro:", err.response?.data)
+      setErrorMsg(err.response?.data?.message || "Erro ao cadastrar, tente novamente.")
     } finally {
       setLoading(false)
     }

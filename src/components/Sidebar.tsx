@@ -6,6 +6,7 @@ import iconDolar from "../assets/iconDolar.png"
 import iconChat from "../assets/iconChat.png"
 import iconFavorito from "../assets/iconFavorito.png"
 import iconCompras from "../assets/iconCompras.png"
+import iconPerfil from "../assets/iconPerfil.png"
 
 interface SidebarProps {
   isOpen: boolean
@@ -20,6 +21,7 @@ const menuItems = [
   { to: "/ChatPrecos", label: "IA", icon: iconChat },
   { to: "/favoritos", label: "Favoritos", icon: iconFavorito },
   { to: "/carrinho", label: "Carrinho", icon: iconCompras },
+  { to: "/perfil", label: "Perfil", icon: iconPerfil },
 ]
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
