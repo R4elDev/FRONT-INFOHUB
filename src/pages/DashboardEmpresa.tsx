@@ -14,7 +14,7 @@ function DashboardEmpresa() {
       <div className="min-h-screen bg-gray-50 py-6 px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header - Perfil da Empresa */}
-          <div className="bg-white rounded-3xl shadow-lg p-6 mb-6 relative">
+          <div className="bg-white rounded-3xl shadow-lg p-6 mb-6 relative animate-fadeInDown">
             <button 
               onClick={() => navigate('/configuracoes-empresa')}
               className="absolute top-4 right-4 text-gray-400 hover:text-[#F9A01B] transition-colors"
@@ -25,7 +25,7 @@ function DashboardEmpresa() {
             
             <div className="flex flex-col items-center">
               {/* Logo */}
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] flex items-center justify-center text-white text-4xl font-bold shadow-xl mb-4">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] flex items-center justify-center text-white text-4xl font-bold shadow-xl mb-4 animate-bounceIn hover-glow">
                 iJ
               </div>
               
@@ -48,7 +48,7 @@ function DashboardEmpresa() {
           {/* Cards de Métricas */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {/* Promoções Ativas */}
-            <div className="bg-white rounded-2xl shadow-md p-6">
+            <div className="bg-white rounded-2xl shadow-md p-6 animate-fadeInUp animate-delay-100 hover-lift">
               <h3 className="text-gray-600 text-sm font-medium mb-2">Promoções Ativas</h3>
               <div className="flex items-end justify-between">
                 <div>
@@ -60,7 +60,7 @@ function DashboardEmpresa() {
             </div>
 
             {/* Vendas Hoje */}
-            <div className="bg-white rounded-2xl shadow-md p-6">
+            <div className="bg-white rounded-2xl shadow-md p-6 animate-fadeInUp animate-delay-200 hover-lift">
               <h3 className="text-gray-600 text-sm font-medium mb-2">Vendas Hoje</h3>
               <div className="flex items-end justify-between">
                 <div>
@@ -72,7 +72,7 @@ function DashboardEmpresa() {
             </div>
 
             {/* Produtos Cadastrados */}
-            <div className="bg-white rounded-2xl shadow-md p-6">
+            <div className="bg-white rounded-2xl shadow-md p-6 animate-fadeInUp animate-delay-300 hover-lift">
               <h3 className="text-gray-600 text-sm font-medium mb-2">Produtos Cadastrados</h3>
               <div className="flex items-end justify-between">
                 <div>
@@ -84,7 +84,7 @@ function DashboardEmpresa() {
             </div>
 
             {/* Avaliação Média */}
-            <div className="bg-white rounded-2xl shadow-md p-6">
+            <div className="bg-white rounded-2xl shadow-md p-6 animate-fadeInUp animate-delay-400 hover-lift">
               <h3 className="text-gray-600 text-sm font-medium mb-2">Avaliação Média</h3>
               <div className="flex items-end justify-between">
                 <div>
