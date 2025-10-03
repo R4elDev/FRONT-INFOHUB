@@ -55,7 +55,7 @@ function ConfiguracoesUsuario() {
       <div className="min-h-screen bg-gray-50 py-6 px-4">
         <div className="max-w-5xl mx-auto">
           {/* Header */}
-          <div className="bg-white rounded-3xl shadow-lg p-6 mb-6">
+          <div className="bg-white rounded-3xl shadow-lg p-6 mb-6 animate-fadeInDown">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate('/perfil')}
@@ -77,7 +77,7 @@ function ConfiguracoesUsuario() {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Menu Lateral */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-md p-4 space-y-2">
+              <div className="bg-white rounded-2xl shadow-md p-4 space-y-2 animate-fadeInUp">
                 <button
                   onClick={() => setActiveTab('geral')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
@@ -144,7 +144,7 @@ function ConfiguracoesUsuario() {
             <div className="lg:col-span-3">
               {/* Perfil */}
               {activeTab === 'geral' && (
-                <div className="bg-white rounded-3xl shadow-lg p-6">
+                <div className="bg-white rounded-3xl shadow-lg p-6 animate-scaleIn">
                   <h2 className="text-xl font-bold text-gray-800 mb-6">Informações Pessoais</h2>
                   
                   <div className="space-y-4">
@@ -238,7 +238,7 @@ function ConfiguracoesUsuario() {
 
               {/* Notificações */}
               {activeTab === 'notificacoes' && (
-                <div className="bg-white rounded-3xl shadow-lg p-6">
+                <div className="bg-white rounded-3xl shadow-lg p-6 animate-scaleIn">
                   <h2 className="text-xl font-bold text-gray-800 mb-6">Preferências de Notificações</h2>
                   
                   <div className="space-y-6">
@@ -348,7 +348,7 @@ function ConfiguracoesUsuario() {
 
               {/* Segurança */}
               {activeTab === 'seguranca' && (
-                <div className="bg-white rounded-3xl shadow-lg p-6">
+                <div className="bg-white rounded-3xl shadow-lg p-6 animate-scaleIn">
                   <h2 className="text-xl font-bold text-gray-800 mb-6">Segurança da Conta</h2>
                   
                   <div className="space-y-6">

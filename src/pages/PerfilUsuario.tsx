@@ -28,7 +28,7 @@ function PerfilUsuario() {
   return (
     <SidebarLayout>
       <div className="flex flex-col items-center justify-center min-h-screen py-8 px-4">
-        <div className="w-full max-w-2xl bg-white rounded-3xl shadow-lg p-8 relative">
+        <div className="w-full max-w-2xl bg-white rounded-3xl shadow-lg p-8 relative animate-scaleIn">
           {/* Botão de Configurações */}
           <button 
             onClick={() => navigate('/configuracoes')}
@@ -46,7 +46,7 @@ function PerfilUsuario() {
           <div className="flex flex-col md:flex-row gap-8 items-start">
             {/* Foto de Perfil */}
             <div className="flex flex-col items-center">
-              <div className="w-40 h-40 rounded-full bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] flex items-center justify-center shadow-xl">
+              <div className="w-40 h-40 rounded-full bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] flex items-center justify-center shadow-xl animate-bounceIn hover-glow">
                 <div className="w-36 h-36 rounded-full bg-white flex items-center justify-center">
                   <svg
                     className="w-20 h-20 text-[#F9A01B]"
@@ -111,7 +111,7 @@ function PerfilUsuario() {
               <div className="flex gap-4 pt-4">
                 <button
                   onClick={handleSalvar}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition-colors"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition-colors hover-scale"
                 >
                   SALVAR
                 </button>
