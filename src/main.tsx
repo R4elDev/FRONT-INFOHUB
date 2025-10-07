@@ -25,6 +25,7 @@ import ConfiguracoesUsuario from './pages/ConfiguracoesUsuario'
 import InfoCash from './pages/InfoCash'
 import InfoCashComentarios from './pages/InfoCashComentarios'
 import InfoCashNovoComentario from './pages/InfoCashNovoComentario'
+import Favoritos from './pages/Favoritos'
 
 
 
@@ -55,6 +56,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/infocash" element={<InfoCash/>} />
         <Route path="/infocash/comentarios" element={<InfoCashComentarios/>} />
         <Route path="/infocash/novo" element={<InfoCashNovoComentario/>} />
+        <Route path="/favoritos" element={<Favoritos/>} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
