@@ -22,6 +22,9 @@ import PerfilEmpresa from './pages/PerfilEmpresa'
 import DashboardEmpresa from './pages/DashboardEmpresa'
 import ConfiguracoesEmpresa from './pages/ConfiguracoesEmpresa'
 import ConfiguracoesUsuario from './pages/ConfiguracoesUsuario'
+import InfoCash from './pages/InfoCash'
+import InfoCashComentarios from './pages/InfoCashComentarios'
+import InfoCashNovoComentario from './pages/InfoCashNovoComentario'
 
 
 
@@ -49,6 +52,9 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/editar-perfil-empresa" element={<PerfilEmpresa/>} />
         <Route path="/configuracoes-empresa" element={<ConfiguracoesEmpresa/>} />
         <Route path="/configuracoes" element={<ConfiguracoesUsuario/>} />
+        <Route path="/infocash" element={<InfoCash/>} />
+        <Route path="/infocash/comentarios" element={<InfoCashComentarios/>} />
+        <Route path="/infocash/novo" element={<InfoCashNovoComentario/>} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
