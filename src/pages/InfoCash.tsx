@@ -8,9 +8,7 @@ import iconPerfilComentario from "../assets/iconPerfilComentario.png"
 import iconDeCurtida from "../assets/iconDeCurtida.png"
 import iconDeComentarios from "../assets/iconDeComentarios.png"
 import iconDePaginaComentario from "../assets/iconDePaginaComentario.png"
-import lupaPesquisa from "../assets/lupa de pesquisa .png"
-import microfoneVoz from "../assets/microfone de voz.png"
-import { Input as CampoTexto } from "../components/ui/input"
+
 
 export default function InfoCash() {
   return (
@@ -30,23 +28,7 @@ export default function InfoCash() {
         />
 
         <div className="relative z-10 px-4 sm:px-6 md:px-12 py-4">
-          {/* Barra de Pesquisa */}
-          <section className="mb-4">
-            <div className="relative w-full bg-white rounded-3xl border border-gray-100 shadow-md">
-              <img
-                src={lupaPesquisa}
-                alt="Pesquisar"
-                className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5"
-              />
-              <CampoTexto
-                placeholder="Digite para buscar produtos..."
-                className="h-14 pl-14 pr-14 rounded-3xl border-0 text-gray-700 focus-visible:ring-2 focus-visible:ring-[#F9A01B] placeholder:text-gray-400"
-              />
-              <button className="absolute right-5 top-1/2 -translate-y-1/2">
-                <img src={microfoneVoz} alt="Voz" className="w-5 h-6" />
-              </button>
-            </div>
-          </section>
+          
 
           {/* Header */}
           <h1 className="text-[#F9A01B] text-lg font-bold mb-3">InfoCash</h1>
