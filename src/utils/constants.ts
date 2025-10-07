@@ -56,7 +56,7 @@ export const COLORS = {
 export const CONFIG = {
   APP_NAME: 'InfoHub',
   VERSION: '1.0.0',
-  API_URL: process.env.REACT_APP_API_URL || 'http://localhost:3001',
+  API_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/v1/infohub',
 } as const
 
 // Mensagens
