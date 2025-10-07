@@ -1,37 +1,70 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import './index.css'
-import Home from './pages/Home'
-import Login from './pages/Login'
-import Cadastro from './pages/Cadastro'
-import RecuperarSenha from './pages/RecuperarSenha1'
-import RecuperarSenha2 from './pages/RecuperarSenha2'
-import RecuperarSenhaFinal from './pages/RecuperarSenhaFinal'
-import CadastroDeEndereco from './pages/CadastroDeEndereco'
-import Localizacao from './pages/TelaLocalizacao'
-import HomeInicial from './pages/HomeInicial'
-import ChatPrecos from './pages/ChatPrecos'
-import Promocoes from './pages/Promocoes'
-import DetalhesProduto from './pages/DetalhesProduto'
-import Carrinho from './pages/Carrinho'
-import Checkout from './pages/Checkout'
-import PagamentoSucesso from './pages/PagamentoSucesso'
-import PerfilUsuario from './pages/PerfilUsuario'
-import PerfilEmpresa from './pages/PerfilEmpresa'
-import DashboardEmpresa from './pages/DashboardEmpresa'
-import ConfiguracoesEmpresa from './pages/ConfiguracoesEmpresa'
-import ConfiguracoesUsuario from './pages/ConfiguracoesUsuario'
-import InfoCash from './pages/InfoCash'
-import InfoCashComentarios from './pages/InfoCashComentarios'
-import InfoCashNovoComentario from './pages/InfoCashNovoComentario'
-import Favoritos from './pages/Favoritos'
+
+// Páginas de início
+import Home from './pages/inicio/Home'
+import HomeInicial from './pages/inicio/HomeInicial'
+import Localizacao from './pages/inicio/TelaLocalizacao'
+import CadastroDeEndereco from './pages/inicio/CadastroDeEndereco'
+
+// Páginas de autenticação
+import Login from './pages/autenticacao/Login'
+import Cadastro from './pages/autenticacao/Cadastro'
+import RecuperarSenha from './pages/autenticacao/RecuperarSenha1'
+import RecuperarSenha2 from './pages/autenticacao/RecuperarSenha2'
+import RecuperarSenhaFinal from './pages/autenticacao/RecuperarSenhaFinal'
+
+// Páginas de produtos
+import ChatPrecos from './pages/produtos/ChatPrecos'
+import Promocoes from './pages/produtos/Promocoes'
+import DetalhesProduto from './pages/produtos/DetalhesProduto'
+import Favoritos from './pages/produtos/Favoritos'
+
+// Páginas de carrinho
+import Carrinho from './pages/carrinho/Carrinho'
+import Checkout from './pages/carrinho/Checkout'
+import PagamentoSucesso from './pages/carrinho/PagamentoSucesso'
+
+// Páginas de perfil
+import PerfilUsuario from './pages/perfil/PerfilUsuario'
+import PerfilEmpresa from './pages/perfil/PerfilEmpresa'
+import DashboardEmpresa from './pages/perfil/DashboardEmpresa'
+import ConfiguracoesEmpresa from './pages/perfil/ConfiguracoesEmpresa'
+import ConfiguracoesUsuario from './pages/perfil/ConfiguracoesUsuario'
+
+// Páginas de InfoCash
+import InfoCash from './pages/infocash/InfoCash'
+import InfoCashComentarios from './pages/infocash/InfoCashComentarios'
+import InfoCashNovoComentario from './pages/infocash/InfoCashNovoComentario'
 
 
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            style: {
+              background: '#10b981',
+            },
+          },
+          error: {
+            style: {
+              background: '#ef4444',
+            },
+          },
+        }}
+      />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
