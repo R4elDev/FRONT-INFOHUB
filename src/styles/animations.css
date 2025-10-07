@@ -114,13 +114,23 @@
   }
 }
 
-/* Float (Flutuação) */
+/* Float (Flutuação) - Otimizada */
 @keyframes float {
   0%, 100% {
-    transform: translateY(0px);
+    transform: translate3d(0, 0, 0);
   }
   50% {
-    transform: translateY(-10px);
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
+/* Float Reverse (Flutuação Reversa) - Otimizada */
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, 8px, 0);
   }
 }
 
@@ -211,7 +221,13 @@
 }
 
 .animate-float {
-  animation: float 3s ease-in-out infinite;
+  animation: float 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 4s ease-in-out infinite;
+  will-change: transform;
 }
 
 .animate-shake {
@@ -309,4 +325,85 @@
 /* Estado inicial (opacity 0) */
 .opacity-0-start {
   opacity: 0;
+}
+
+/* ========================================
+   OTIMIZAÇÕES DE PERFORMANCE
+   ======================================== */
+
+/* Container para evitar overflow das animações */
+.animation-container {
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Otimizações de GPU */
+.gpu-accelerated {
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Transições otimizadas */
+.transition-fast {
+  transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+}
+
+.transition-medium {
+  transition: transform 0.25s ease-out, opacity 0.25s ease-out;
+}
+
+.transition-slow {
+  transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+}
+
+/* Hover effects otimizados */
+.hover-scale-sm:hover {
+  transform: scale(1.02);
+}
+
+.hover-scale-md:hover {
+  transform: scale(1.05);
+}
+
+.hover-scale-lg:hover {
+  transform: scale(1.1);
+}
+
+/* Prevenção de overflow em elementos animados */
+.no-overflow {
+  overflow: hidden;
+  max-width: 100%;
+  width: 100%;
+}
+
+/* Contenção de elementos flutuantes */
+.float-container {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.float-container > * {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Animações com contenção */
+.animate-float-contained {
+  animation: float 4s ease-in-out infinite;
+  will-change: transform;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.animate-float-reverse-contained {
+  animation: float-reverse 4s ease-in-out infinite;
+  will-change: transform;
+  max-width: 100%;
+  max-height: 100%;
 }
