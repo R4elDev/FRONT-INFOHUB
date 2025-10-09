@@ -1,15 +1,35 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { Settings } from "lucide-react"
+import { useRouteProtection } from "../../hooks/useUserRedirect"
+import { getLoggedUserData } from "../../services/requests"
+import { PROFESSIONAL_LIMITS } from "../../utils/validation"
 
 function PerfilUsuario() {
   const navigate = useNavigate()
+  const { hasAccess } = useRouteProtection('consumidor')
+  
   const [cpf, setCpf] = useState<string>("")
   const [nomeCompleto, setNomeCompleto] = useState<string>("")
   const [email, setEmail] = useState<string>("")
   const [senha, setSenha] = useState<string>("")
   const [confirmarSenha, setConfirmarSenha] = useState<string>("")
+
+  // Carregar dados do usuário logado
+  useEffect(() => {
+    const userData = getLoggedUserData()
+    if (userData) {
+      setNomeCompleto(userData.nome || "")
+      setEmail(userData.email || "")
+      setCpf(userData.cpf || "")
+    }
+  }, [])
+
+  // Se não tem acesso, não renderiza nada (redirecionamento automático)
+  if (!hasAccess) {
+    return null
+  }
 
   const handleSalvar = () => {
     // Aqui virá a lógica de salvar via API
@@ -77,6 +97,7 @@ function PerfilUsuario() {
                 placeholder="Nome Completo*"
                 value={nomeCompleto}
                 onChange={(e) => setNomeCompleto(e.target.value)}
+                maxLength={PROFESSIONAL_LIMITS.NOME_MAX}
                 className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
               />
 
@@ -86,6 +107,7 @@ function PerfilUsuario() {
                 placeholder="Email*"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                maxLength={PROFESSIONAL_LIMITS.EMAIL_MAX}
                 className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
               />
 

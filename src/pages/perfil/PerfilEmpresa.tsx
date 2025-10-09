@@ -1,7 +1,12 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
+import { useRouteProtection } from "../../hooks/useUserRedirect"
+import { getLoggedUserData } from "../../services/requests"
+import { PROFESSIONAL_LIMITS } from "../../utils/validation"
 
 function PerfilEmpresa() {
+  const { hasAccess } = useRouteProtection('estabelecimento')
+  
   const [cnpj, setCnpj] = useState<string>("")
   const [nomeEmpresa, setNomeEmpresa] = useState<string>("")
   const [razaoSocial, setRazaoSocial] = useState<string>("")
@@ -10,6 +15,24 @@ function PerfilEmpresa() {
   const [endereco, setEndereco] = useState<string>("")
   const [senha, setSenha] = useState<string>("")
   const [confirmarSenha, setConfirmarSenha] = useState<string>("")
+
+  // Carregar dados da empresa logada
+  useEffect(() => {
+    const userData = getLoggedUserData()
+    if (userData) {
+      setNomeEmpresa(userData.nome || "")
+      setEmail(userData.email || "")
+      setCnpj(userData.cnpj || "")
+      setTelefone(userData.telefone || "")
+      setEndereco(userData.endereco || "")
+      setRazaoSocial(userData.razao_social || "")
+    }
+  }, [])
+
+  // Se não tem acesso, não renderiza nada (redirecionamento automático)
+  if (!hasAccess) {
+    return null
+  }
 
   const handleSalvar = () => {
     // Aqui virá a lógica de salvar via API
@@ -72,6 +95,7 @@ function PerfilEmpresa() {
                 placeholder="Nome da Empresa*"
                 value={nomeEmpresa}
                 onChange={(e) => setNomeEmpresa(e.target.value)}
+                maxLength={PROFESSIONAL_LIMITS.NOME_EMPRESA_MAX}
                 className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
               />
 
@@ -81,15 +105,17 @@ function PerfilEmpresa() {
                 placeholder="Razão Social*"
                 value={razaoSocial}
                 onChange={(e) => setRazaoSocial(e.target.value)}
+                maxLength={PROFESSIONAL_LIMITS.RAZAO_SOCIAL_MAX}
                 className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
               />
 
               {/* Email */}
               <input
                 type="email"
-                placeholder="Email Corporativo*"
+                placeholder="Email*"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                maxLength={PROFESSIONAL_LIMITS.EMAIL_MAX}
                 className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
               />
 
@@ -99,8 +125,8 @@ function PerfilEmpresa() {
                 placeholder="Telefone*"
                 value={telefone}
                 onChange={(e) => setTelefone(e.target.value)}
+                maxLength={PROFESSIONAL_LIMITS.TELEFONE_MAX}
                 className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
-                maxLength={15}
               />
 
               {/* Endereço */}
@@ -109,6 +135,7 @@ function PerfilEmpresa() {
                 placeholder="Endereço Completo*"
                 value={endereco}
                 onChange={(e) => setEndereco(e.target.value)}
+                maxLength={PROFESSIONAL_LIMITS.ENDERECO_MAX}
                 className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
               />
 

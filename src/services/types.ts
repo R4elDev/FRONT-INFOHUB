@@ -12,7 +12,12 @@ export type loginResponse = {
         id: number,
         nome: string,
         email: string,
-        perfil: string
+        perfil: 'consumidor' | 'admin' | 'estabelecimento',
+        cpf?: string,
+        cnpj?: string,
+        telefone?: string,
+        endereco?: string,
+        razao_social?: string
     }
 }
 
@@ -23,8 +28,8 @@ export type cadastroRequest = {
   perfil: 'consumidor' | 'admin' | 'estabelecimento';
   cpf?: string | null;
   cnpj?: string | null;
-  telefone?: string | null
-  data_nascimento: string;
+  telefone?: string | null;
+  data_nascimento?: string; // Opcional para empresas
 };
 
 

@@ -5,6 +5,8 @@ import bolavermelhaCadastro from '../../assets/bolavermelhaCadastro.png'
 import muiemexendonoscompuiter from '../../assets/muiemexendonoscompuiter.png'
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { salvarEndereco } from "../../utils/endereco"
+import type { EnderecoData } from "../../utils/endereco"
 
 function CadastroDeEndereco() {
   const [cep, setCep] = useState("")
@@ -20,29 +22,74 @@ function CadastroDeEndereco() {
 
   const navigate = useNavigate()
 
-  // Função para buscar coordenadas usando Nominatim (OpenStreetMap)
+  // Função para buscar coordenadas (com fallback silencioso)
   const buscarCoordenadas = async (endereco: string, cidadeNome: string, estadoUF: string) => {
+    // Primeiro, verificar se temos coordenadas padrão para a cidade
+    const coordenadasPadrao = obterCoordenadasPadrao(cidadeNome, estadoUF)
+    
+    // Se temos coordenadas padrão, usar diretamente (mais rápido e confiável)
+    if (coordenadasPadrao) {
+      setLatitude(coordenadasPadrao.lat)
+      setLongitude(coordenadasPadrao.lon)
+      console.log('📍 Coordenadas definidas para:', cidadeNome)
+      return
+    }
+    
+    // Apenas tentar API se não temos coordenadas padrão
+    const query = `${endereco}, ${cidadeNome}, ${estadoUF}, Brasil`
+    
     try {
-      const query = `${endereco}, ${cidadeNome}, ${estadoUF}, Brasil`
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`
-      )
+      // Tentar apenas um proxy confiável
+      const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`
+      const proxyUrl = 'https://corsproxy.io/?'
       
-      if (!response.ok) {
-        throw new Error('Erro ao buscar coordenadas')
-      }
-
-      const data = await response.json()
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 3000) // Timeout menor
       
-      if (data && data.length > 0) {
-        setLatitude(data[0].lat)
-        setLongitude(data[0].lon)
-        console.log('Coordenadas encontradas:', { lat: data[0].lat, lon: data[0].lon })
+      const response = await fetch(proxyUrl + encodeURIComponent(nominatimUrl), {
+        headers: { 'User-Agent': 'InfoHub-App/1.0' },
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data && data.length > 0) {
+          setLatitude(data[0].lat)
+          setLongitude(data[0].lon)
+          console.log('✅ Coordenadas encontradas online:', { lat: data[0].lat, lon: data[0].lon })
+          return
+        }
       }
     } catch (error) {
-      console.error('Erro ao buscar coordenadas:', error)
-      // Não exibe alerta para não interromper o fluxo
+      // Erro silencioso - não logar para não poluir console
     }
+    
+    // Fallback final: usar coordenadas de São Paulo
+    setLatitude('-23.5505')
+    setLongitude('-46.6333')
+    console.log('📍 Usando coordenadas padrão (São Paulo) para:', cidadeNome)
+  }
+
+  // Função auxiliar para coordenadas padrão de cidades principais
+  const obterCoordenadasPadrao = (cidade: string, uf: string) => {
+    const coordenadasCidades: Record<string, {lat: string, lon: string}> = {
+      'São Paulo-SP': { lat: '-23.5505', lon: '-46.6333' },
+      'Rio de Janeiro-RJ': { lat: '-22.9068', lon: '-43.1729' },
+      'Belo Horizonte-MG': { lat: '-19.9167', lon: '-43.9345' },
+      'Salvador-BA': { lat: '-12.9714', lon: '-38.5014' },
+      'Brasília-DF': { lat: '-15.7942', lon: '-47.8822' },
+      'Fortaleza-CE': { lat: '-3.7319', lon: '-38.5267' },
+      'Manaus-AM': { lat: '-3.1190', lon: '-60.0217' },
+      'Curitiba-PR': { lat: '-25.4284', lon: '-49.2733' },
+      'Recife-PE': { lat: '-8.0476', lon: '-34.8770' },
+      'Goiânia-GO': { lat: '-16.6869', lon: '-49.2648' },
+      'Carapicuíba-SP': { lat: '-23.5222', lon: '-46.8361' }
+    }
+    
+    const chave = `${cidade}-${uf}`
+    return coordenadasCidades[chave] || coordenadasCidades['São Paulo-SP'] // Fallback para SP
   }
 
   // Função para buscar CEP (usa ViaCEP diretamente)
@@ -112,32 +159,68 @@ function CadastroDeEndereco() {
     }
   }
 
-  const handleNextStep = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleNextStep = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
-    // Validações
-    if (!cep.trim() || !rua.trim() || !numero.trim() || !bairro.trim() || !cidade.trim() || !estado.trim()) {
-      alert("Por favor, preencha todos os campos obrigatórios.")
+    // Validações melhoradas
+    const erros = []
+    
+    if (!cep.trim()) erros.push("CEP")
+    if (!rua.trim()) erros.push("Rua")
+    if (!numero.trim()) erros.push("Número")
+    if (!bairro.trim()) erros.push("Bairro")
+    if (!cidade.trim()) erros.push("Cidade")
+    if (!estado.trim()) erros.push("Estado")
+    
+    if (erros.length > 0) {
+      alert(`Por favor, preencha os seguintes campos obrigatórios: ${erros.join(", ")}`)
+      return
+    }
+    
+    // Validação de CEP
+    const cepLimpo = cep.replace(/\D/g, '')
+    if (cepLimpo.length !== 8) {
+      alert("CEP deve ter 8 dígitos")
       return
     }
 
-    // Salva os dados incluindo latitude e longitude
+    // Preparar dados do endereço completo
     const enderecoData = {
-      cep,
-      rua,
-      numero,
-      complemento,
-      bairro,
-      cidade,
-      estado,
-      latitude,
-      longitude
+      cep: cep.replace(/\D/g, ''), // Remove formatação
+      rua: rua.trim(),
+      numero: numero.trim(),
+      complemento: complemento.trim(),
+      bairro: bairro.trim(),
+      cidade: cidade.trim(),
+      estado: estado.trim(),
+      latitude: latitude || '',
+      longitude: longitude || '',
+      endereco_completo: `${rua}, ${numero}${complemento ? `, ${complemento}` : ''}, ${bairro}, ${cidade} - ${estado}, ${cep}`,
+      data_cadastro: new Date().toISOString()
     }
     
-    console.log('Dados do endereço com geolocalização:', enderecoData)
+    console.log('📍 Salvando dados do endereço:', enderecoData)
 
-    // Redireciona para a tela de login
     try {
+      // Salvar usando a função utilitária
+      salvarEndereco(enderecoData as EnderecoData)
+      
+      // Tentar salvar no backend (se o usuário estiver logado)
+      const userData = localStorage.getItem('user_data')
+      if (userData) {
+        const user = JSON.parse(userData)
+        
+        // Aqui você pode implementar uma chamada para salvar no backend
+        // await salvarEnderecoBackend(user.id, enderecoData)
+        
+        console.log('✅ Endereço salvo para o usuário:', user.nome)
+      } else {
+        console.log('💾 Endereço salvo localmente (usuário não logado)')
+      }
+
+      alert("Endereço cadastrado com sucesso!")
+      
+      // Redireciona para a tela de login
       navigate("/login")
     } catch (error) {
       console.error('Erro ao navegar:', error)

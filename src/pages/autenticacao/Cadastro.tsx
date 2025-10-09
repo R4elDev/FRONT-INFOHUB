@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import { cadastrarUsuario } from "../../services/requests"
 import type { cadastroRequest } from "../../services/types"
 import { ROUTES } from "../../utils/constants"
-import { validateCadastro } from "../../utils/validation"
+import { validateCadastro, PROFESSIONAL_LIMITS } from "../../utils/validation"
 import toast from 'react-hot-toast'
 
 type TipoPessoa = 'consumidor' | 'estabelecimento'
@@ -52,7 +52,7 @@ function Cadastro() {
     setErrorMsg(null)
     setSuccessMsg(null)
 
-    // Validação usando sistema centralizado
+    // Validação usando sistema centralizado (corrigido)
     const validation = validateCadastro({
       nome,
       email,
@@ -73,22 +73,24 @@ function Cadastro() {
 
     const payload: cadastroRequest = tipoPessoa === "consumidor" 
       ? {
-          nome,
-          email,
+          nome: nome.trim(),
+          email: email.trim(),
           senha_hash: senha,
           perfil: tipoPessoa,
-          cpf: cpf,
-          telefone: telefone,
+          cpf: cpf.replace(/[^\d]/g, '') || null,
+          cnpj: null,
+          telefone: telefone.replace(/[^\d]/g, '') || null,
           data_nascimento: new Date().toISOString().split('T')[0]
         }
       : {
-          nome,
-          email,
+          nome: nome.trim(),
+          email: email.trim(),
           senha_hash: senha,
           perfil: tipoPessoa,
-          cnpj: cnpj,
-          telefone: telefone,
-          data_nascimento: "" // Campo obrigatório no tipo, mas vazio para empresas
+          cpf: null,
+          cnpj: cnpj.replace(/[^\d]/g, '') || null,
+          telefone: telefone.replace(/[^\d]/g, '') || null
+          // data_nascimento omitido para empresas
         }
 
     console.log("📤 Enviando payload:", payload)
@@ -153,21 +155,24 @@ function Cadastro() {
             Pessoa Jurídica
           </button>
         </div>
-
         {/* Form */}
         <form onSubmit={handleSubmit} className="w-full max-w-md space-y-3 sm:space-y-4 animate-fade-in">
           {tipoPessoa === 'consumidor' ? (
             <>
               <Input 
-                placeholder="Nome completo *" 
-                value={nome} 
-                onChange={(e) => setNome(e.target.value)}
-                className="form-input-base" />
+                placeholder="E-mail *" 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)}
+                maxLength={PROFESSIONAL_LIMITS.EMAIL_MAX}
+                className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
+                          focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
               <Input 
                 placeholder="CPF *" 
                 value={cpf} 
                 onChange={(e) => setCpf(e.target.value)}
+                maxLength={14}
                 className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
@@ -192,6 +197,7 @@ function Cadastro() {
                 placeholder="Nome Da Empresa *" 
                 value={nome} 
                 onChange={(e) => setNome(e.target.value)}
+                maxLength={PROFESSIONAL_LIMITS.NOME_EMPRESA_MAX}
                 className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
@@ -199,6 +205,7 @@ function Cadastro() {
                 placeholder="CNPJ *" 
                 value={cnpj} 
                 onChange={(e) => setCnpj(e.target.value)}
+                maxLength={18}
                 className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
@@ -222,10 +229,11 @@ function Cadastro() {
             {/* Senha */}
             <div className="relative">
               <Input 
-                placeholder="Senha *" 
+                placeholder="Senha * (mín. 8 caracteres)" 
                 type={showPassword ? "text" : "password"} 
                 value={senha} 
                 onChange={(e) => setSenha(e.target.value)}
+                maxLength={PROFESSIONAL_LIMITS.SENHA_MAX}
                 className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
               <button 
@@ -242,6 +250,7 @@ function Cadastro() {
               type="password" 
               value={confirmarSenha} 
               onChange={(e) => setConfirmarSenha(e.target.value)}
+              maxLength={PROFESSIONAL_LIMITS.SENHA_MAX}
               className={`h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                         focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02] ${mostrarErro ? "border-2 border-red-400" : ""}`} />
 

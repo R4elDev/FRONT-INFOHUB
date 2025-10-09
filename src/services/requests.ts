@@ -13,12 +13,53 @@ import type  { loginRequest,loginResponse,cadastroRequest,cadastroResponse,solic
 export async function login(payload: loginRequest){
     const { data } = await api.post<loginResponse>("/login", payload)
 
-    // Guardando o token devolvido pela api
+    // Guardando o token e dados do usuário
     if (data.token){
         localStorage.setItem('auth_token', data.token)
+        
+        // Salvar dados do usuário para identificação automática
+        if (data.usuario) {
+            localStorage.setItem('user_data', JSON.stringify({
+                id: data.usuario.id,
+                nome: data.usuario.nome,
+                email: data.usuario.email,
+                perfil: data.usuario.perfil,
+                cpf: data.usuario.cpf,
+                cnpj: data.usuario.cnpj,
+                telefone: data.usuario.telefone,
+                endereco: data.usuario.endereco,
+                razao_social: data.usuario.razao_social
+            }))
+        }
     }
 
     return data
+}
+
+// Função para obter dados do usuário logado
+export function getLoggedUserData() {
+    const userData = localStorage.getItem('user_data')
+    if (userData) {
+        try {
+            return JSON.parse(userData)
+        } catch (error) {
+            console.error('Erro ao parsear dados do usuário:', error)
+            return null
+        }
+    }
+    return null
+}
+
+// Função para verificar se usuário é empresa
+export function isUserCompany(): boolean {
+    const userData = getLoggedUserData()
+    return userData?.perfil === 'estabelecimento'
+}
+
+// Função para limpar dados de autenticação
+export function logout() {
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('user_data')
 }
 
 // Endpoint de cadastro

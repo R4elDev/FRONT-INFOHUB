@@ -39,16 +39,32 @@ function Login() {
       const res = await login(payload);
 
       if (res.status) {
-        localStorage.setItem("auth_token", res.token);
         toast.success("Login realizado com sucesso!");
-        navigate(ROUTES.HOME_INICIAL);
+        
+        // Redirecionamento inteligente baseado no tipo de usuário
+        const userType = res.usuario.perfil;
+        
+        if (userType === 'estabelecimento') {
+          // Usuário empresa - redireciona para dashboard empresarial
+          toast.success(`Bem-vindo(a), ${res.usuario.nome}! Redirecionando para área empresarial...`);
+          navigate('/dashboard-empresa');
+        } else if (userType === 'admin') {
+          // Usuário admin - redireciona para área administrativa
+          toast.success(`Bem-vindo(a), Admin ${res.usuario.nome}!`);
+          navigate('/admin');
+        } else {
+          // Usuário consumidor - redireciona para home normal
+          toast.success(`Bem-vindo(a), ${res.usuario.nome}!`);
+          navigate(ROUTES.HOME_INICIAL);
+        }
       } else {
         const errorMessage = "E-mail ou senha incorretos";
         setErrorMsg(errorMessage);
         toast.error(errorMessage);
       }
     } catch (err: any) {
-      const errorMessage = "Erro ao conectar com a API";
+      console.error("Erro no login:", err);
+      const errorMessage = err.response?.data?.message || "Erro ao conectar com a API";
       setErrorMsg(errorMessage);
       toast.error(errorMessage);
     } finally {

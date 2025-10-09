@@ -31,6 +31,12 @@ export const ROUTES = {
   CONFIGURACOES: '/configuracoes',
   CONFIGURACOES_EMPRESA: '/configuracoes-empresa',
   
+  // Dashboard Empresarial
+  DASHBOARD_EMPRESA: '/dashboard-empresa',
+  
+  // Admin
+  ADMIN: '/admin',
+  
   // InfoCash
   INFOCASH: '/infocash',
   INFOCASH_COMENTARIOS: '/infocash/comentarios',
