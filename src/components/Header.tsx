@@ -11,11 +11,16 @@ export default function Header() {
     <>
       {/* Header */}
       <header className="w-full h-20 bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] shadow-lg flex items-center justify-between px-8 sticky top-0 z-50">
-        <img 
-          src={logoHome} 
-          alt="Início" 
-          className="h-14 drop-shadow-md transition-transform hover:scale-105 cursor-pointer" 
-        />
+        <div className="flex items-center gap-4">
+          <img 
+            src={logoHome} 
+            alt="Início" 
+            className="h-14 drop-shadow-md transition-transform hover:scale-105 cursor-pointer" 
+          />
+          <h1 className="text-2xl font-bold text-white drop-shadow-md">
+            InfoHub
+          </h1>
+        </div>
         <div className="flex items-center gap-6">
           <button className="relative transition-transform hover:scale-110">
             <img 

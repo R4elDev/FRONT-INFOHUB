@@ -12,6 +12,7 @@ import { cadastrarUsuario } from "../../services/requests"
 import type { cadastroRequest } from "../../services/types"
 import { ROUTES } from "../../utils/constants"
 import { validateCadastro } from "../../utils/validation"
+import { formatCPF, formatCNPJ, formatPhone } from "../../utils/formatters"
 import toast from 'react-hot-toast'
 
 type TipoPessoa = 'consumidor' | 'estabelecimento'
@@ -47,6 +48,28 @@ function Cadastro() {
     setTelefone('')
   }
 
+  // Handlers para formatação de inputs
+  const handleCpfChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '')
+    if (value.length <= 11) {
+      setCpf(formatCPF(value))
+    }
+  }
+
+  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '')
+    if (value.length <= 14) {
+      setCnpj(formatCNPJ(value))
+    }
+  }
+
+  const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '')
+    if (value.length <= 11) {
+      setTelefone(formatPhone(value))
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setErrorMsg(null)
@@ -73,22 +96,22 @@ function Cadastro() {
 
     const payload: cadastroRequest = tipoPessoa === "consumidor" 
       ? {
-          nome,
-          email,
+          nome: nome.trim(),
+          email: email.trim().toLowerCase(),
           senha_hash: senha,
           perfil: tipoPessoa,
-          cpf: cpf,
-          telefone: telefone,
+          cpf: cpf.replace(/[^\d]/g, ''),
+          telefone: telefone.replace(/[^\d]/g, ''),
           data_nascimento: new Date().toISOString().split('T')[0]
         }
       : {
-          nome,
-          email,
+          nome: nome.trim(),
+          email: email.trim().toLowerCase(),
           senha_hash: senha,
           perfil: tipoPessoa,
-          cnpj: cnpj,
-          telefone: telefone,
-          data_nascimento: "" // Campo obrigatório no tipo, mas vazio para empresas
+          cnpj: cnpj.replace(/[^\d]/g, ''),
+          telefone: telefone.replace(/[^\d]/g, ''),
+          data_nascimento: new Date().toISOString().split('T')[0] // Data atual para empresas
         }
 
     console.log("📤 Enviando payload:", payload)
@@ -167,14 +190,16 @@ function Cadastro() {
               <Input 
                 placeholder="CPF *" 
                 value={cpf} 
-                onChange={(e) => setCpf(e.target.value)}
+                onChange={handleCpfChange}
+                maxLength={14}
                 className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
               <Input 
                 placeholder="Telefone *" 
                 value={telefone} 
-                onChange={(e) => setTelefone(e.target.value)}
+                onChange={handleTelefoneChange}
+                maxLength={15}
                 className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
@@ -198,14 +223,16 @@ function Cadastro() {
               <Input 
                 placeholder="CNPJ *" 
                 value={cnpj} 
-                onChange={(e) => setCnpj(e.target.value)}
+                onChange={handleCnpjChange}
+                maxLength={18}
                 className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 
               <Input 
                 placeholder="Telefone *" 
                 value={telefone} 
-                onChange={(e) => setTelefone(e.target.value)}
+                onChange={handleTelefoneChange}
+                maxLength={15}
                 className="h-[50px] sm:h-[55px] md:h-[59px] bg-white rounded-[10px] text-[16px] sm:text-[18px] md:text-[22px] px-4 sm:px-6 placeholder:text-[16px] sm:placeholder:text-[18px] md:placeholder:text-[20px] 
                           focus:ring-2 focus:ring-orange-500 transition-all duration-300 shadow-md hover:scale-[1.02]" />
 

@@ -129,3 +129,227 @@ export interface chatMessage {
   isBot: boolean;
   confidence?: number;
 }
+
+// ============================================
+// TIPOS PARA ENDEREÇO
+// ============================================
+
+export interface enderecoRequest {
+  id_usuario: number;
+  cep: string;
+  logradouro: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface enderecoResponse {
+  status: boolean;
+  status_code: number;
+  message: string;
+  data?: {
+    id: number;
+    id_usuario: number;
+    cep: string;
+    logradouro: string;
+    numero: string;
+    complemento?: string;
+    bairro: string;
+    cidade: string;
+    estado: string;
+    latitude?: number;
+    longitude?: number;
+  };
+}
+
+// ============================================
+// TIPOS PARA CATEGORIA
+// ============================================
+
+export interface categoriaRequest {
+  nome: string;
+}
+
+export interface categoriaResponse {
+  status: boolean;
+  status_code: number;
+  message: string;
+  data?: {
+    id: number;
+    nome: string;
+    created_at: string;
+  };
+}
+
+export interface listarCategoriasResponse {
+  status: boolean;
+  status_code: number;
+  data: Array<{
+    id: number;
+    nome: string;
+    created_at: string;
+  }>;
+}
+
+// ============================================
+// TIPOS PARA PRODUTO
+// ============================================
+
+export interface produtoRequest {
+  nome: string;
+  descricao: string;
+  id_categoria: number;
+  id_estabelecimento: number;
+  preco: number;
+  promocao?: {
+    preco_promocional: number;
+    data_inicio: string;
+    data_fim: string;
+  };
+}
+
+export interface produtoResponse {
+  status: boolean;
+  status_code: number;
+  message: string;
+  data?: {
+    id: number;
+    nome: string;
+    descricao: string;
+    id_categoria: number;
+    id_estabelecimento: number;
+    preco: number;
+    promocao?: {
+      id: number;
+      preco_promocional: number;
+      data_inicio: string;
+      data_fim: string;
+    };
+    categoria?: {
+      id: number;
+      nome: string;
+    };
+    estabelecimento?: {
+      id: number;
+      nome: string;
+    };
+    created_at: string;
+  };
+}
+
+export interface listarProdutosResponse {
+  status: boolean;
+  status_code: number;
+  data: Array<{
+    id: number;
+    nome: string;
+    descricao: string;
+    id_categoria: number;
+    id_estabelecimento: number;
+    preco: number;
+    promocao?: {
+      id: number;
+      preco_promocional: number;
+      data_inicio: string;
+      data_fim: string;
+    };
+    categoria: {
+      id: number;
+      nome: string;
+    };
+    estabelecimento: {
+      id: number;
+      nome: string;
+    };
+    created_at: string;
+  }>;
+}
+
+// ============================================
+// TIPOS PARA ESTABELECIMENTO
+// ============================================
+
+export interface estabelecimentoRequest {
+  nome: string;
+  cnpj: string;
+  descricao?: string;
+  telefone?: string;
+  email?: string;
+  endereco: {
+    cep: string;
+    logradouro: string;
+    numero: string;
+    complemento?: string;
+    bairro: string;
+    cidade: string;
+    estado: string;
+  };
+}
+
+export interface estabelecimentoResponse {
+  status: boolean;
+  status_code: number;
+  message: string;
+  data?: {
+    id: number;
+    nome: string;
+    cnpj: string;
+    descricao?: string;
+    telefone?: string;
+    email?: string;
+    id_usuario: number;
+    endereco: {
+      id: number;
+      cep: string;
+      logradouro: string;
+      numero: string;
+      complemento?: string;
+      bairro: string;
+      cidade: string;
+      estado: string;
+    };
+    created_at: string;
+  };
+}
+
+export interface listarEstabelecimentosResponse {
+  status: boolean;
+  status_code: number;
+  data: Array<{
+    id: number;
+    nome: string;
+    cnpj: string;
+    descricao?: string;
+    telefone?: string;
+    email?: string;
+    id_usuario: number;
+    endereco: {
+      id: number;
+      cep: string;
+      logradouro: string;
+      numero: string;
+      complemento?: string;
+      bairro: string;
+      cidade: string;
+      estado: string;
+    };
+    created_at: string;
+  }>;
+}
+
+// ============================================
+// TIPOS PARA FILTROS DE PRODUTO
+// ============================================
+
+export interface filtrosProdutos {
+  categoria?: number;
+  estabelecimento?: number;
+  preco_min?: number;
+  preco_max?: number;
+  promocao?: boolean;
+  busca?: string;
+}

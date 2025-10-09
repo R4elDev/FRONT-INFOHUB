@@ -72,6 +72,32 @@ export const validators = {
       return { field: 'cnpj', message: 'CNPJ inválido' }
     }
     
+    // Validação dos dígitos verificadores do CNPJ
+    const pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    const pesos2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    
+    let soma = 0
+    for (let i = 0; i < 12; i++) {
+      soma += parseInt(cnpjLimpo.charAt(i)) * pesos1[i]
+    }
+    let resto = soma % 11
+    const digito1 = resto < 2 ? 0 : 11 - resto
+    
+    if (digito1 !== parseInt(cnpjLimpo.charAt(12))) {
+      return { field: 'cnpj', message: 'CNPJ inválido' }
+    }
+    
+    soma = 0
+    for (let i = 0; i < 13; i++) {
+      soma += parseInt(cnpjLimpo.charAt(i)) * pesos2[i]
+    }
+    resto = soma % 11
+    const digito2 = resto < 2 ? 0 : 11 - resto
+    
+    if (digito2 !== parseInt(cnpjLimpo.charAt(13))) {
+      return { field: 'cnpj', message: 'CNPJ inválido' }
+    }
+    
     return null
   },
 

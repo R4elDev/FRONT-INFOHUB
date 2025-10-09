@@ -15,13 +15,21 @@ function DashboardEmpresa() {
         <div className="max-w-4xl mx-auto">
           {/* Header - Perfil da Empresa */}
           <div className="bg-white rounded-3xl shadow-lg p-6 mb-6 relative animate-fadeInDown">
-            <button 
-              onClick={() => navigate('/configuracoes-empresa')}
-              className="absolute top-4 right-4 text-gray-400 hover:text-[#F9A01B] transition-colors"
-              title="Configurações"
-            >
-              <Settings size={24} />
-            </button>
+            <div className="absolute top-4 right-4 flex gap-3">
+              <button 
+                onClick={() => navigate('/cadastro-promocao')}
+                className="bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#F9A01B] text-white px-4 py-2 rounded-xl font-semibold transition-all hover:scale-105 shadow-lg flex items-center gap-2 text-sm"
+              >
+                ➕ Nova Promoção
+              </button>
+              <button 
+                onClick={() => navigate('/configuracoes-empresa')}
+                className="text-gray-400 hover:text-[#F9A01B] transition-colors"
+                title="Configurações"
+              >
+                <Settings size={24} />
+              </button>
+            </div>
             
             <div className="flex flex-col items-center">
               {/* Logo */}

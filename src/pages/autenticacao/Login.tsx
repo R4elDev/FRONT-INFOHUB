@@ -9,10 +9,12 @@ import { Eye, EyeOff } from "lucide-react";
 import { login } from "../../services/requests";
 import { ROUTES } from "../../utils/constants";
 import { validateLogin } from "../../utils/validation";
+import { useUser } from "../../contexts/UserContext";
 import toast from 'react-hot-toast';
 
 function Login() {
   const navigate = useNavigate();
+  const { setUser } = useUser();
   const [showsenha, setShowsenha] = useState(false);
   const [email, setEmail] = useState("");
   const [senha, setsenha] = useState("");
@@ -40,8 +42,23 @@ function Login() {
 
       if (res.status) {
         localStorage.setItem("auth_token", res.token);
+        
+        // Save user data to context
+        setUser({
+          id: res.usuario.id,
+          nome: res.usuario.nome,
+          email: res.usuario.email,
+          perfil: res.usuario.perfil as 'consumidor' | 'estabelecimento' | 'admin'
+        });
+
         toast.success("Login realizado com sucesso!");
-        navigate(ROUTES.HOME_INICIAL);
+        
+        // Route based on user type
+        if (res.usuario.perfil === 'estabelecimento' || res.usuario.perfil === 'admin') {
+          navigate(ROUTES.PERFIL_EMPRESA); // Admin/Company dashboard
+        } else {
+          navigate(ROUTES.HOME_INICIAL); // Regular user home
+        }
       } else {
         const errorMessage = "E-mail ou senha incorretos";
         setErrorMsg(errorMessage);
