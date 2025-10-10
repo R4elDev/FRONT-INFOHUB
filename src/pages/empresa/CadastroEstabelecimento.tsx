@@ -68,16 +68,7 @@ export function CadastroEstabelecimento() {
   const [formData, setFormData] = useState({
     nome: '',
     cnpj: '',
-    descricao: '',
-    telefone: '',
-    email: '',
-    cep: '',
-    logradouro: '',
-    numero: '',
-    complemento: '',
-    bairro: '',
-    cidade: '',
-    estado: ''
+    telefone: ''
   })
 
   // Verificar se usuário já tem estabelecimento ao carregar a tela
@@ -105,27 +96,6 @@ export function CadastroEstabelecimento() {
     }
   }, [user])
 
-  // Função para buscar CEP
-  const buscarCEP = async (cep: string) => {
-    if (cep.length !== 8) return
-
-    try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
-      const data = await response.json()
-      
-      if (!data.erro) {
-        setFormData(prev => ({
-          ...prev,
-          logradouro: data.logradouro || '',
-          bairro: data.bairro || '',
-          cidade: data.localidade || '',
-          estado: data.uf || ''
-        }))
-      }
-    } catch (error) {
-      console.error('Erro ao buscar CEP:', error)
-    }
-  }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -153,18 +123,6 @@ export function CadastroEstabelecimento() {
         .substring(0, 15)
       
       setFormData(prev => ({ ...prev, [name]: telefoneFormatado }))
-      return
-    }
-
-    // Formatação específica para CEP
-    if (name === 'cep') {
-      const cepFormatado = value.replace(/\D/g, '').substring(0, 8)
-      setFormData(prev => ({ ...prev, [name]: cepFormatado }))
-      
-      // Buscar endereço automaticamente quando CEP estiver completo
-      if (cepFormatado.length === 8) {
-        buscarCEP(cepFormatado)
-      }
       return
     }
 
@@ -221,45 +179,38 @@ export function CadastroEstabelecimento() {
       return
     }
 
-    if (!formData.cep.trim() || formData.cep.length !== 8) {
-      setMessage({ type: 'error', text: 'CEP deve ter 8 dígitos' })
-      return
-    }
-
-    if (!formData.logradouro.trim() || !formData.numero.trim() || !formData.bairro.trim() || !formData.cidade.trim() || !formData.estado.trim()) {
-      setMessage({ type: 'error', text: 'Todos os campos de endereço são obrigatórios' })
-      return
-    }
-
     try {
       setLoading(true)
 
       const estabelecimentoData: estabelecimentoRequest = {
         nome: formData.nome.trim(),
         cnpj: formData.cnpj.replace(/\D/g, ''),
-        descricao: formData.descricao.trim() || undefined,
-        telefone: formData.telefone.replace(/\D/g, '') || undefined,
-        email: formData.email.trim() || undefined,
-        endereco: {
-          cep: formData.cep,
-          logradouro: formData.logradouro.trim(),
-          numero: formData.numero.trim(),
-          complemento: formData.complemento.trim() || undefined,
-          bairro: formData.bairro.trim(),
-          cidade: formData.cidade.trim(),
-          estado: formData.estado.trim()
-        }
+        telefone: formData.telefone.replace(/\D/g, '') || undefined
       }
+      
+      console.log('📤 Payload final:', estabelecimentoData)
 
       const response = await cadastrarEstabelecimento(estabelecimentoData)
       
       if (response.status) {
+        const estabelecimentoId = response.id || response.data?.id
+        console.log('✅ ID do estabelecimento:', estabelecimentoId)
+        
+        // Salva o ID do estabelecimento no localStorage
+        if (estabelecimentoId) {
+          localStorage.setItem('estabelecimentoId', estabelecimentoId.toString())
+        }
+        
         setMessage({ type: 'success', text: 'Estabelecimento cadastrado com sucesso!' })
         
-        // Redirecionar para cadastro de produtos após 2 segundos
-        setTimeout(() => {
-          navigate('/empresa/cadastro-promocao')
-        }, 2000)
+        // Atualiza o estado para mostrar que já tem estabelecimento
+        setJaTemEstabelecimento(true)
+        setEstabelecimentoExistente({
+          id: estabelecimentoId,
+          nome: formData.nome,
+          cnpj: formData.cnpj,
+          telefone: formData.telefone
+        })
       } else {
         setMessage({ type: 'error', text: response.message || 'Erro ao cadastrar estabelecimento' })
       }
@@ -405,11 +356,14 @@ export function CadastroEstabelecimento() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
                 <h2 className="text-xl font-semibold text-gray-800 mb-4">Dados do Estabelecimento</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Preencha os dados básicos do seu estabelecimento. Apenas um estabelecimento por CNPJ.
+                </p>
               </div>
               
               <div className="md:col-span-2">
                 <InputField
-                  label="Nome do Estabelecimento *"
+                  label="Nome do Estabelecimento"
                   name="nome"
                   value={formData.nome}
                   onChange={handleInputChange}
@@ -419,7 +373,7 @@ export function CadastroEstabelecimento() {
               </div>
 
               <InputField
-                label="CNPJ *"
+                label="CNPJ"
                 name="cnpj"
                 value={formData.cnpj}
                 onChange={handleInputChange}
@@ -433,100 +387,6 @@ export function CadastroEstabelecimento() {
                 value={formData.telefone}
                 onChange={handleInputChange}
                 placeholder="(11) 99999-9999"
-              />
-
-              <div className="md:col-span-2">
-                <InputField
-                  label="Email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="contato@estabelecimento.com"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Descrição
-                </label>
-                <textarea
-                  name="descricao"
-                  value={formData.descricao}
-                  onChange={handleInputChange}
-                  placeholder="Descreva seu estabelecimento..."
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            {/* Endereço */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Endereço</h2>
-              </div>
-
-              <InputField
-                label="CEP *"
-                name="cep"
-                value={formData.cep}
-                onChange={handleInputChange}
-                placeholder="00000000"
-                required
-              />
-
-              <InputField
-                label="Logradouro *"
-                name="logradouro"
-                value={formData.logradouro}
-                onChange={handleInputChange}
-                placeholder="Rua, Avenida, etc."
-                required
-              />
-
-              <InputField
-                label="Número *"
-                name="numero"
-                value={formData.numero}
-                onChange={handleInputChange}
-                placeholder="123"
-                required
-              />
-
-              <InputField
-                label="Complemento"
-                name="complemento"
-                value={formData.complemento}
-                onChange={handleInputChange}
-                placeholder="Sala, Andar, etc."
-              />
-
-              <InputField
-                label="Bairro *"
-                name="bairro"
-                value={formData.bairro}
-                onChange={handleInputChange}
-                placeholder="Centro"
-                required
-              />
-
-              <InputField
-                label="Cidade *"
-                name="cidade"
-                value={formData.cidade}
-                onChange={handleInputChange}
-                placeholder="São Paulo"
-                required
-              />
-
-              <InputField
-                label="Estado *"
-                name="estado"
-                value={formData.estado}
-                onChange={handleInputChange}
-                placeholder="SP"
-                required
               />
             </div>
 

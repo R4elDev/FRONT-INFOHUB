@@ -215,13 +215,13 @@ export function isProdutoEmPromocao(produto: any): boolean {
 
 /**
  * Cadastra um novo estabelecimento
- * Endpoint: POST /estabelecimentos
- * Request body: { nome, cnpj, descricao, telefone, email, endereco }
+ * Endpoint: POST /estabelecimento
+ * Request body: { nome, cnpj, telefone }
  */
 export async function cadastrarEstabelecimento(payload: estabelecimentoRequest): Promise<estabelecimentoResponse> {
     try {
         console.log('🏢 Enviando dados do estabelecimento:', payload)
-        const { data } = await api.post<estabelecimentoResponse>("/estabelecimentos", payload)
+        const { data } = await api.post<estabelecimentoResponse>("/estabelecimento", payload)
         console.log('✅ Estabelecimento cadastrado com sucesso:', data)
         return data
     } catch (error: any) {

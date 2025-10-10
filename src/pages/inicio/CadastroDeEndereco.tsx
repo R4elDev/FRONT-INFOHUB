@@ -5,6 +5,8 @@ import bolavermelhaCadastro from '../../assets/bolavermelhaCadastro.png'
 import muiemexendonoscompuiter from '../../assets/muiemexendonoscompuiter.png'
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { cadastrarEndereco } from "../../services/apiServicesFixed"
+import type { enderecoRequest } from "../../services/types"
 
 function CadastroDeEndereco() {
   const [cep, setCep] = useState("")
@@ -17,6 +19,7 @@ function CadastroDeEndereco() {
   const [latitude, setLatitude] = useState("")
   const [longitude, setLongitude] = useState("")
   const [carregandoCep, setCarregandoCep] = useState(false)
+  const [salvandoEndereco, setSalvandoEndereco] = useState(false)
 
   const navigate = useNavigate()
 
@@ -112,7 +115,7 @@ function CadastroDeEndereco() {
     }
   }
 
-  const handleNextStep = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleNextStep = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
     // Validações
@@ -121,26 +124,71 @@ function CadastroDeEndereco() {
       return
     }
 
-    // Salva os dados incluindo latitude e longitude
-    const enderecoData = {
-      cep,
-      rua,
-      numero,
-      complemento,
-      bairro,
-      cidade,
-      estado,
-      latitude,
-      longitude
-    }
+    // Recupera os dados do usuário cadastrado do localStorage
+    const usuarioCadastrado = localStorage.getItem('usuarioCadastrado')
     
-    console.log('Dados do endereço com geolocalização:', enderecoData)
+    console.log('🔍 Verificando localStorage:', usuarioCadastrado)
+    
+    if (!usuarioCadastrado) {
+      console.error('❌ localStorage vazio')
+      alert("Erro: Dados do usuário não encontrados. Por favor, faça o cadastro novamente.")
+      navigate("/cadastro")
+      return
+    }
 
-    // Redireciona para a tela de login
     try {
-      navigate("/login")
-    } catch (error) {
-      console.error('Erro ao navegar:', error)
+      const dadosUsuario = JSON.parse(usuarioCadastrado)
+      console.log('📦 Dados do usuário parseados:', dadosUsuario)
+      
+      // Valida se tem o ID do usuário
+      if (!dadosUsuario.id) {
+        console.error('❌ ID do usuário não encontrado nos dados:', dadosUsuario)
+        alert("Erro: ID do usuário não encontrado. Por favor, faça o cadastro novamente.")
+        navigate("/cadastro")
+        return
+      }
+      
+      console.log('✅ ID do usuário encontrado:', dadosUsuario.id)
+
+      setSalvandoEndereco(true)
+
+      // Prepara os dados para enviar à API
+      const enderecoData: enderecoRequest = {
+        id_usuario: dadosUsuario.id,
+        cep: cep.replace(/\D/g, ''), // Remove a máscara do CEP
+        logradouro: rua.trim(),
+        numero: numero.trim(),
+        complemento: complemento.trim() || undefined,
+        bairro: bairro.trim(),
+        cidade: cidade.trim(),
+        estado: estado.trim(),
+        latitude: latitude ? parseFloat(latitude) : undefined,
+        longitude: longitude ? parseFloat(longitude) : undefined
+      }
+      
+      console.log('📍 Enviando endereço para a API:', enderecoData)
+
+      // Chama a API para cadastrar o endereço
+      const response = await cadastrarEndereco(enderecoData)
+      
+      if (response.status) {
+        console.log('✅ Endereço cadastrado com sucesso:', response)
+        alert("Endereço cadastrado com sucesso! Você será redirecionado para o login.")
+        
+        // Limpa os dados temporários do localStorage
+        localStorage.removeItem('usuarioCadastrado')
+        
+        // Redireciona para a tela de login
+        navigate("/login")
+      } else {
+        throw new Error(response.message || 'Erro ao cadastrar endereço')
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao cadastrar endereço:', error)
+      const mensagemErro = error.response?.data?.message || error.message || 'Erro ao cadastrar endereço. Tente novamente.'
+      alert(mensagemErro)
+    } finally {
+      setSalvandoEndereco(false)
     }
   }
 
@@ -252,10 +300,10 @@ function CadastroDeEndereco() {
             
             <Button 
               type="submit"
-              disabled={carregandoCep}
+              disabled={carregandoCep || salvandoEndereco}
               className="w-full h-[50px] sm:h-[55px] md:h-[60px] text-[16px] sm:text-[18px] md:text-[20px] bg-orange-500 hover:bg-green-600 disabled:opacity-50 hover:scale-105 active:scale-95 shadow-lg transition-all duration-300"
             >
-              Cadastrar Endereço
+              {salvandoEndereco ? 'Salvando...' : 'Cadastrar Endereço'}
             </Button>
           </form>
         </div>

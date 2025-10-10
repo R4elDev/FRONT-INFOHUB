@@ -8,7 +8,7 @@ import { useState } from "react"
 import { Eye, EyeOff } from "lucide-react"
 import { useNavigate } from 'react-router-dom'
 
-import { cadastrarUsuario } from "../../services/requests"
+import { cadastrarUsuario, login } from "../../services/requests"
 import type { cadastroRequest } from "../../services/types"
 import { ROUTES } from "../../utils/constants"
 import { validateCadastro } from "../../utils/validation"
@@ -124,7 +124,43 @@ function Cadastro() {
       if (res.status) {
         setSuccessMsg(res.message)
         toast.success(res.message)
-        setTimeout(() => navigate(ROUTES.CADASTRO_ENDERECO), 1000)
+        
+        // Tenta obter o ID da resposta direta
+        let userId = res.id || res.data?.id
+        
+        // Se não retornou o ID, faz login automático para obter
+        if (!userId) {
+          console.log('🔄 ID não retornado, fazendo login automático...')
+          try {
+            const loginRes = await login({
+              email: payload.email,
+              senha: payload.senha_hash
+            })
+            
+            if (loginRes.status && loginRes.usuario) {
+              userId = loginRes.usuario.id
+              console.log('✅ ID obtido via login:', userId)
+            }
+          } catch (loginErr) {
+            console.error('❌ Erro ao fazer login automático:', loginErr)
+          }
+        }
+        
+        // Salva o ID do usuário no localStorage
+        if (userId) {
+          localStorage.setItem('usuarioCadastrado', JSON.stringify({
+            id: userId,
+            nome: payload.nome,
+            email: payload.email,
+            perfil: payload.perfil
+          }))
+          console.log('✅ ID do usuário salvo no localStorage:', userId)
+          setTimeout(() => navigate(ROUTES.CADASTRO_ENDERECO), 1000)
+        } else {
+          console.error('❌ Não foi possível obter o ID do usuário')
+          toast.error('Cadastro realizado, mas houve um problema. Por favor, faça login manualmente.')
+          setTimeout(() => navigate(ROUTES.LOGIN), 2000)
+        }
       } else {
         setErrorMsg(res.message)
         toast.error(res.message)
