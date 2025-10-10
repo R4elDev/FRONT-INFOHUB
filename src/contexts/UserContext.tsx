@@ -57,12 +57,19 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
       const response = await loginAPI(credentials)
       
       if (response.status && response.usuario) {
+        console.log('📥 Dados do usuário recebidos da API:', response.usuario)
+        
         const userData: User = {
           id: response.usuario.id,
           nome: response.usuario.nome,
           email: response.usuario.email,
-          perfil: response.usuario.perfil as 'consumidor' | 'estabelecimento' | 'admin'
+          perfil: response.usuario.perfil as 'consumidor' | 'estabelecimento' | 'admin',
+          cpf: response.usuario.cpf,
+          cnpj: response.usuario.cnpj,
+          telefone: response.usuario.telefone
         }
+        
+        console.log('✅ Dados salvos no contexto:', userData)
         setUser(userData)
         return { success: true }
       } else {

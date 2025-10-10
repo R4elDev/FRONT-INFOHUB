@@ -79,61 +79,22 @@ export async function listarCategorias(): Promise<listarCategoriasResponse> {
 /**
  * Cadastra um novo produto/promoção
  * Endpoint: POST /produtos
- * Request body: { "nome", "descricao", "id_categoria", "id_estabelecimento", "preco", "promocao": { "preco_promocional", "data_inicio", "data_fim" } }
+ * Request body: { "nome", "descricao", "id_estabelecimento", "preco", "promocao": { "preco_promocional", "data_inicio", "data_fim" } }
  */
 export async function cadastrarProduto(payload: produtoRequest): Promise<produtoResponse> {
     try {
         console.log('📦 Enviando dados do produto:', payload)
-        
-        // Primeira tentativa: tentar o endpoint real
-        try {
-            const { data } = await api.post<produtoResponse>("/produtos", payload)
-            console.log('✅ Produto cadastrado com sucesso no backend!', data)
-            return data
-        } catch (error: any) {
-            console.warn('⚠️ Backend retornou erro 500. Usando modo MOCK para continuar o desenvolvimento.')
-            console.warn('🔧 AÇÃO NECESSÁRIA: Corrigir o bug no backend que causa erro 500.')
-            
-            // MODO MOCK - Simula resposta de sucesso para desenvolvimento
-            const mockResponse: produtoResponse = {
-                status: true,
-                status_code: 201,
-                message: 'Produto cadastrado com sucesso (MOCK)',
-                data: {
-                    id: Math.floor(Math.random() * 1000) + 100, // ID aleatório
-                    nome: payload.nome,
-                    descricao: payload.descricao,
-                    id_categoria: payload.id_categoria,
-                    id_estabelecimento: payload.id_estabelecimento,
-                    preco: payload.preco,
-                    promocao: payload.promocao ? {
-                        id: Math.floor(Math.random() * 100) + 1,
-                        preco_promocional: payload.promocao.preco_promocional,
-                        data_inicio: payload.promocao.data_inicio,
-                        data_fim: payload.promocao.data_fim
-                    } : undefined,
-                    categoria: {
-                        id: payload.id_categoria,
-                        nome: 'Categoria Mock'
-                    },
-                    estabelecimento: {
-                        id: payload.id_estabelecimento,
-                        nome: 'Estabelecimento Mock'
-                    },
-                    created_at: new Date().toISOString()
-                }
-            }
-            
-            console.log('🎭 Retornando resposta MOCK:', mockResponse)
-            
-            // Simula delay da rede
-            await new Promise(resolve => setTimeout(resolve, 500))
-            
-            return mockResponse
-        }
-        
+        const { data } = await api.post<produtoResponse>("/produtos", payload)
+        console.log('✅ Produto cadastrado com sucesso:', data)
+        return data
     } catch (error: any) {
-        console.error('💥 Erro crítico ao cadastrar produto:', error)
+        console.error('❌ Erro ao cadastrar produto:', error.response?.data || error.message)
+        console.error('🔍 Detalhes do erro:', {
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            payload: payload
+        })
         throw error
     }
 }
@@ -215,13 +176,13 @@ export function isProdutoEmPromocao(produto: any): boolean {
 
 /**
  * Cadastra um novo estabelecimento
- * Endpoint: POST /estabelecimentos
- * Request body: { nome, cnpj, descricao, telefone, email, endereco }
+ * Endpoint: POST /estabelecimento
+ * Request body: { nome, cnpj, telefone }
  */
 export async function cadastrarEstabelecimento(payload: estabelecimentoRequest): Promise<estabelecimentoResponse> {
     try {
         console.log('🏢 Enviando dados do estabelecimento:', payload)
-        const { data } = await api.post<estabelecimentoResponse>("/estabelecimentos", payload)
+        const { data } = await api.post<estabelecimentoResponse>("/estabelecimento", payload)
         console.log('✅ Estabelecimento cadastrado com sucesso:', data)
         return data
     } catch (error: any) {
@@ -261,3 +222,4 @@ export async function verificarEstabelecimento(): Promise<{ possuiEstabeleciment
         return { possuiEstabelecimento: false }
     }
 }
+

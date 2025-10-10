@@ -12,7 +12,10 @@ export type loginResponse = {
         id: number,
         nome: string,
         email: string,
-        perfil: string
+        perfil: string,
+        cpf?: string,
+        cnpj?: string,
+        telefone?: string
     }
 }
 
@@ -23,7 +26,7 @@ export type cadastroRequest = {
   perfil: 'consumidor' | 'admin' | 'estabelecimento';
   cpf?: string | null;
   cnpj?: string | null;
-  telefone?: string | null
+  telefone?: string | null;
   data_nascimento: string;
 };
 
@@ -32,6 +35,13 @@ export type cadastroResponse = {
   status: boolean,
   status_code: number,
   message: string,
+  id?: number,
+  data?: {
+    id: number,
+    nome: string,
+    email: string,
+    perfil: string
+  }
 }
 
 
@@ -268,52 +278,57 @@ export interface listarProdutosResponse {
     created_at: string;
   }>;
 }
-
-// ============================================
 // TIPOS PARA ESTABELECIMENTO
 // ============================================
 
 export interface estabelecimentoRequest {
   nome: string;
   cnpj: string;
-  descricao?: string;
   telefone?: string;
-  email?: string;
-  endereco: {
-    cep: string;
-    logradouro: string;
-    numero: string;
-    complemento?: string;
-    bairro: string;
-    cidade: string;
-    estado: string;
-  };
 }
 
 export interface estabelecimentoResponse {
   status: boolean;
   status_code: number;
   message: string;
+  id?: number;
   data?: {
     id: number;
     nome: string;
     cnpj: string;
-    descricao?: string;
     telefone?: string;
-    email?: string;
     id_usuario: number;
-    endereco: {
-      id: number;
-      cep: string;
-      logradouro: string;
-      numero: string;
-      complemento?: string;
-      bairro: string;
-      cidade: string;
-      estado: string;
-    };
     created_at: string;
   };
+}
+
+// ============================================
+// TIPOS PARA PRODUTOS
+// ============================================
+
+export interface produtoPromocao {
+  preco_promocional: number;
+  data_inicio: string;
+  data_fim: string;
+}
+
+export interface produtoRequest {
+  nome: string;
+  descricao: string;
+  id_estabelecimento: number;
+  preco: number;
+  promocao?: produtoPromocao;
+  foto?: string;
+  estoque?: number;
+  unidade?: string;
+  ativo?: boolean;
+}
+
+export interface produtoResponse {
+  status: boolean;
+  status_code: number;
+  message: string;
+  id?: number;
 }
 
 export interface listarEstabelecimentosResponse {

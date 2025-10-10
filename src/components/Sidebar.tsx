@@ -42,7 +42,7 @@ const adminMenuItems = [
 // Menu items for company users (estabelecimentos)
 const companyMenuItems = [
   { to: "/HomeInicial", label: "Início", icon: iconCasa },
-  { to: "/empresa/cadastro-estabelecimento", label: "Estabelecimento", icon: iconPerfil },
+  { to: "/empresa/meu-estabelecimento", label: "Meu Estabelecimento", icon: iconPerfil },
   { to: "/empresa/cadastro-promocao", label: "Cadastrar Produto", icon: iconProduto },
   { to: "/promocoes", label: "Promoções", icon: iconProduto },
   { to: "/localizacao", label: "Localização", icon: iconDeLocalizacao },
