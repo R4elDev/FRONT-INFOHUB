@@ -1,7 +1,9 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 
 function PerfilEmpresa() {
+  const navigate = useNavigate()
   const [cnpj, setCnpj] = useState<string>("")
   const [nomeEmpresa, setNomeEmpresa] = useState<string>("")
   const [razaoSocial, setRazaoSocial] = useState<string>("")
@@ -32,10 +34,18 @@ function PerfilEmpresa() {
     <SidebarLayout>
       <div className="flex flex-col items-center justify-center min-h-screen py-8 px-4">
         <div className="w-full max-w-3xl bg-white rounded-3xl shadow-lg p-8">
-          {/* Título */}
-          <h1 className="text-3xl font-bold text-[#F9A01B] text-center mb-8">
-            PERFIL DA EMPRESA
-          </h1>
+          {/* Título e Botão Nova Promoção */}
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl font-bold text-[#F9A01B]">
+              PERFIL DA EMPRESA
+            </h1>
+            <button
+              onClick={() => navigate('/cadastro-promocao')}
+              className="bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#F9A01B] text-white px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-lg flex items-center gap-2"
+            >
+              ➕ Nova Promoção
+            </button>
+          </div>
 
           <div className="flex flex-col md:flex-row gap-8 items-start">
             {/* Logo da Empresa */}

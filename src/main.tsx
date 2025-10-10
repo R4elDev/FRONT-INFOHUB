@@ -2,11 +2,15 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
+import { UserProvider } from './contexts/UserContext'
+import SmartRoute from './components/common/SmartRoute'
+import ProtectedRoute from './components/common/ProtectedRoute'
 import './index.css'
 
 // Páginas de início
 import Home from './pages/inicio/Home'
 import HomeInicial from './pages/inicio/HomeInicial'
+import HomeInicialAdmin from './pages/inicio/HomeInicialAdmin'
 import Localizacao from './pages/inicio/TelaLocalizacao'
 import CadastroDeEndereco from './pages/inicio/CadastroDeEndereco'
 
@@ -40,32 +44,48 @@ import InfoCash from './pages/infocash/InfoCash'
 import InfoCashComentarios from './pages/infocash/InfoCashComentarios'
 import InfoCashNovoComentario from './pages/infocash/InfoCashNovoComentario'
 
+// Páginas de Admin
+import UsuariosAdmin from './pages/admin/UsuariosAdmin'
+import EmpresasAdmin from './pages/admin/EmpresasAdmin'
+import RelatoriosAdmin from './pages/admin/RelatoriosAdmin'
+
+// Páginas de Empresa
+import CadastroPromocao from './pages/empresa/CadastroPromocao'
+import CadastroEstabelecimento from './pages/empresa/CadastroEstabelecimento'
+
+// Páginas de Promoções
+import ListaPromocoes from './pages/promocoes/ListaPromocoes'
+
+// Páginas de Perfil
+import CadastroEndereco from './pages/perfil/CadastroEndereco'
+
 
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
-      <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
+    <UserProvider>
+      <BrowserRouter>
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
             style: {
-              background: '#10b981',
+              background: '#363636',
+              color: '#fff',
             },
-          },
-          error: {
-            style: {
-              background: '#ef4444',
+            success: {
+              style: {
+                background: '#10b981',
+              },
             },
-          },
-        }}
-      />
-      <Routes>
+            error: {
+              style: {
+                background: '#ef4444',
+              },
+            },
+          }}
+        />
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Cadastro />} />
@@ -74,7 +94,14 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/recuperar-senha-final" element={<RecuperarSenhaFinal/>} />
         <Route path="/CadastroDeEndereco" element={<CadastroDeEndereco/>} />
         <Route path="/Localizacao" element={<Localizacao/>} />
-        <Route path="/HomeInicial" element={<HomeInicial/>} />
+        <Route path="/HomeInicial" element={
+          <ProtectedRoute requireAuth={true}>
+            <SmartRoute 
+              userComponent={<HomeInicial />}
+              adminComponent={<HomeInicialAdmin />}
+            />
+          </ProtectedRoute>
+        } />
         <Route path="/ChatPrecos" element={<ChatPrecos/>} />
         <Route path="/promocoes" element={<Promocoes/>} />
         <Route path="/produto/:id" element={<DetalhesProduto/>} />
@@ -90,7 +117,46 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/infocash/comentarios" element={<InfoCashComentarios/>} />
         <Route path="/infocash/novo" element={<InfoCashNovoComentario/>} />
         <Route path="/favoritos" element={<Favoritos/>} />
-      </Routes>
-    </BrowserRouter>
+        
+        {/* Admin Routes */}
+        <Route path="/usuarios-admin" element={
+          <ProtectedRoute requireAdmin={true}>
+            <UsuariosAdmin />
+          </ProtectedRoute>
+        } />
+        <Route path="/empresas-admin" element={
+          <ProtectedRoute requireAdmin={true}>
+            <EmpresasAdmin />
+          </ProtectedRoute>
+        } />
+        <Route path="/relatorios-admin" element={
+          <ProtectedRoute requireAdmin={true}>
+            <RelatoriosAdmin />
+          </ProtectedRoute>
+        } />
+        <Route path="/cadastro-promocao" element={
+          <ProtectedRoute requireCompany={true}>
+            <CadastroPromocao />
+          </ProtectedRoute>
+        } />
+        <Route path="/empresa/cadastro-promocao" element={
+          <ProtectedRoute requireCompany={true}>
+            <CadastroPromocao />
+          </ProtectedRoute>
+        } />
+        <Route path="/empresa/cadastro-estabelecimento" element={
+          <ProtectedRoute requireCompany={true}>
+            <CadastroEstabelecimento />
+          </ProtectedRoute>
+        } />
+        <Route path="/promocoes" element={<ListaPromocoes />} />
+        <Route path="/cadastro-endereco" element={
+          <ProtectedRoute requireAuth={true}>
+            <CadastroEndereco />
+          </ProtectedRoute>
+        } />
+        </Routes>
+      </BrowserRouter>
+    </UserProvider>
   </StrictMode>,
 )
