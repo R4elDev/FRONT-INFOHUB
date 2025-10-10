@@ -52,6 +52,7 @@ import RelatoriosAdmin from './pages/admin/RelatoriosAdmin'
 // Páginas de Empresa
 import CadastroPromocao from './pages/empresa/CadastroPromocao'
 import CadastroEstabelecimento from './pages/empresa/CadastroEstabelecimento'
+import MeuEstabelecimento from './pages/empresa/MeuEstabelecimento'
 
 // Páginas de Promoções
 import ListaPromocoes from './pages/promocoes/ListaPromocoes'
@@ -147,6 +148,11 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/empresa/cadastro-estabelecimento" element={
           <ProtectedRoute requireCompany={true}>
             <CadastroEstabelecimento />
+          </ProtectedRoute>
+        } />
+        <Route path="/empresa/meu-estabelecimento" element={
+          <ProtectedRoute requireCompany={true}>
+            <MeuEstabelecimento />
           </ProtectedRoute>
         } />
         <Route path="/promocoes" element={<ListaPromocoes />} />

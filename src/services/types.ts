@@ -12,7 +12,10 @@ export type loginResponse = {
         id: number,
         nome: string,
         email: string,
-        perfil: string
+        perfil: string,
+        cpf?: string,
+        cnpj?: string,
+        telefone?: string
     }
 }
 
@@ -297,6 +300,35 @@ export interface estabelecimentoResponse {
     id_usuario: number;
     created_at: string;
   };
+}
+
+// ============================================
+// TIPOS PARA PRODUTOS
+// ============================================
+
+export interface produtoPromocao {
+  preco_promocional: number;
+  data_inicio: string;
+  data_fim: string;
+}
+
+export interface produtoRequest {
+  nome: string;
+  descricao: string;
+  id_estabelecimento: number;
+  preco: number;
+  promocao?: produtoPromocao;
+  foto?: string;
+  estoque?: number;
+  unidade?: string;
+  ativo?: boolean;
+}
+
+export interface produtoResponse {
+  status: boolean;
+  status_code: number;
+  message: string;
+  id?: number;
 }
 
 export interface listarEstabelecimentosResponse {

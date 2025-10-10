@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Upload, Package, DollarSign, Hash, FileText, ShoppingCart, TrendingDown, Percent, Calendar, Store, Image, CheckCircle, Sparkles, Gift, Zap, AlertCircle } from 'lucide-react'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { useUser } from "../../contexts/UserContext"
-import { cadastrarProduto, verificarEstabelecimento } from "../../services/apiServicesFixed"
+import { cadastrarProduto } from "../../services/apiServicesFixed"
 import type { produtoRequest } from "../../services/types"
 
 export default function CadastroPromocao() {
@@ -30,35 +30,34 @@ export default function CadastroPromocao() {
 
   // Verificar se usuário tem estabelecimento ao carregar
   useEffect(() => {
-    const verificarEstabelecimentoUsuario = async () => {
-      if (user?.perfil !== 'estabelecimento') {
-        setVerificandoEstabelecimento(false)
-        return
-      }
-
-      try {
-        const resultado = await verificarEstabelecimento()
-        
-        if (resultado.possuiEstabelecimento) {
-          setTemEstabelecimento(true)
-          setEstabelecimento(resultado.estabelecimento)
-        } else {
-          // Redirecionar para cadastro de estabelecimento
-          navigate('/empresa/cadastro-estabelecimento')
-          return
-        }
-      } catch (error) {
-        console.error('Erro ao verificar estabelecimento:', error)
-        setMessage({ 
-          type: 'error', 
-          text: 'Erro ao verificar estabelecimento. Tente novamente.' 
-        })
-      } finally {
-        setVerificandoEstabelecimento(false)
-      }
+    if (user?.perfil !== 'estabelecimento') {
+      setVerificandoEstabelecimento(false)
+      return
     }
 
-    verificarEstabelecimentoUsuario()
+    // Busca estabelecimento do localStorage
+    const estabelecimentoId = localStorage.getItem('estabelecimentoId')
+    const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
+    
+    if (estabelecimentoId && estabelecimentoNome) {
+      setTemEstabelecimento(true)
+      setEstabelecimento({
+        id: parseInt(estabelecimentoId),
+        nome: estabelecimentoNome,
+        cnpj: user?.cnpj || '',
+        telefone: user?.telefone || ''
+      })
+      console.log('🏢 Estabelecimento carregado:', {
+        id: estabelecimentoId,
+        nome: estabelecimentoNome,
+        cnpj: user?.cnpj
+      })
+    } else {
+      // Redirecionar para cadastro de estabelecimento
+      navigate('/empresa/cadastro-estabelecimento')
+    }
+    
+    setVerificandoEstabelecimento(false)
   }, [user, navigate])
 
   const handleInputChange = (field: string, value: string) => {
@@ -119,42 +118,94 @@ export default function CadastroPromocao() {
         return
       }
 
-      const produtoData: produtoRequest = {
+      // Validar ID do estabelecimento
+      if (!estabelecimento?.id) {
+        setMessage({ type: 'error', text: 'ID do estabelecimento não encontrado. Faça logout e login novamente.' })
+        return
+      }
+
+      // Monta payload base (SEM id_categoria)
+      const produtoData: any = {
         nome: formData.name.trim(),
         descricao: formData.description.trim(),
-        id_categoria: 1, // ID padrão fixo por enquanto
-        id_estabelecimento: estabelecimento?.id || user.id,
+        id_estabelecimento: estabelecimento.id,
         preco: preco,
-        promocao: precoPromocional ? {
-          preco_promocional: precoPromocional,
-          data_inicio: new Date().toISOString().split('T')[0],
-          data_fim: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 30 dias se não especificado
-        } : undefined
+        foto: 'https://via.placeholder.com/300x300.png?text=Produto',
+        estoque: 100,
+        unidade: 'un',
+        ativo: true
       }
       
-      console.log('🔍 Dados que serão enviados:', produtoData)
+      // Adiciona promoção apenas se tiver preço promocional
+      if (precoPromocional) {
+        produtoData.promocao = {
+          preco_promocional: precoPromocional,
+          data_inicio: new Date().toISOString().split('T')[0],
+          data_fim: formData.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        }
+      }
+      
+      console.log('📦 Payload COMPLETO do produto:', produtoData)
+      console.log('🔍 Campos individuais:', {
+        nome: produtoData.nome,
+        nome_length: produtoData.nome.length,
+        descricao: produtoData.descricao,
+        descricao_length: produtoData.descricao.length,
+        id_estabelecimento: produtoData.id_estabelecimento,
+        preco: produtoData.preco,
+        foto: produtoData.foto,
+        estoque: produtoData.estoque,
+        unidade: produtoData.unidade,
+        ativo: produtoData.ativo,
+        tem_promocao: !!produtoData.promocao
+      })
+      
+      if (produtoData.promocao) {
+        console.log('🎁 Dados da promoção:', produtoData.promocao)
+      }
 
       const response = await cadastrarProduto(produtoData)
       
+      console.log('✅ Resposta do cadastro:', response)
+      
       if (response.status) {
-        setMessage({ type: 'success', text: 'Produto cadastrado com sucesso!' })
-        // Limpar formulário
-        setFormData({
-          name: '',
-          description: '',
-          normalPrice: '',
-          promoPrice: '',
-          discount: '',
-          quantity: '',
-          market: '',
-          validUntil: '',
-          image: null
-        })
+        const produtoId = response.id
+        console.log('✅ ID do produto cadastrado:', produtoId)
+        
+        setMessage({ type: 'success', text: `Produto cadastrado com sucesso! ID: ${produtoId}` })
+        
+        // Limpar formulário após 2 segundos
+        setTimeout(() => {
+          setFormData({
+            name: '',
+            description: '',
+            normalPrice: '',
+            promoPrice: '',
+            discount: '',
+            quantity: '',
+            market: '',
+            validUntil: '',
+            image: null
+          })
+          setMessage(null)
+        }, 2000)
       }
     } catch (error: any) {
+      console.error('❌ Erro ao cadastrar produto:', error)
+      
+      let mensagemErro = 'Erro ao cadastrar produto. Tente novamente.'
+      
+      if (error.response?.status === 400) {
+        mensagemErro = 'Dados inválidos. Verifique os campos e tente novamente.'
+      } else if (error.response?.status === 401) {
+        mensagemErro = 'Sessão expirada. Faça login novamente.'
+      } else if (error.response?.data?.message) {
+        mensagemErro = error.response.data.message
+      }
+      
       setMessage({ 
         type: 'error', 
-        text: error.response?.data?.message || 'Erro ao cadastrar produto' 
+        text: mensagemErro
       })
     } finally {
       setLoading(false)
