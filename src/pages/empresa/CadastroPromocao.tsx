@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Package, DollarSign, Hash, FileText, ShoppingCart, TrendingDown, Percent, Calendar, Store, Image, CheckCircle, Sparkles, Gift, Zap, AlertCircle } from 'lucide-react'
+import { Upload, Package, DollarSign, Hash, FileText, ShoppingCart, TrendingDown, Percent, Calendar, Store, Image, CheckCircle, Sparkles, Gift, Zap, AlertCircle, Tag, Plus } from 'lucide-react'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { useUser } from "../../contexts/UserContext"
-import { cadastrarProduto } from "../../services/apiServicesFixed"
+import { cadastrarProduto, cadastrarCategoria } from "../../services/apiServicesFixed"
 import type { produtoRequest } from "../../services/types"
 
 export default function CadastroPromocao() {
@@ -19,6 +19,7 @@ export default function CadastroPromocao() {
     quantity: '',
     market: '',
     validUntil: '',
+    categoria: '',
     image: null
   })
   
@@ -27,6 +28,24 @@ export default function CadastroPromocao() {
   const [temEstabelecimento, setTemEstabelecimento] = useState(false)
   const [estabelecimento, setEstabelecimento] = useState<any>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  
+  // Estados para categorias
+  const [categorias, setCategorias] = useState<Array<{ id: number; nome: string }>>([
+    { id: 1, nome: "Alimentos e Bebidas" },
+    { id: 2, nome: "Eletrônicos" },
+    { id: 3, nome: "Roupas e Acessórios" },
+    { id: 4, nome: "Casa e Decoração" },
+    { id: 5, nome: "Saúde e Beleza" },
+    { id: 6, nome: "Esportes e Lazer" },
+    { id: 7, nome: "Livros e Papelaria" },
+    { id: 8, nome: "Automotivo" },
+    { id: 9, nome: "Pet Shop" },
+    { id: 10, nome: "Outros" }
+  ])
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState<number | ''>('')
+  const [novaCategoria, setNovaCategoria] = useState('')
+  const [mostrarNovaCategoria, setMostrarNovaCategoria] = useState(false)
+  const [carregandoCategorias, setCarregandoCategorias] = useState(false)
 
   // Verificar se usuário tem estabelecimento ao carregar
   useEffect(() => {
@@ -60,6 +79,12 @@ export default function CadastroPromocao() {
     setVerificandoEstabelecimento(false)
   }, [user, navigate])
 
+  // Carregar categorias disponíveis (usando categorias padrão por enquanto)
+  useEffect(() => {
+    // Como os endpoints de categoria não existem, usamos categorias padrão
+    console.log('📋 Usando categorias padrão:', categorias)
+  }, [])
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
@@ -71,6 +96,56 @@ export default function CadastroPromocao() {
       return Math.round(((normal - promo) / normal) * 100)
     }
     return 0
+  }
+
+  // Função para criar nova categoria
+  const handleCriarNovaCategoria = async () => {
+    if (!novaCategoria.trim()) {
+      setMessage({ type: 'error', text: 'Digite o nome da categoria' })
+      return
+    }
+
+    try {
+      setCarregandoCategorias(true)
+      
+      // Tenta criar via API, mas se falhar, cria localmente
+      try {
+        const response = await cadastrarCategoria({ nome: novaCategoria.trim() })
+        
+        if (response.status && response.data) {
+          // API funcionou - usa ID real
+          const novaCategoriaCriada = response.data
+          setCategorias(prev => [...prev, novaCategoriaCriada])
+          setCategoriaSelecionada(novaCategoriaCriada.id)
+          setMessage({ type: 'success', text: 'Categoria criada com sucesso!' })
+          console.log('✅ Nova categoria criada via API:', novaCategoriaCriada)
+        }
+      } catch (apiError) {
+        // API não funcionou - cria categoria local
+        console.log('ℹ️ Endpoint de categoria não disponível, criando categoria local')
+        const novoId = Math.max(...categorias.map(c => c.id)) + 1
+        const novaCategoriaCriada = {
+          id: novoId,
+          nome: novaCategoria.trim()
+        }
+        setCategorias(prev => [...prev, novaCategoriaCriada])
+        setCategoriaSelecionada(novaCategoriaCriada.id)
+        setMessage({ type: 'success', text: 'Categoria adicionada à lista!' })
+        console.log('✅ Nova categoria criada localmente:', novaCategoriaCriada)
+      }
+      
+      setNovaCategoria('')
+      setMostrarNovaCategoria(false)
+      
+      // Limpa a mensagem após 3 segundos
+      setTimeout(() => setMessage(null), 3000)
+      
+    } catch (error) {
+      console.error('Erro ao processar categoria:', error)
+      setMessage({ type: 'error', text: 'Erro ao processar categoria. Tente novamente.' })
+    } finally {
+      setCarregandoCategorias(false)
+    }
   }
 
   // Removido carregamento automático de categorias para evitar erro 404
@@ -124,16 +199,20 @@ export default function CadastroPromocao() {
         return
       }
 
-      // Monta payload base (SEM id_categoria)
-      const produtoData: any = {
+      // Validar categoria
+      let idCategoria = categoriaSelecionada
+      if (!idCategoria) {
+        setMessage({ type: 'error', text: 'Selecione uma categoria para o produto' })
+        return
+      }
+
+      // Monta payload base (COM id_categoria)
+      const produtoData: produtoRequest = {
         nome: formData.name.trim(),
         descricao: formData.description.trim(),
+        id_categoria: Number(idCategoria),
         id_estabelecimento: estabelecimento.id,
-        preco: preco,
-        foto: 'https://via.placeholder.com/300x300.png?text=Produto',
-        estoque: 100,
-        unidade: 'un',
-        ativo: true
+        preco: preco
       }
       
       // Adiciona promoção apenas se tiver preço promocional
@@ -151,12 +230,9 @@ export default function CadastroPromocao() {
         nome_length: produtoData.nome.length,
         descricao: produtoData.descricao,
         descricao_length: produtoData.descricao.length,
+        id_categoria: produtoData.id_categoria,
         id_estabelecimento: produtoData.id_estabelecimento,
         preco: produtoData.preco,
-        foto: produtoData.foto,
-        estoque: produtoData.estoque,
-        unidade: produtoData.unidade,
-        ativo: produtoData.ativo,
         tem_promocao: !!produtoData.promocao
       })
       
@@ -185,8 +261,10 @@ export default function CadastroPromocao() {
             quantity: '',
             market: '',
             validUntil: '',
+            categoria: '',
             image: null
           })
+          setCategoriaSelecionada('')
           setMessage(null)
         }, 2000)
       }
@@ -353,7 +431,94 @@ export default function CadastroPromocao() {
                       placeholder="Descreva os detalhes da promoção..."
                     />
                   </div>
-                  {/* Campo de categoria removido temporariamente */}
+                  
+                  {/* Campo de Categoria */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                      <Tag className="w-4 h-4 text-purple-500" />
+                      Categoria *
+                    </label>
+                    <div className="space-y-3">
+                      {/* Dropdown de categorias existentes */}
+                      <div className="flex gap-2">
+                        <select
+                          value={categoriaSelecionada}
+                          onChange={(e) => setCategoriaSelecionada(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-400 focus:outline-none transition-all"
+                          disabled={carregandoCategorias}
+                        >
+                          <option value="">Selecione uma categoria</option>
+                          {categorias.map(categoria => (
+                            <option key={categoria.id} value={categoria.id}>
+                              {categoria.nome}
+                            </option>
+                          ))}
+                        </select>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setMostrarNovaCategoria(!mostrarNovaCategoria)}
+                          className="px-4 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-xl transition-all flex items-center gap-2"
+                          disabled={carregandoCategorias}
+                        >
+                          <Plus className="w-4 h-4" />
+                          Nova
+                        </button>
+                      </div>
+                      
+                      {carregandoCategorias && (
+                        <div className="flex items-center gap-2 text-purple-600 text-sm">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                          Carregando categorias...
+                        </div>
+                      )}
+                      
+                      {/* Indicador de categoria selecionada */}
+                      {categoriaSelecionada && !mostrarNovaCategoria && (
+                        <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 px-3 py-2 rounded-lg">
+                          <CheckCircle className="w-4 h-4" />
+                          Categoria selecionada: {categorias.find(c => c.id === categoriaSelecionada)?.nome}
+                        </div>
+                      )}
+                      
+                      {/* Campo para criar nova categoria */}
+                      {mostrarNovaCategoria && (
+                        <div className="flex gap-2 p-3 bg-purple-50 rounded-xl border-2 border-purple-200">
+                          <input
+                            type="text"
+                            value={novaCategoria}
+                            onChange={(e) => setNovaCategoria(e.target.value)}
+                            placeholder="Nome da nova categoria"
+                            className="flex-1 px-3 py-2 rounded-lg border border-purple-300 focus:border-purple-500 focus:outline-none"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                handleCriarNovaCategoria()
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleCriarNovaCategoria}
+                            disabled={!novaCategoria.trim() || carregandoCategorias}
+                            className="px-3 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-300 text-white rounded-lg transition-all text-sm"
+                          >
+                            {carregandoCategorias ? '...' : 'Criar'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMostrarNovaCategoria(false)
+                              setNovaCategoria('')
+                            }}
+                            className="px-3 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg transition-all text-sm"
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 

@@ -1,91 +1,65 @@
+import { useState, useEffect } from "react"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { useNavigate } from "react-router-dom"
-import iconJarra from "../../assets/icon de jara.png"
 import lupaPesquisa from "../../assets/lupa de pesquisa .png"
 import microfoneVoz from "../../assets/microfone de voz.png"
+import iconJarra from "../../assets/icon de jara.png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
+import { listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
 
 function Promocoes() {
   const navigate = useNavigate()
+  const [produtos, setProdutos] = useState<Array<any>>([])
+  const [busca, setBusca] = useState('')
 
-  const produtos = [
-    {
-      id: 1,
-      nome: "Garrafa de suco de laranja 250 ml",
-      precoAntigo: 11.98,
-      precoAtual: 8.99,
-      desconto: 33,
-      imagem: iconJarra,
-      oferta: true
-    },
-    {
-      id: 2,
-      nome: "Garrafa de suco de laranja 250 ml",
-      precoAntigo: 11.98,
-      precoAtual: 7.99,
-      desconto: 33,
-      imagem: iconJarra,
-      oferta: true
-    },
-    {
-      id: 3,
-      nome: "Garrafa de suco de laranja 250 ml",
-      precoAntigo: 11.98,
-      precoAtual: 8.99,
-      desconto: 33,
-      imagem: iconJarra,
-      oferta: true
-    },
-    {
-      id: 4,
-      nome: "Garrafa de suco de laranja 250 ml",
-      precoAntigo: 11.98,
-      precoAtual: 9.99,
-      desconto: 17,
-      imagem: iconJarra,
-      oferta: true
-    },
-    {
-      id: 5,
-      nome: "Garrafa de suco de laranja 250 ml",
-      precoAntigo: 11.98,
-      precoAtual: 8.99,
-      desconto: 33,
-      imagem: iconJarra,
-      oferta: true
-    },
-    {
-      id: 6,
-      nome: "Garrafa de suco de laranja 250 ml",
-      precoAntigo: 11.98,
-      precoAtual: 7.99,
-      desconto: 33,
-      imagem: iconJarra,
-      oferta: true
-    },
-    {
-      id: 7,
-      nome: "Garrafa de suco de laranja 250 ml",
-      precoAntigo: 11.98,
-      precoAtual: 8.99,
-      desconto: 33,
-      imagem: iconJarra,
-      oferta: true
-    },
-    {
-      id: 8,
-      nome: "Garrafa de suco de laranja 250 ml",
-      precoAntigo: 11.98,
-      precoAtual: 9.99,
-      desconto: 17,
-      imagem: iconJarra,
-      oferta: true
+  // Carrega produtos em promoção
+  useEffect(() => {
+    const carregarProdutos = async () => {
+      try {
+        // Carrega produtos em promoção
+        console.log('🔍 Buscando produtos em promoção...')
+        const produtosResponse = await listarProdutos({ promocao: true })
+        console.log('✅ Resposta da API:', produtosResponse)
+        
+        if (produtosResponse.status && produtosResponse.data) {
+          console.log('📦 Produtos encontrados:', produtosResponse.data)
+          setProdutos(produtosResponse.data)
+        } else {
+          console.log('⚠️ Nenhum produto em promoção encontrado')
+        }
+      } catch (error) {
+        console.error('❌ Erro ao carregar produtos:', error)
+        // Se der erro, tenta carregar todos os produtos
+        try {
+          console.log('🔄 Tentando carregar todos os produtos...')
+          const produtosResponse = await listarProdutos()
+          console.log('✅ Resposta da API (todos produtos):', produtosResponse)
+          
+          if (produtosResponse.status && produtosResponse.data) {
+            console.log('📦 Produtos encontrados:', produtosResponse.data)
+            // Filtra apenas produtos em promoção no front
+            const produtosPromocao = produtosResponse.data.filter(p => isProdutoEmPromocao(p))
+            console.log('🏷️ Produtos em promoção:', produtosPromocao)
+            setProdutos(produtosPromocao)
+          }
+        } catch (error2) {
+          console.error('❌ Erro ao carregar produtos sem filtro:', error2)
+        }
+      }
     }
-  ]
+    
+    carregarProdutos()
+  }, [])
 
   const handleProdutoClick = (produtoId: number) => {
     navigate(`/produto/${produtoId}`)
+  }
+
+  const handleBusca = () => {
+    if (busca.trim()) {
+      navigate(`/promocoes?busca=${encodeURIComponent(busca.trim())}`)
+    }
   }
 
   return (
@@ -110,12 +84,18 @@ function Promocoes() {
             className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400"
           />
           <Input
-            placeholder="Suco de laranja"
+            placeholder="Buscar promoções..."
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleBusca()}
             className="h-16 pl-16 pr-16 rounded-3xl border-0 text-gray-700 text-base 
                        focus-visible:ring-2 focus-visible:ring-[#F9A01B] 
                        placeholder:text-gray-400"
           />
-          <button className="absolute right-6 top-1/2 -translate-y-1/2 transition-transform hover:scale-110">
+          <button 
+            onClick={handleBusca}
+            className="absolute right-6 top-1/2 -translate-y-1/2 transition-transform hover:scale-110"
+          >
             <img
               src={microfoneVoz}
               alt="Pesquisar por voz"
@@ -149,86 +129,96 @@ function Promocoes() {
                    shadow-[0_4px_20px_rgba(0,0,0,0.06)] p-4 sm:p-6 md:p-8"
       >
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
-          {produtos.map((produto) => (
-            <article
-              key={produto.id}
-              onClick={() => handleProdutoClick(produto.id)}
-              className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 cursor-pointer
-                         shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all 
-                         hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] hover:-translate-y-1"
-            >
-              {/* Oferta + Favorito */}
-              <div className="flex items-start justify-between mb-2">
-                {produto.oferta && (
-                  <span 
-                    className="bg-gradient-to-r from-green-600 to-green-500 
-                               text-white text-[10px] font-semibold px-2.5 py-1 
-                               rounded-md shadow-sm"
-                  >
-                    Oferta
-                  </span>
-                )}
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    console.log('Favorito clicado')
-                  }}
-                  className="text-gray-300 hover:text-red-500 transition-colors text-xl"
-                >
-                  ♡
-                </button>
-              </div>
-
-              {/* Imagem do Produto */}
-              <div 
-                className="flex items-center justify-center py-3 sm:py-4 bg-gray-50 
-                           rounded-xl mb-3"
+          {produtos.map((produto) => {
+            const emPromocao = isProdutoEmPromocao(produto)
+            const desconto = emPromocao ? calcularDesconto(produto.preco, produto.promocao.preco_promocional) : 0
+            
+            return (
+              <article
+                key={produto.id}
+                onClick={() => handleProdutoClick(produto.id)}
+                className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 cursor-pointer
+                           shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all 
+                           hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] hover:-translate-y-1"
               >
-                <img 
-                  src={produto.imagem} 
-                  alt={produto.nome} 
-                  className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-md" 
-                />
-              </div>
+                {/* Oferta + Favorito */}
+                <div className="flex items-start justify-between mb-2">
+                  {emPromocao && (
+                    <span 
+                      className="bg-gradient-to-r from-green-600 to-green-500 
+                                 text-white text-[10px] font-semibold px-2.5 py-1 
+                                 rounded-md shadow-sm"
+                    >
+                      Oferta
+                    </span>
+                  )}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      console.log('Favorito clicado:', produto.id)
+                    }}
+                    className="text-gray-300 hover:text-red-500 transition-colors text-xl"
+                  >
+                    ♡
+                  </button>
+                </div>
 
-              {/* Preço antigo + desconto */}
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span 
-                  className="bg-gradient-to-r from-orange-100 to-orange-50 
-                             text-orange-700 font-bold px-2 py-1 rounded-md"
+                {/* Imagem do Produto */}
+                <div 
+                  className="flex items-center justify-center py-3 sm:py-4 bg-gray-50 
+                             rounded-xl mb-3"
                 >
-                  -{produto.desconto}%
-                </span>
-                <span className="text-gray-400 line-through">
-                  R$ {produto.precoAntigo.toFixed(2)}
-                </span>
-              </div>
+                  <img 
+                    src={produto.imagem || iconJarra} 
+                    alt={produto.nome} 
+                    className="w-20 h-20 sm:w-24 sm:h-24 object-contain drop-shadow-md" 
+                  />
+                </div>
 
-              {/* Preço atual + botão adicionar */}
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-green-700 font-bold text-base sm:text-lg">
-                  R$ {produto.precoAtual.toFixed(2)}
+                {/* Preço antigo + desconto */}
+                {emPromocao && (
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span 
+                      className="bg-gradient-to-r from-orange-100 to-orange-50 
+                                 text-orange-700 font-bold px-2 py-1 rounded-md"
+                    >
+                      -{desconto}%
+                    </span>
+                    <span className="text-gray-400 line-through">
+                      {formatarPreco(produto.preco)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Preço atual + botão adicionar */}
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-green-700 font-bold text-base sm:text-lg">
+                    {emPromocao 
+                      ? formatarPreco(produto.promocao.preco_promocional) 
+                      : formatarPreco(produto.preco)
+                    }
+                  </p>
+                  <Button 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      console.log('Adicionar ao carrinho:', produto.id)
+                    }}
+                    className="h-7 w-7 sm:h-8 sm:w-8 rounded-full p-0 text-white font-bold 
+                               bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] 
+                               hover:from-[#FF8C00] hover:to-[#F9A01B] 
+                               shadow-md hover:shadow-lg transition-all hover:scale-110"
+                  >
+                    +
+                  </Button>
+                </div>
+
+                {/* Descrição */}
+                <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
+                  {produto.nome}
                 </p>
-                <Button 
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    console.log('Adicionar ao carrinho')
-                  }}
-                  className="h-7 w-7 sm:h-8 sm:w-8 rounded-full p-0 text-white font-bold 
-                             bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] 
-                             hover:from-[#FF8C00] hover:to-[#F9A01B] 
-                             shadow-md hover:shadow-lg transition-all hover:scale-110"
-                >
-                  +
-                </Button>
-              </div>
-
-              {/* Descrição */}
-              <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
-                {produto.nome}
-              </p>
-            </article>
-          ))}
+              </article>
+            )
+          })}
         </div>
 
         {/* Paginação */}

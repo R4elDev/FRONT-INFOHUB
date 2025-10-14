@@ -2,29 +2,51 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { useUser } from "../../contexts/UserContext"
-import { Store, MapPin, Phone, FileText, Plus } from 'lucide-react'
+import { Store, Phone, Plus } from 'lucide-react'
+import { listarProdutos, formatarPreco, isProdutoEmPromocao } from "../../services/apiServicesFixed"
+import iconJarra from "../../assets/icon de jara.png"
 
 export default function MeuEstabelecimento() {
   const navigate = useNavigate()
   const { user } = useUser()
   const [estabelecimento, setEstabelecimento] = useState<any>(null)
+  const [produtos, setProdutos] = useState<Array<any>>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Busca dados do estabelecimento do localStorage
-    const estabelecimentoId = localStorage.getItem('estabelecimentoId')
-    const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
-    
-    if (estabelecimentoId && estabelecimentoNome) {
-      setEstabelecimento({
-        id: parseInt(estabelecimentoId),
-        nome: estabelecimentoNome,
-        cnpj: user?.cnpj || '',
-        telefone: user?.telefone || ''
-      })
+    const carregarDados = async () => {
+      setLoading(true)
+      
+      try {
+        // Busca dados do estabelecimento do localStorage
+        const estabelecimentoId = localStorage.getItem('estabelecimentoId')
+        const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
+        
+        if (estabelecimentoId && estabelecimentoNome) {
+          setEstabelecimento({
+            id: parseInt(estabelecimentoId),
+            nome: estabelecimentoNome,
+            cnpj: user?.cnpj || '',
+            telefone: user?.telefone || ''
+          })
+          
+          // Carrega produtos do estabelecimento
+          const produtosResponse = await listarProdutos({ 
+            estabelecimento: parseInt(estabelecimentoId) 
+          })
+          
+          if (produtosResponse.status && produtosResponse.data) {
+            setProdutos(produtosResponse.data)
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error)
+      } finally {
+        setLoading(false)
+      }
     }
     
-    setLoading(false)
+    carregarDados()
   }, [user])
 
   // Verificar se usuário tem permissão
@@ -52,31 +74,24 @@ export default function MeuEstabelecimento() {
     return (
       <SidebarLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Carregando...</p>
-          </div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
       </SidebarLayout>
     )
   }
 
-  // Se não tem estabelecimento
+  // Se não encontrou estabelecimento
   if (!estabelecimento) {
     return (
       <SidebarLayout>
-        <div className="max-w-4xl mx-auto p-6">
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <Store className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">Nenhum Estabelecimento Cadastrado</h1>
-            <p className="text-gray-600 mb-6">
-              Você ainda não possui um estabelecimento cadastrado. Cadastre agora para começar a vender!
-            </p>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Estabelecimento não encontrado</h2>
+            <p className="text-gray-600 mb-6">Cadastre seu estabelecimento para continuar.</p>
             <button
-              onClick={() => navigate('/empresa/cadastro-estabelecimento')}
-              className="px-6 py-3 bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] text-white rounded-lg hover:from-[#FF8C00] hover:to-[#F9A01B] transition-all flex items-center gap-2 mx-auto"
+              onClick={() => navigate('/cadastro-estabelecimento')}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
-              <Plus className="w-5 h-5" />
               Cadastrar Estabelecimento
             </button>
           </div>
@@ -85,99 +100,130 @@ export default function MeuEstabelecimento() {
     )
   }
 
-  // Mostra estabelecimento
   return (
     <SidebarLayout>
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#F9A01B] via-[#FF8C00] to-[#F9A01B] rounded-3xl shadow-2xl p-8 text-white mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="bg-white/20 p-3 rounded-xl">
-              <Store className="w-8 h-8" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">Meu Estabelecimento</h1>
-              <p className="text-white/90">Informações do seu estabelecimento</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Card do Estabelecimento */}
-        <div className="bg-white rounded-3xl shadow-xl p-8 mb-6">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">{estabelecimento.nome}</h2>
-              <p className="text-gray-500">ID: #{estabelecimento.id}</p>
-            </div>
-            <div className="bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-semibold">
-              ✓ Ativo
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* CNPJ */}
-            {estabelecimento.cnpj && (
-              <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
-                <div className="bg-blue-100 p-2 rounded-lg">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">CNPJ</p>
-                  <p className="text-lg font-semibold text-gray-800">{estabelecimento.cnpj}</p>
-                </div>
+      {/* Cabeçalho */}
+      <div className="mt-8 mb-12">
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+              {estabelecimento.nome}
+            </h1>
+            <div className="flex items-center gap-4 text-gray-600">
+              <div className="flex items-center gap-1">
+                <Store className="w-4 h-4" />
+                <span>{estabelecimento.cnpj}</span>
               </div>
-            )}
-
-            {/* Telefone */}
-            {estabelecimento.telefone && (
-              <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
-                <div className="bg-green-100 p-2 rounded-lg">
-                  <Phone className="w-5 h-5 text-green-600" />
+              {estabelecimento.telefone && (
+                <div className="flex items-center gap-1">
+                  <Phone className="w-4 h-4" />
+                  <span>{estabelecimento.telefone}</span>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Telefone</p>
-                  <p className="text-lg font-semibold text-gray-800">{estabelecimento.telefone}</p>
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
-
-        {/* Ações */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button
-            onClick={() => navigate('/empresa/cadastro-promocao')}
-            className="flex items-center justify-center gap-3 p-6 bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] text-white rounded-2xl hover:from-[#FF8C00] hover:to-[#F9A01B] transition-all shadow-lg hover:shadow-xl"
+          <button 
+            onClick={() => navigate('/cadastro-promocao')}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-md"
           >
-            <Plus className="w-6 h-6" />
-            <div className="text-left">
-              <p className="font-bold text-lg">Cadastrar Produto</p>
-              <p className="text-sm text-white/90">Adicione novos produtos</p>
-            </div>
+            <Plus className="w-5 h-5" />
+            Nova Promoção
           </button>
-
-          <button
-            onClick={() => navigate('/HomeInicial')}
-            className="flex items-center justify-center gap-3 p-6 bg-white border-2 border-gray-200 text-gray-700 rounded-2xl hover:border-[#F9A01B] hover:bg-orange-50 transition-all"
-          >
-            <MapPin className="w-6 h-6" />
-            <div className="text-left">
-              <p className="font-bold text-lg">Ir para Home</p>
-              <p className="text-sm text-gray-500">Voltar ao início</p>
-            </div>
-          </button>
-        </div>
-
-        {/* Informações Adicionais */}
-        <div className="mt-8 p-6 bg-blue-50 border border-blue-200 rounded-2xl">
-          <h3 className="font-semibold text-blue-900 mb-2">💡 Dicas</h3>
-          <ul className="text-sm text-blue-800 space-y-1">
-            <li>• Mantenha suas informações sempre atualizadas</li>
-            <li>• Cadastre produtos com descrições detalhadas</li>
-            <li>• Use fotos de qualidade para atrair mais clientes</li>
-          </ul>
         </div>
       </div>
+
+      {/* Grid de Produtos */}
+      <section className="bg-white rounded-3xl border border-gray-100 shadow-lg p-6 md:p-8">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">Minhas Promoções</h2>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => navigate('/cadastro-promocao')}
+              className="bg-[#F9A01B] hover:bg-[#FF8C00] text-white px-4 py-2 rounded-xl font-semibold transition-colors shadow-md"
+            >
+              ➕ Adicionar
+            </button>
+          </div>
+        </div>
+
+        {produtos.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+            <div className="text-6xl mb-4">🏪</div>
+            <h3 className="text-xl font-semibold text-gray-600 mb-2">Nenhuma promoção cadastrada</h3>
+            <p className="text-gray-500 mb-6">Comece cadastrando sua primeira promoção!</p>
+            <button 
+              onClick={() => navigate('/cadastro-promocao')}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all inline-flex items-center gap-2"
+            >
+              <Plus className="w-5 h-5" /> Criar Promoção
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {produtos.map(produto => {
+              const emPromocao = isProdutoEmPromocao(produto)
+              
+              return (
+                <article
+                  key={produto.id}
+                  onClick={() => navigate(`/produto/${produto.id}`)}
+                  className="rounded-2xl border-2 border-gray-200 bg-white p-4 cursor-pointer
+                             shadow-md transition-all hover:shadow-xl hover:-translate-y-1 hover:border-blue-300"
+                >
+                  {/* Status Badge */}
+                  <div className="flex items-start justify-between mb-2">
+                    <span 
+                      className={`text-white text-[10px] font-semibold px-2.5 py-1 rounded-md shadow-sm
+                                ${emPromocao ? 'bg-green-600' : 'bg-gray-500'}`}
+                    >
+                      {emPromocao ? 'ATIVA' : 'INATIVA'}
+                    </span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/produto/${produto.id}/editar`)
+                      }}
+                      className="text-gray-400 hover:text-blue-600 transition-colors text-lg"
+                    >
+                      ⚙️
+                    </button>
+                  </div>
+
+                  {/* Product Image */}
+                  <div className="flex items-center justify-center py-4 bg-gray-50 rounded-xl mb-3">
+                    <img 
+                      src={produto.imagem || iconJarra} 
+                      alt={produto.nome} 
+                      className="w-24 h-24 object-contain drop-shadow-md" 
+                    />
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="mb-2">
+                    <h3 className="font-medium text-gray-800 line-clamp-2 mb-1">
+                      {produto.nome}
+                    </h3>
+                    <p className="text-sm text-green-600 font-bold">
+                      {emPromocao 
+                        ? formatarPreco(produto.promocao.preco_promocional)
+                        : formatarPreco(produto.preco)
+                      }
+                    </p>
+                  </div>
+
+                  {/* Promotion Period */}
+                  {emPromocao && (
+                    <div className="text-xs text-gray-500">
+                      <p>Início: {new Date(produto.promocao.data_inicio).toLocaleDateString()}</p>
+                      <p>Fim: {new Date(produto.promocao.data_fim).toLocaleDateString()}</p>
+                    </div>
+                  )}
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </section>
     </SidebarLayout>
   )
 }

@@ -6,7 +6,7 @@ import iconJarra from "../../assets/icon de jara.png"
 import lupaPesquisa from "../../assets/lupa de pesquisa .png"
 import microfoneVoz from "../../assets/microfone de voz.png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { listarCategorias, listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServices"
+import { listarCategorias, listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
 
 function HomeInicial() {
   const navigate = useNavigate()
@@ -21,10 +21,23 @@ function HomeInicial() {
       try {
         setLoading(true)
         
-        // Carrega categorias
-        const categoriasResponse = await listarCategorias()
-        if (categoriasResponse.status && categoriasResponse.data) {
-          setCategorias(categoriasResponse.data)
+        // Tenta carregar categorias da API, mas usa categorias padrão se falhar
+        try {
+          const categoriasResponse = await listarCategorias()
+          if (categoriasResponse.status && categoriasResponse.data) {
+            setCategorias(categoriasResponse.data)
+          }
+        } catch (error) {
+          console.log('ℹ️ Usando categorias padrão (endpoint não disponível)')
+          // Usa categorias padrão se API não estiver disponível
+          setCategorias([
+            { id: 1, nome: "Alimentos e Bebidas" },
+            { id: 2, nome: "Eletrônicos" },
+            { id: 3, nome: "Roupas e Acessórios" },
+            { id: 4, nome: "Casa e Decoração" },
+            { id: 5, nome: "Saúde e Beleza" },
+            { id: 6, nome: "Outros" }
+          ])
         }
         
         // Carrega produtos em promoção
@@ -34,6 +47,15 @@ function HomeInicial() {
         }
       } catch (error) {
         console.error('Erro ao carregar dados:', error)
+        // Se não conseguir carregar produtos, tenta sem filtro de promoção
+        try {
+          const produtosResponse = await listarProdutos()
+          if (produtosResponse.status && produtosResponse.data) {
+            setProdutos(produtosResponse.data.slice(0, 4))
+          }
+        } catch (error2) {
+          console.error('Erro ao carregar produtos sem filtro:', error2)
+        }
       } finally {
         setLoading(false)
       }
