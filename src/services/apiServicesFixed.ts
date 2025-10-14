@@ -118,16 +118,8 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
         }
         
         const url = params.toString() ? `/produtos?${params.toString()}` : '/produtos'
-        console.log('🔍 Buscando produtos na URL:', url)
-        
-        try {
-            const response = await api.get<listarProdutosResponse>(url)
-            console.log('✅ Resposta completa:', response)
-            return response.data
-        } catch (error) {
-            console.error('❌ Erro na chamada /produtos:', error)
-            throw error
-        }
+        const { data } = await api.get<listarProdutosResponse>(url)
+        return data
     } catch (error: any) {
         try {
             // Tenta endpoint singular se plural falhar
@@ -141,17 +133,10 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                 if (filtros.busca) params2.append('busca', filtros.busca)
             }
             const url = params2.toString() ? `/produto?${params2.toString()}` : '/produto'
-            console.log('🔄 Tentando URL alternativa:', url)
-            
-            const response = await api.get<listarProdutosResponse>(url)
-            console.log('✅ Resposta alternativa:', response)
-            return response.data
+            const { data } = await api.get<listarProdutosResponse>(url)
+            return data
         } catch (error2: any) {
-            console.error('❌ Erro ao listar produtos:', {
-                originalError: error.response?.data || error.message,
-                secondError: error2.response?.data || error2.message,
-                filters: filtros
-            })
+            console.error('Erro ao listar produtos:', error2.response?.data || error2.message)
             throw error2
         }
     }
@@ -176,19 +161,11 @@ export function calcularDesconto(precoNormal: number, precoPromocional: number):
 }
 
 export function isProdutoEmPromocao(produto: any): boolean {
-    if (!produto?.promocao) return false
-    if (!produto.promocao.data_inicio || !produto.promocao.data_fim) return false
+    if (!produto.promocao) return false
     
     const hoje = new Date()
     const dataInicio = new Date(produto.promocao.data_inicio)
     const dataFim = new Date(produto.promocao.data_fim)
-    
-    console.log('🗓️ Verificando promoção:', {
-        hoje: hoje.toISOString(),
-        dataInicio: dataInicio.toISOString(),
-        dataFim: dataFim.toISOString(),
-        emPromocao: hoje >= dataInicio && hoje <= dataFim
-    })
     
     return hoje >= dataInicio && hoje <= dataFim
 }

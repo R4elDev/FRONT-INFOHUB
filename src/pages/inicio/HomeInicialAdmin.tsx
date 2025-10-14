@@ -6,7 +6,7 @@ import iconJarra from "../../assets/icon de jara.png"
 import lupaPesquisa from "../../assets/lupa de pesquisa .png"
 import microfoneVoz from "../../assets/microfone de voz.png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { listarCategorias, listarProdutos, formatarPreco, isProdutoEmPromocao } from "../../services/apiServicesFixed"
+import { listarCategorias, listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
 
 function HomeInicialAdmin() {
   const navigate = useNavigate()
@@ -14,7 +14,6 @@ function HomeInicialAdmin() {
   const [produtos, setProdutos] = useState<Array<any>>([]) 
   const [loading, setLoading] = useState(true)
   const [busca, setBusca] = useState('')
-  const [categoriaAtiva, setCategoriaAtiva] = useState<number | null>(null)
 
   // Carrega categorias e produtos ao montar o componente
   useEffect(() => {
@@ -44,7 +43,7 @@ function HomeInicialAdmin() {
         // Carrega todos os produtos para admin
         const produtosResponse = await listarProdutos()
         if (produtosResponse.status && produtosResponse.data) {
-          setProdutos(produtosResponse.data)
+          setProdutos(produtosResponse.data.slice(0, 4)) // Apenas os primeiros 4
         }
       } catch (error) {
         console.error('Erro ao carregar dados:', error)
@@ -56,36 +55,17 @@ function HomeInicialAdmin() {
     carregarDados()
   }, [])
 
-  // Filtra produtos por categoria selecionada
-  const produtosFiltrados = produtos.filter(produto => {
-    // Filtra por busca se houver
-    const matchBusca = !busca || 
-      produto.nome.toLowerCase().includes(busca.toLowerCase()) ||
-      produto.descricao?.toLowerCase().includes(busca.toLowerCase())
-    
-    // Filtra por categoria se houver uma selecionada
-    const matchCategoria = !categoriaAtiva || produto.id_categoria === categoriaAtiva
-    
-    return matchBusca && matchCategoria
-  })
-
   const handleProdutoClick = (produtoId: number) => {
     navigate(`/produto/${produtoId}`)
   }
 
   const handleCategoriaClick = (categoriaId: number) => {
-    setCategoriaAtiva(categoriaId === categoriaAtiva ? null : categoriaId)
+    navigate(`/promocoes?categoria=${categoriaId}`)
   }
 
   const handleBusca = () => {
     if (busca.trim()) {
-      // Filtra produtos localmente
-      const textoBusca = busca.trim().toLowerCase()
-      const resultados = produtos.filter(produto => 
-        produto.nome.toLowerCase().includes(textoBusca) ||
-        produto.descricao?.toLowerCase().includes(textoBusca)
-      )
-      setProdutos(resultados)
+      navigate(`/promocoes?busca=${encodeURIComponent(busca.trim())}`)
     }
   }
 
@@ -165,10 +145,8 @@ function HomeInicialAdmin() {
         <div className="flex gap-3 overflow-x-auto pb-2">
           {/* Botão "Todas" */}
           <button 
-            onClick={() => setCategoriaAtiva(null)}
-            className={`${
-              categoriaAtiva === null ? 'bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'
-            } text-white px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0`}
+            onClick={() => navigate('/promocoes')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0"
           >
             📊 Todas
           </button>
@@ -191,9 +169,7 @@ function HomeInicialAdmin() {
               <button 
                 key={categoria.id}
                 onClick={() => handleCategoriaClick(categoria.id)}
-                className={`${cor} ${
-                  categoriaAtiva === categoria.id ? 'scale-105' : ''
-                } text-white px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0`}
+                className={`${cor} text-white px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0`}
               >
                 {categoria.nome}
               </button>
@@ -215,9 +191,6 @@ function HomeInicialAdmin() {
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
             📦 Produtos em Destaque
-            {loading && (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-            )}
           </h2>
           <div className="flex gap-3">
             <button 
@@ -248,12 +221,12 @@ function HomeInicialAdmin() {
                 <div className="h-3 bg-gray-200 rounded"></div>
               </div>
             ))
-          ) : produtosFiltrados.length === 0 ? (
+          ) : produtos.length === 0 ? (
             // Sem produtos
             <div className="col-span-full text-center py-12">
               <div className="text-6xl mb-4">📦</div>
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">Nenhum produto encontrado</h3>
-              <p className="text-gray-500 mb-4">Tente ajustar os filtros ou adicionar novos produtos</p>
+              <h3 className="text-xl font-semibold text-gray-600 mb-2">Nenhum produto cadastrado</h3>
+              <p className="text-gray-500 mb-4">Comece adicionando produtos ao sistema</p>
               <button 
                 onClick={() => navigate('/cadastro-promocao')}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all"
@@ -263,8 +236,9 @@ function HomeInicialAdmin() {
             </div>
           ) : (
             // Produtos reais da API
-            produtosFiltrados.slice(0, 8).map((produto) => {
+            produtos.map((produto) => {
               const emPromocao = isProdutoEmPromocao(produto)
+              const desconto = emPromocao ? calcularDesconto(produto.preco, produto.promocao!.preco_promocional) : 0
               
               return (
                 <article
@@ -281,7 +255,7 @@ function HomeInicialAdmin() {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation()
-                        navigate(`/produto/${produto.id}/editar`)
+                        navigate('/cadastro-promocao')
                       }}
                       className="text-blue-500 hover:text-blue-700 transition-colors text-lg"
                     >
@@ -292,7 +266,7 @@ function HomeInicialAdmin() {
                   {/* Product Image */}
                   <div className="flex items-center justify-center py-4 bg-gray-50 rounded-xl mb-3">
                     <img 
-                      src={produto.imagem || iconJarra} 
+                      src={iconJarra} 
                       alt={produto.nome} 
                       className="w-24 h-24 object-contain drop-shadow-md" 
                     />
@@ -314,7 +288,7 @@ function HomeInicialAdmin() {
                     <Botao 
                       onClick={(e) => {
                         e.stopPropagation()
-                        navigate(`/produto/${produto.id}/editar`)
+                        console.log('Edit product', produto.id)
                       }}
                       className="h-8 w-8 rounded-full p-0 text-white font-bold 
                                  bg-gradient-to-r from-blue-600 to-blue-700 
@@ -331,35 +305,19 @@ function HomeInicialAdmin() {
                   </p>
                   
                   {/* Categoria */}
-                  {produto.categoria?.nome && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      {produto.categoria.nome}
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-400 mt-1">
+                    {produto.categoria?.nome}
+                  </p>
                   
                   {/* Estabelecimento */}
-                  {produto.estabelecimento?.nome && (
-                    <p className="text-xs text-blue-500 mt-1">
-                      {produto.estabelecimento.nome}
-                    </p>
-                  )}
+                  <p className="text-xs text-blue-500 mt-1">
+                    {produto.estabelecimento?.nome}
+                  </p>
                 </article>
               )
             })
           )}
         </div>
-
-        {/* Ver Mais Button */}
-        {produtosFiltrados.length > 8 && (
-          <div className="text-center mt-8">
-            <button 
-              onClick={() => navigate('/promocoes')}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-semibold transition-all inline-flex items-center gap-2"
-            >
-              Ver Mais <span>→</span>
-            </button>
-          </div>
-        )}
       </section>
     </SidebarLayout>
   )
