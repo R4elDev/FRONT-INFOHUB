@@ -18,33 +18,20 @@ function Promocoes() {
     const carregarProdutos = async () => {
       try {
         // Carrega produtos em promoção
-        console.log('🔍 Buscando produtos em promoção...')
         const produtosResponse = await listarProdutos({ promocao: true })
-        console.log('✅ Resposta da API:', produtosResponse)
-        
         if (produtosResponse.status && produtosResponse.data) {
-          console.log('📦 Produtos encontrados:', produtosResponse.data)
           setProdutos(produtosResponse.data)
-        } else {
-          console.log('⚠️ Nenhum produto em promoção encontrado')
         }
       } catch (error) {
-        console.error('❌ Erro ao carregar produtos:', error)
+        console.error('Erro ao carregar produtos:', error)
         // Se der erro, tenta carregar todos os produtos
         try {
-          console.log('🔄 Tentando carregar todos os produtos...')
           const produtosResponse = await listarProdutos()
-          console.log('✅ Resposta da API (todos produtos):', produtosResponse)
-          
           if (produtosResponse.status && produtosResponse.data) {
-            console.log('📦 Produtos encontrados:', produtosResponse.data)
-            // Filtra apenas produtos em promoção no front
-            const produtosPromocao = produtosResponse.data.filter(p => isProdutoEmPromocao(p))
-            console.log('🏷️ Produtos em promoção:', produtosPromocao)
-            setProdutos(produtosPromocao)
+            setProdutos(produtosResponse.data)
           }
         } catch (error2) {
-          console.error('❌ Erro ao carregar produtos sem filtro:', error2)
+          console.error('Erro ao carregar produtos sem filtro:', error2)
         }
       }
     }
