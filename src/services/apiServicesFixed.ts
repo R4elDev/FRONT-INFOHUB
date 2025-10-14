@@ -83,18 +83,10 @@ export async function listarCategorias(): Promise<listarCategoriasResponse> {
  */
 export async function cadastrarProduto(payload: produtoRequest): Promise<produtoResponse> {
     try {
-        console.log('📦 Enviando dados do produto:', payload)
         const { data } = await api.post<produtoResponse>("/produtos", payload)
-        console.log('✅ Produto cadastrado com sucesso:', data)
         return data
     } catch (error: any) {
-        console.error('❌ Erro ao cadastrar produto:', error.response?.data || error.message)
-        console.error('🔍 Detalhes do erro:', {
-            status: error.response?.status,
-            statusText: error.response?.statusText,
-            data: error.response?.data,
-            payload: payload
-        })
+        console.error('Erro ao cadastrar produto:', error.response?.data || error.message)
         throw error
     }
 }

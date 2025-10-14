@@ -199,18 +199,10 @@ export default function CadastroPromocao() {
         return
       }
 
-      // Validar categoria
-      let idCategoria = categoriaSelecionada
-      if (!idCategoria) {
-        setMessage({ type: 'error', text: 'Selecione uma categoria para o produto' })
-        return
-      }
-
-      // Monta payload base (COM id_categoria)
+      // Monta payload base (SEM id_categoria - backend não aceita)
       const produtoData: produtoRequest = {
         nome: formData.name.trim(),
         descricao: formData.description.trim(),
-        id_categoria: Number(idCategoria),
         id_estabelecimento: estabelecimento.id,
         preco: preco
       }
@@ -224,17 +216,7 @@ export default function CadastroPromocao() {
         }
       }
       
-      console.log('📦 Payload COMPLETO do produto:', produtoData)
-      console.log('🔍 Campos individuais:', {
-        nome: produtoData.nome,
-        nome_length: produtoData.nome.length,
-        descricao: produtoData.descricao,
-        descricao_length: produtoData.descricao.length,
-        id_categoria: produtoData.id_categoria,
-        id_estabelecimento: produtoData.id_estabelecimento,
-        preco: produtoData.preco,
-        tem_promocao: !!produtoData.promocao
-      })
+      console.log('📦 Payload do produto:', produtoData)
       
       if (produtoData.promocao) {
         console.log('🎁 Dados da promoção:', produtoData.promocao)

@@ -86,7 +86,6 @@ export async function exemploProdutoComPromocao() {
     const produtoData: produtoRequest = {
         nome: "Smartphone Samsung Galaxy",
         descricao: "Smartphone com 128GB de armazenamento e câmera de 64MP",
-        id_categoria: 1, // ID da categoria "Eletrônicos"
         id_estabelecimento: 5, // ID do estabelecimento
         preco: 1200.00,
         promocao: {
@@ -113,7 +112,6 @@ export async function exemploProdutoSemPromocao() {
     const produtoData: produtoRequest = {
         nome: "Notebook Dell Inspiron",
         descricao: "Notebook para uso profissional com 16GB RAM e SSD 512GB",
-        id_categoria: 1, // ID da categoria "Eletrônicos"
         id_estabelecimento: 5, // ID do estabelecimento
         preco: 2500.00
         // promocao é opcional, então não incluímos
@@ -198,11 +196,10 @@ export async function exemploFluxoCompleto() {
         const categoria = await cadastrarCategoria({ nome: "Livros" })
         console.log('✅ Categoria criada:', categoria.data?.nome)
 
-        // 2. Criar produto usando a categoria criada
+        // 2. Criar produto
         const produto = await cadastrarProduto({
             nome: "Dom Casmurro",
             descricao: "Clássico da literatura brasileira por Machado de Assis",
-            id_categoria: categoria.data?.id || 1,
             id_estabelecimento: 10,
             preco: 29.90,
             promocao: {
@@ -211,7 +208,7 @@ export async function exemploFluxoCompleto() {
                 data_fim: "2024-02-14"
             }
         })
-        console.log('✅ Produto criado:', produto.data?.nome)
+        console.log('✅ Produto criado:', produto.id)
 
         // 3. Cadastrar endereço para entrega
         const endereco = await cadastrarEndereco({
@@ -272,8 +269,7 @@ export function validarDadosEndereco(endereco: enderecoRequest): boolean {
  */
 export function validarDadosProduto(produto: produtoRequest): boolean {
     const camposObrigatorios = [
-        'nome', 'descricao', 'id_categoria', 
-        'id_estabelecimento', 'preco'
+        'nome', 'descricao', 'id_estabelecimento', 'preco'
     ]
 
     for (const campo of camposObrigatorios) {

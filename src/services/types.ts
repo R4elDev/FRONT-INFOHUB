@@ -206,50 +206,8 @@ export interface listarCategoriasResponse {
 }
 
 // ============================================
-// TIPOS PARA PRODUTO
+// TIPOS PARA PRODUTO (LEGADO - MANTIDO PARA COMPATIBILIDADE)
 // ============================================
-
-export interface produtoRequest {
-  nome: string;
-  descricao: string;
-  id_categoria: number;
-  id_estabelecimento: number;
-  preco: number;
-  promocao?: {
-    preco_promocional: number;
-    data_inicio: string;
-    data_fim: string;
-  };
-}
-
-export interface produtoResponse {
-  status: boolean;
-  status_code: number;
-  message: string;
-  data?: {
-    id: number;
-    nome: string;
-    descricao: string;
-    id_categoria: number;
-    id_estabelecimento: number;
-    preco: number;
-    promocao?: {
-      id: number;
-      preco_promocional: number;
-      data_inicio: string;
-      data_fim: string;
-    };
-    categoria?: {
-      id: number;
-      nome: string;
-    };
-    estabelecimento?: {
-      id: number;
-      nome: string;
-    };
-    created_at: string;
-  };
-}
 
 export interface listarProdutosResponse {
   status: boolean;
