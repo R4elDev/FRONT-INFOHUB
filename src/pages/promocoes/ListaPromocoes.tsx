@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search, Filter, ShoppingCart, Tag, TrendingDown, Package, Store } from 'lucide-react'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { listarProdutos, listarCategorias, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServices"
+import { listarProdutos, listarCategorias, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
 import type { filtrosProdutos } from "../../services/types"
 
 interface Produto {
@@ -64,6 +64,15 @@ export default function ListaPromocoes() {
         }
       } catch (error) {
         console.error('Erro ao carregar categorias:', error)
+        // Usa categorias padrão se API não estiver disponível
+        setCategorias([
+          { id: 1, nome: "Alimentos e Bebidas" },
+          { id: 2, nome: "Eletrônicos" },
+          { id: 3, nome: "Roupas e Acessórios" },
+          { id: 4, nome: "Casa e Decoração" },
+          { id: 5, nome: "Saúde e Beleza" },
+          { id: 6, nome: "Outros" }
+        ])
       }
     }
     
