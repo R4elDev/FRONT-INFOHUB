@@ -177,6 +177,23 @@ export interface enderecoResponse {
 }
 
 // ============================================
+// TIPOS PARA ESTABELECIMENTO
+// ============================================
+
+export interface estabelecimentoRequest {
+  nome: string;
+  cnpj: string;
+  telefone: string;
+}
+
+export interface estabelecimentoResponse {
+  status: boolean;
+  status_code: number;
+  message: string;
+  id?: number;
+}
+
+// ============================================
 // TIPOS PARA CATEGORIA
 // ============================================
 
@@ -212,7 +229,7 @@ export interface listarCategoriasResponse {
 export interface produtoRequest {
   nome: string;
   descricao: string;
-  id_categoria: number;
+  id_categoria?: number;
   id_estabelecimento: number;
   preco: number;
   promocao?: {
@@ -278,29 +295,6 @@ export interface listarProdutosResponse {
     created_at: string;
   }>;
 }
-// TIPOS PARA ESTABELECIMENTO
-// ============================================
-
-export interface estabelecimentoRequest {
-  nome: string;
-  cnpj: string;
-  telefone?: string;
-}
-
-export interface estabelecimentoResponse {
-  status: boolean;
-  status_code: number;
-  message: string;
-  id?: number;
-  data?: {
-    id: number;
-    nome: string;
-    cnpj: string;
-    telefone?: string;
-    id_usuario: number;
-    created_at: string;
-  };
-}
 
 // ============================================
 // TIPOS PARA PRODUTOS
@@ -312,17 +306,6 @@ export interface produtoPromocao {
   data_fim: string;
 }
 
-export interface produtoRequest {
-  nome: string;
-  descricao: string;
-  id_estabelecimento: number;
-  preco: number;
-  promocao?: produtoPromocao;
-  foto?: string;
-  estoque?: number;
-  unidade?: string;
-  ativo?: boolean;
-}
 
 export interface produtoResponse {
   status: boolean;

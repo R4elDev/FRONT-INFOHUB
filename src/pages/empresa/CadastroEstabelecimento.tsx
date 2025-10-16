@@ -73,12 +73,23 @@ export function CadastroEstabelecimento() {
 
   // Verificar se usuário já tem estabelecimento e pré-preencher CNPJ
   useEffect(() => {
-    // Verifica se já tem ID salvo no localStorage
+    // Verifica se o estabelecimento no localStorage pertence ao usuário atual
     const estabelecimentoId = localStorage.getItem('estabelecimentoId')
     const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
+    const estabelecimentoUserId = localStorage.getItem('estabelecimentoUserId')
     
-    if (estabelecimentoId && estabelecimentoNome && user?.perfil === 'estabelecimento') {
-      // Se tem ID E NOME salvos, marca como já tendo estabelecimento
+    // Se existe estabelecimento mas é de outro usuário, limpa o localStorage
+    if (estabelecimentoUserId && user && parseInt(estabelecimentoUserId) !== user.id) {
+      console.log('🧹 CadastroEstabelecimento: Limpando estabelecimento de outro usuário:', estabelecimentoUserId, '!==', user.id)
+      localStorage.removeItem('estabelecimentoId')
+      localStorage.removeItem('estabelecimentoNome')
+      localStorage.removeItem('estabelecimentoUserId')
+      setJaTemEstabelecimento(false)
+      setEstabelecimentoExistente(null)
+    }
+    // Se tem estabelecimento do usuário atual, usa ele
+    else if (estabelecimentoId && estabelecimentoNome && estabelecimentoUserId && user?.perfil === 'estabelecimento' && parseInt(estabelecimentoUserId) === user.id) {
+      // Se tem ID E NOME salvos do usuário atual, marca como já tendo estabelecimento
       setJaTemEstabelecimento(true)
       setEstabelecimentoExistente({
         id: parseInt(estabelecimentoId),
@@ -202,10 +213,12 @@ export function CadastroEstabelecimento() {
         const estabelecimentoId = response.id || response.data?.id
         console.log('✅ ID do estabelecimento:', estabelecimentoId)
         
-        // Salva o ID e NOME do estabelecimento no localStorage
-        if (estabelecimentoId) {
+        // Salva o ID, NOME e USER_ID do estabelecimento no localStorage
+        if (estabelecimentoId && user) {
           localStorage.setItem('estabelecimentoId', estabelecimentoId.toString())
           localStorage.setItem('estabelecimentoNome', formData.nome)
+          localStorage.setItem('estabelecimentoUserId', user.id.toString())
+          console.log('✅ Estabelecimento salvo para usuário:', user.id)
         }
         
         setMessage({ type: 'success', text: 'Estabelecimento cadastrado com sucesso!' })

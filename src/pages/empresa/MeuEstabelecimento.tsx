@@ -11,11 +11,21 @@ export default function MeuEstabelecimento() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Busca dados do estabelecimento do localStorage
+    // Verifica se o estabelecimento no localStorage pertence ao usuário atual
     const estabelecimentoId = localStorage.getItem('estabelecimentoId')
     const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
+    const estabelecimentoUserId = localStorage.getItem('estabelecimentoUserId')
     
-    if (estabelecimentoId && estabelecimentoNome) {
+    // Se existe estabelecimento mas é de outro usuário, limpa o localStorage
+    if (estabelecimentoUserId && user && parseInt(estabelecimentoUserId) !== user.id) {
+      console.log('🧹 MeuEstabelecimento: Limpando estabelecimento de outro usuário:', estabelecimentoUserId, '!==', user.id)
+      localStorage.removeItem('estabelecimentoId')
+      localStorage.removeItem('estabelecimentoNome')
+      localStorage.removeItem('estabelecimentoUserId')
+      setEstabelecimento(null)
+    }
+    // Se tem estabelecimento do usuário atual, usa ele
+    else if (estabelecimentoId && estabelecimentoNome && estabelecimentoUserId && user && parseInt(estabelecimentoUserId) === user.id) {
       setEstabelecimento({
         id: parseInt(estabelecimentoId),
         nome: estabelecimentoNome,

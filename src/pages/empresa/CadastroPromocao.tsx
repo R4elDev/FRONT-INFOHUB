@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload, Package, DollarSign, Hash, FileText, ShoppingCart, TrendingDown, Percent, Calendar, Store, Image, CheckCircle, Sparkles, Gift, Zap, AlertCircle } from 'lucide-react'
+import { Upload, Package, DollarSign, Hash, FileText, ShoppingCart, TrendingDown, Percent, Calendar, Store, Image, CheckCircle, Sparkles, Gift, Zap, AlertCircle, Tag, ChevronDown } from 'lucide-react'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { useUser } from "../../contexts/UserContext"
-import { cadastrarProduto } from "../../services/apiServicesFixed"
+import { cadastrarProduto, listarCategorias, cadastrarEstabelecimento } from "../../services/apiServicesFixed"
 import type { produtoRequest } from "../../services/types"
 
 export default function CadastroPromocao() {
@@ -19,7 +19,9 @@ export default function CadastroPromocao() {
     quantity: '',
     market: '',
     validUntil: '',
-    image: null
+    image: null,
+    categoriaId: null as number | null,
+    categoriaNome: ''
   })
   
   const [loading, setLoading] = useState(false)
@@ -27,38 +29,91 @@ export default function CadastroPromocao() {
   const [temEstabelecimento, setTemEstabelecimento] = useState(false)
   const [estabelecimento, setEstabelecimento] = useState<any>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [categorias, setCategorias] = useState<Array<{ id: number; nome: string }>>([])
+  const [loadingCategorias, setLoadingCategorias] = useState(false)
+  const [showCategoriaDropdown, setShowCategoriaDropdown] = useState(false)
 
-  // Verificar se usuário tem estabelecimento ao carregar
+  // Função para gerar CNPJ único baseado no ID do usuário
+  const gerarCNPJUnico = (userId: number): string => {
+    // Gera um CNPJ único baseado no ID do usuário
+    const base = userId.toString().padStart(8, '0')
+    return `${base.substring(0,2)}.${base.substring(2,5)}.${base.substring(5,8)}/0001-${(userId % 100).toString().padStart(2, '0')}`
+  }
+
+  // Verificar se usuário tem estabelecimento ao carregar e criar se necessário
   useEffect(() => {
-    if (user?.perfil !== 'estabelecimento') {
-      setVerificandoEstabelecimento(false)
-      return
+    const verificarOuCriarEstabelecimento = async () => {
+      if (user?.perfil !== 'estabelecimento') {
+        setVerificandoEstabelecimento(false)
+        return
+      }
+
+      // Verifica se o estabelecimento no localStorage pertence ao usuário atual
+      const estabelecimentoId = localStorage.getItem('estabelecimentoId')
+      const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
+      const estabelecimentoUserId = localStorage.getItem('estabelecimentoUserId')
+
+      // Se existe estabelecimento mas é de outro usuário, limpa o localStorage
+      if (estabelecimentoUserId && parseInt(estabelecimentoUserId) !== user.id) {
+        console.log('🧹 Limpando estabelecimento de outro usuário:', estabelecimentoUserId, '!==', user.id)
+        localStorage.removeItem('estabelecimentoId')
+        localStorage.removeItem('estabelecimentoNome')
+        localStorage.removeItem('estabelecimentoUserId')
+      }
+      // Se tem estabelecimento do usuário atual, usa ele
+      else if (estabelecimentoId && estabelecimentoNome && estabelecimentoUserId && parseInt(estabelecimentoUserId) === user.id) {
+        console.log('✅ Usando estabelecimento existente do usuário:', user.id)
+        setEstabelecimento({
+          id: parseInt(estabelecimentoId),
+          nome: estabelecimentoNome
+        })
+        setTemEstabelecimento(true)
+        setVerificandoEstabelecimento(false)
+        return
+      }
+
+      // Se não tem estabelecimento, cria automaticamente
+      try {
+        console.log('🏢 Usuário sem estabelecimento, criando automaticamente para usuário ID:', user.id)
+        
+        const cnpjUnico = gerarCNPJUnico(user.id)
+        const novoEstabelecimento = {
+          nome: user.nome ? `${user.nome} - Estabelecimento` : 'Meu Estabelecimento',
+          cnpj: cnpjUnico,
+          telefone: user.telefone || '(00) 0000-0000'
+        }
+
+        console.log('🏢 Criando estabelecimento com CNPJ único:', cnpjUnico)
+        const response = await cadastrarEstabelecimento(novoEstabelecimento)
+        
+        if (response.status && response.id) {
+          // Salva no localStorage com ID do usuário para validação
+          localStorage.setItem('estabelecimentoId', response.id.toString())
+          localStorage.setItem('estabelecimentoNome', novoEstabelecimento.nome)
+          localStorage.setItem('estabelecimentoUserId', user.id.toString())
+          
+          setEstabelecimento({
+            id: response.id,
+            nome: novoEstabelecimento.nome
+          })
+          setTemEstabelecimento(true)
+          
+          console.log('✅ Estabelecimento criado automaticamente:', response.id, 'para usuário:', user.id)
+        } else {
+          console.error('❌ Erro na resposta do estabelecimento:', response)
+          setTemEstabelecimento(false)
+        }
+      } catch (error: any) {
+        console.error('❌ Erro ao criar estabelecimento automaticamente:', error)
+        console.error('❌ Detalhes:', error.response?.data)
+        setTemEstabelecimento(false)
+      } finally {
+        setVerificandoEstabelecimento(false)
+      }
     }
 
-    // Busca estabelecimento do localStorage
-    const estabelecimentoId = localStorage.getItem('estabelecimentoId')
-    const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
-    
-    if (estabelecimentoId && estabelecimentoNome) {
-      setTemEstabelecimento(true)
-      setEstabelecimento({
-        id: parseInt(estabelecimentoId),
-        nome: estabelecimentoNome,
-        cnpj: user?.cnpj || '',
-        telefone: user?.telefone || ''
-      })
-      console.log('🏢 Estabelecimento carregado:', {
-        id: estabelecimentoId,
-        nome: estabelecimentoNome,
-        cnpj: user?.cnpj
-      })
-    } else {
-      // Redirecionar para cadastro de estabelecimento
-      navigate('/empresa/cadastro-estabelecimento')
-    }
-    
-    setVerificandoEstabelecimento(false)
-  }, [user, navigate])
+    verificarOuCriarEstabelecimento()
+  }, [user])
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -73,7 +128,62 @@ export default function CadastroPromocao() {
     return 0
   }
 
-  // Removido carregamento automático de categorias para evitar erro 404
+  // Carregar categorias disponíveis
+  useEffect(() => {
+    console.log('🚀 useEffect EXECUTADO - Iniciando carregamento de categorias')
+    
+    const carregarCategorias = async () => {
+      try {
+        console.log('🔄 Definindo loading como true')
+        setLoadingCategorias(true)
+        
+        console.log('📞 Chamando listarCategorias()')
+        const response = await listarCategorias()
+        console.log('📋 Resposta recebida:', response)
+        
+        if (response.status && response.data) {
+          console.log('✅ Definindo categorias no estado:', response.data)
+          setCategorias(response.data)
+          console.log('✅ Categorias carregadas:', response.data.length, 'categorias')
+        } else {
+          console.log('⚠️ Resposta inválida, definindo array vazio')
+          console.log('⚠️ Status:', response.status)
+          console.log('⚠️ Data:', response.data)
+          setCategorias([])
+        }
+      } catch (error: any) {
+        console.error('❌ ERRO no carregamento:', error)
+        console.error('❌ Tipo do erro:', typeof error)
+        console.error('❌ Mensagem:', error.message)
+        console.error('❌ Stack:', error.stack)
+        setCategorias([])
+      } finally {
+        console.log('🏁 Definindo loading como false')
+        setLoadingCategorias(false)
+      }
+    }
+
+    carregarCategorias()
+  }, [])
+
+  // Fechar dropdown ao clicar fora (TEMPORARIAMENTE DESABILITADO PARA DEBUG)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Temporariamente desabilitado para debug
+      console.log('🖱️ Click outside detectado, mas ignorado para debug')
+      // if (showCategoriaDropdown) {
+      //   setShowCategoriaDropdown(false)
+      // }
+    }
+
+    if (showCategoriaDropdown) {
+      document.addEventListener('click', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside)
+    }
+  }, [showCategoriaDropdown])
 
   // Função para cadastrar produto
   const handleSubmit = async (e: React.FormEvent) => {
@@ -124,16 +234,18 @@ export default function CadastroPromocao() {
         return
       }
 
-      // Monta payload base (SEM id_categoria)
-      const produtoData: any = {
+      // Monta payload no formato exato solicitado
+      const produtoData: produtoRequest = {
         nome: formData.name.trim(),
         descricao: formData.description.trim(),
         id_estabelecimento: estabelecimento.id,
-        preco: preco,
-        foto: 'https://via.placeholder.com/300x300.png?text=Produto',
-        estoque: 100,
-        unidade: 'un',
-        ativo: true
+        preco: preco
+      }
+      
+      // Adiciona id_categoria se selecionado (opcional)
+      if (formData.categoriaId) {
+        produtoData.id_categoria = formData.categoriaId
+        console.log('📋 Categoria selecionada - ID:', formData.categoriaId, 'Nome:', formData.categoriaNome)
       }
       
       // Adiciona promoção apenas se tiver preço promocional
@@ -145,18 +257,15 @@ export default function CadastroPromocao() {
         }
       }
       
-      console.log('📦 Payload COMPLETO do produto:', produtoData)
-      console.log('🔍 Campos individuais:', {
+      console.log('📦 Payload no formato exato solicitado:', produtoData)
+      console.log('🔍 Campos do payload:', {
         nome: produtoData.nome,
         nome_length: produtoData.nome.length,
         descricao: produtoData.descricao,
         descricao_length: produtoData.descricao.length,
+        id_categoria: produtoData.id_categoria,
         id_estabelecimento: produtoData.id_estabelecimento,
         preco: produtoData.preco,
-        foto: produtoData.foto,
-        estoque: produtoData.estoque,
-        unidade: produtoData.unidade,
-        ativo: produtoData.ativo,
         tem_promocao: !!produtoData.promocao
       })
       
@@ -185,7 +294,9 @@ export default function CadastroPromocao() {
             quantity: '',
             market: '',
             validUntil: '',
-            image: null
+            image: null,
+            categoriaId: null,
+            categoriaNome: ''
           })
           setMessage(null)
         }, 2000)
@@ -353,7 +464,161 @@ export default function CadastroPromocao() {
                       placeholder="Descreva os detalhes da promoção..."
                     />
                   </div>
-                  {/* Campo de categoria removido temporariamente */}
+                  
+                  {/* Campo de Categoria */}
+                  <div>
+                    <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                      <Tag className="w-4 h-4 text-purple-500" />
+                      Categoria do Produto
+                      <span className="text-xs text-gray-500 font-normal">(Opcional)</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          console.log('🔧 DEBUG: Forçando toggle do dropdown')
+                          console.log('🔧 Estado atual:', showCategoriaDropdown)
+                          console.log('🔧 Categorias:', categorias.length)
+                          setShowCategoriaDropdown(prev => {
+                            console.log('🔧 Mudando de', prev, 'para', !prev)
+                            return !prev
+                          })
+                        }}
+                        className="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
+                      >
+                        🔧 Toggle
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          console.log('🔄 FORÇANDO carregamento manual de categorias')
+                          try {
+                            setLoadingCategorias(true)
+                            const response = await listarCategorias()
+                            console.log('📋 Resposta manual:', response)
+                            
+                            if (response.status && response.data) {
+                              setCategorias(response.data)
+                              console.log('✅ Categorias definidas manualmente:', response.data.length)
+                              alert(`✅ Sucesso! ${response.data.length} categorias carregadas`)
+                            } else {
+                              console.log('⚠️ Resposta manual inválida')
+                              alert('❌ Resposta inválida da API')
+                            }
+                          } catch (error) {
+                            console.error('❌ Erro manual:', error)
+                            alert('❌ Erro ao carregar categorias')
+                          } finally {
+                            setLoadingCategorias(false)
+                          }
+                        }}
+                        className="ml-1 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
+                      >
+                        🔄 Carregar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          console.log('🧹 LIMPANDO localStorage do estabelecimento')
+                          localStorage.removeItem('estabelecimentoId')
+                          localStorage.removeItem('estabelecimentoNome')
+                          localStorage.removeItem('estabelecimentoUserId')
+                          alert('🧹 localStorage limpo! Recarregue a página para criar novo estabelecimento.')
+                        }}
+                        className="ml-1 px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600"
+                      >
+                        🧹 Limpar
+                      </button>
+                    </label>
+                    <div className="relative">
+                      {/* Indicador de estado para debug */}
+                      <div className="mb-2 text-xs">
+                        <span className={`px-2 py-1 rounded ${showCategoriaDropdown ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                          Dropdown: {showCategoriaDropdown ? 'ABERTO' : 'FECHADO'}
+                        </span>
+                        <span className="ml-2 px-2 py-1 rounded bg-blue-100 text-blue-800">
+                          Categorias: {categorias.length}
+                        </span>
+                        <span className="ml-2 px-2 py-1 rounded bg-yellow-100 text-yellow-800">
+                          Loading: {loadingCategorias ? 'SIM' : 'NÃO'}
+                        </span>
+                      </div>
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          console.log('🖱️ Clique no dropdown - Estado atual:', showCategoriaDropdown)
+                          console.log('🖱️ Categorias disponíveis:', categorias.length)
+                          console.log('🖱️ Loading:', loadingCategorias)
+                          setShowCategoriaDropdown(!showCategoriaDropdown)
+                          console.log('🖱️ Novo estado será:', !showCategoriaDropdown)
+                        }}
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-400 focus:outline-none transition-all text-left flex items-center justify-between bg-white hover:bg-gray-50"
+                      >
+                        <span className={formData.categoriaNome ? 'text-gray-800' : 'text-gray-500'}>
+                          {formData.categoriaNome || 'Selecione uma categoria (opcional)'}
+                        </span>
+                        <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${showCategoriaDropdown ? 'rotate-180' : ''}`} />
+                      </button>
+                      
+                      {showCategoriaDropdown && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                          {(() => {
+                            console.log('🎨 RENDERIZANDO DROPDOWN')
+                            console.log('🎨 Loading:', loadingCategorias)
+                            console.log('🎨 Categorias:', categorias)
+                            console.log('🎨 Quantidade:', categorias.length)
+                            return null
+                          })()}
+                          {loadingCategorias ? (
+                            <div className="p-4 text-center">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto mb-2"></div>
+                              <span className="text-sm text-gray-500">Carregando categorias...</span>
+                            </div>
+                          ) : categorias.length > 0 ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, categoriaId: null, categoriaNome: '' }))
+                                  setShowCategoriaDropdown(false)
+                                }}
+                                className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 text-gray-500 italic"
+                              >
+                                Nenhuma categoria
+                              </button>
+                              {categorias.map((categoria) => (
+                                <button
+                                  key={categoria.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData(prev => ({ 
+                                      ...prev, 
+                                      categoriaId: categoria.id, 
+                                      categoriaNome: categoria.nome 
+                                    }))
+                                    setShowCategoriaDropdown(false)
+                                  }}
+                                  className={`w-full px-4 py-3 text-left hover:bg-purple-50 transition-colors border-b border-gray-100 last:border-b-0 ${
+                                    formData.categoriaId === categoria.id ? 'bg-purple-50 text-purple-700 font-medium' : ''
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <Tag className="w-4 h-4 text-purple-500" />
+                                    {categoria.nome}
+                                  </div>
+                                </button>
+                              ))}
+                            </>
+                          ) : (
+                            <div className="p-4 text-center text-gray-500">
+                              <Tag className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                              <p className="text-sm">Nenhuma categoria disponível</p>
+                              <p className="text-xs text-gray-400 mt-1">Cadastre categorias primeiro</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 

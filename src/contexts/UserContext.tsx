@@ -54,6 +54,16 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   const login = async (credentials: loginRequest): Promise<{ success: boolean; message?: string }> => {
     try {
       setLoading(true)
+      
+      // LIMPA dados do usuário anterior ANTES de fazer login
+      const usuarioAnteriorId = localStorage.getItem('estabelecimentoUserId')
+      if (usuarioAnteriorId) {
+        console.log('🧹 Limpando dados do usuário anterior:', usuarioAnteriorId)
+        localStorage.removeItem('estabelecimentoId')
+        localStorage.removeItem('estabelecimentoNome')
+        localStorage.removeItem('estabelecimentoUserId')
+      }
+      
       const response = await loginAPI(credentials)
       
       if (response.status && response.usuario) {
@@ -67,6 +77,11 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
           cpf: response.usuario.cpf,
           cnpj: response.usuario.cnpj,
           telefone: response.usuario.telefone
+        }
+        
+        // Verifica se é um usuário diferente do anterior
+        if (usuarioAnteriorId && parseInt(usuarioAnteriorId) !== userData.id) {
+          console.log('🔄 Usuário diferente detectado:', usuarioAnteriorId, '→', userData.id)
         }
         
         console.log('✅ Dados salvos no contexto:', userData)
@@ -87,9 +102,19 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
   }
 
   const logout = () => {
+    console.log('🚪 Fazendo logout - limpando todos os dados')
     setUser(null)
+    
+    // Remove dados de autenticação
     localStorage.removeItem('auth_token')
     localStorage.removeItem('user_data')
+    
+    // Remove dados do estabelecimento
+    localStorage.removeItem('estabelecimentoId')
+    localStorage.removeItem('estabelecimentoNome')
+    localStorage.removeItem('estabelecimentoUserId')
+    
+    console.log('✅ Logout completo - todos os dados limpos')
   }
 
   // Load user data from localStorage on mount

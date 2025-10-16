@@ -8,9 +8,9 @@ import type {
     produtoRequest,
     produtoResponse,
     listarProdutosResponse,
-    filtrosProdutos,
     estabelecimentoRequest,
     estabelecimentoResponse,
+    filtrosProdutos,
     listarEstabelecimentosResponse
 } from './types'
 
@@ -33,6 +33,7 @@ export async function cadastrarEndereco(payload: enderecoRequest): Promise<ender
     }
 }
 
+
 // ============================================
 // SERVIÇOS DE CATEGORIA - ENDPOINTS CORRIGIDOS
 // ============================================
@@ -54,21 +55,36 @@ export async function cadastrarCategoria(payload: categoriaRequest): Promise<cat
 
 /**
  * Lista todas as categorias disponíveis
+ * Endpoint: GET /categorias
  */
 export async function listarCategorias(): Promise<listarCategoriasResponse> {
     try {
-        // Primeiro tenta o endpoint plural
-        const { data } = await api.get<listarCategoriasResponse>("/categorias")
-        return data
-    } catch (error: any) {
-        try {
-            // Se falhar, tenta o endpoint singular
-            const { data } = await api.get<listarCategoriasResponse>("/categoria")
-            return data
-        } catch (error2: any) {
-            console.error('Erro ao listar categorias:', error2.response?.data || error2.message)
-            throw error2
+        const response = await api.get("/categorias")
+        console.log('✅ Categorias recebidas:', response.data)
+        
+        // A API retorna: { status, status_code, categorias: [...], message }
+        // Precisamos mapear para o formato esperado
+        const apiResponse = response.data
+        
+        if (apiResponse.status && apiResponse.categorias) {
+            // Mapeia id_categoria -> id para compatibilidade
+            const categoriasFormatadas = apiResponse.categorias.map((cat: any) => ({
+                id: cat.id_categoria,
+                nome: cat.nome,
+                created_at: new Date().toISOString() // Campo obrigatório no tipo
+            }))
+            
+            return {
+                status: apiResponse.status,
+                status_code: apiResponse.status_code,
+                data: categoriasFormatadas
+            }
+        } else {
+            throw new Error('Resposta da API sem categorias válidas')
         }
+    } catch (error: any) {
+        console.error('Erro ao listar categorias:', error.response?.data || error.message)
+        throw error
     }
 }
 
@@ -79,12 +95,35 @@ export async function listarCategorias(): Promise<listarCategoriasResponse> {
 /**
  * Cadastra um novo produto/promoção
  * Endpoint: POST /produtos
- * Request body: { "nome", "descricao", "id_estabelecimento", "preco", "promocao": { "preco_promocional", "data_inicio", "data_fim" } }
+ * Request body: { "nome", "descricao", "id_categoria"?, "id_estabelecimento", "preco", "promocao"? }
+ * Formato exato conforme especificado pelo usuário
  */
 export async function cadastrarProduto(payload: produtoRequest): Promise<produtoResponse> {
     try {
-        console.log('📦 Enviando dados do produto:', payload)
-        const { data } = await api.post<produtoResponse>("/produtos", payload)
+        // Monta payload no formato exato solicitado
+        const produtoPayload: any = {
+            nome: payload.nome,
+            descricao: payload.descricao,
+            id_estabelecimento: payload.id_estabelecimento,
+            preco: payload.preco
+        }
+        
+        // Adiciona id_categoria apenas se fornecido (opcional)
+        if (payload.id_categoria !== undefined) {
+            produtoPayload.id_categoria = payload.id_categoria
+        }
+        
+        // Adiciona promoção apenas se fornecida (opcional)
+        if (payload.promocao) {
+            produtoPayload.promocao = {
+                preco_promocional: payload.promocao.preco_promocional,
+                data_inicio: payload.promocao.data_inicio,
+                data_fim: payload.promocao.data_fim
+            }
+        }
+        
+        console.log('📦 Enviando payload no formato exato:', produtoPayload)
+        const { data } = await api.post<produtoResponse>("/produtos", produtoPayload)
         console.log('✅ Produto cadastrado com sucesso:', data)
         return data
     } catch (error: any) {
