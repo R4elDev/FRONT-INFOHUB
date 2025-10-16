@@ -2,19 +2,34 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { useUser } from "../../contexts/UserContext"
-import { Store, MapPin, Phone, FileText, Plus } from 'lucide-react'
+import { cadastrarEndereco, cadastrarEnderecoEstabelecimento } from "../../services/apiServicesFixed"
+import { Store, MapPin, Phone, FileText, Plus, Edit, Save, X } from 'lucide-react'
 
 export default function MeuEstabelecimento() {
   const navigate = useNavigate()
   const { user } = useUser()
   const [estabelecimento, setEstabelecimento] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [editandoEndereco, setEditandoEndereco] = useState(false)
+  const [salvandoEndereco, setSalvandoEndereco] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  
+  const [enderecoForm, setEnderecoForm] = useState({
+    cep: '',
+    logradouro: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    estado: ''
+  })
 
   useEffect(() => {
     // Verifica se o estabelecimento no localStorage pertence ao usuário atual
     const estabelecimentoId = localStorage.getItem('estabelecimentoId')
     const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
     const estabelecimentoUserId = localStorage.getItem('estabelecimentoUserId')
+    const estabelecimentoEndereco = localStorage.getItem('estabelecimentoEndereco')
     
     // Se existe estabelecimento mas é de outro usuário, limpa o localStorage
     if (estabelecimentoUserId && user && parseInt(estabelecimentoUserId) !== user.id) {
@@ -22,20 +37,136 @@ export default function MeuEstabelecimento() {
       localStorage.removeItem('estabelecimentoId')
       localStorage.removeItem('estabelecimentoNome')
       localStorage.removeItem('estabelecimentoUserId')
+      localStorage.removeItem('estabelecimentoEndereco')
+      localStorage.removeItem('estabelecimentoEnderecoCompleto')
       setEstabelecimento(null)
     }
     // Se tem estabelecimento do usuário atual, usa ele
-    else if (estabelecimentoId && estabelecimentoNome && estabelecimentoUserId && user && parseInt(estabelecimentoUserId) === user.id) {
+    else if (estabelecimentoId && estabelecimentoNome && estabelecimentoUserId && user?.perfil === 'estabelecimento' && parseInt(estabelecimentoUserId) === user.id) {
       setEstabelecimento({
         id: parseInt(estabelecimentoId),
         nome: estabelecimentoNome,
         cnpj: user?.cnpj || '',
-        telefone: user?.telefone || ''
+        telefone: user?.telefone || '',
+        endereco: estabelecimentoEndereco || 'Endereço não informado'
       })
     }
     
     setLoading(false)
   }, [user])
+
+  // Busca CEP via ViaCEP
+  const buscarCep = async (cep: string) => {
+    if (cep.length !== 8) return
+
+    try {
+      console.log('🔍 Buscando CEP para edição:', cep)
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+      const data = await response.json()
+      
+      if (!data.erro) {
+        console.log('✅ CEP encontrado para edição:', data)
+        setEnderecoForm(prev => ({
+          ...prev,
+          logradouro: data.logradouro || '',
+          bairro: data.bairro || '',
+          cidade: data.localidade || '',
+          estado: data.uf || ''
+        }))
+        setMessage({ type: 'success', text: 'CEP encontrado! Dados preenchidos automaticamente.' })
+      } else {
+        setMessage({ type: 'error', text: 'CEP não encontrado. Verifique e tente novamente.' })
+      }
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Erro ao buscar CEP. Tente novamente.' })
+    }
+  }
+
+  const handleEnderecoChange = (field: string, value: string) => {
+    setEnderecoForm(prev => ({ ...prev, [field]: value }))
+    
+    // Se mudou o CEP e tem 8 dígitos, busca automaticamente
+    if (field === 'cep') {
+      const cepLimpo = value.replace(/\D/g, '')
+      if (cepLimpo.length === 8) {
+        buscarCep(cepLimpo)
+      }
+    }
+  }
+
+  const salvarEndereco = async () => {
+    if (!user) {
+      setMessage({ type: 'error', text: 'Usuário não encontrado' })
+      return
+    }
+
+    if (!enderecoForm.cep || !enderecoForm.logradouro || !enderecoForm.bairro || !enderecoForm.cidade || !enderecoForm.estado) {
+      setMessage({ type: 'error', text: 'Preencha pelo menos CEP, logradouro, bairro, cidade e estado' })
+      return
+    }
+
+    try {
+      setSalvandoEndereco(true)
+      setMessage(null)
+
+      const enderecoData = {
+        id_usuario: user.id,
+        cep: enderecoForm.cep.replace(/\D/g, ''),
+        logradouro: enderecoForm.logradouro,
+        numero: enderecoForm.numero || 'S/N',
+        complemento: enderecoForm.complemento || '',
+        bairro: enderecoForm.bairro,
+        cidade: enderecoForm.cidade,
+        estado: enderecoForm.estado
+      }
+
+      console.log('📍 Salvando endereço do estabelecimento:', enderecoData)
+      const response = await cadastrarEnderecoEstabelecimento(enderecoData)
+
+      if (response && response.status) {
+        console.log('✅ Endereço salvo com sucesso!')
+        setMessage({ type: 'success', text: 'Endereço salvo com sucesso!' })
+        setEditandoEndereco(false)
+        
+        // Atualiza o estabelecimento na interface com o novo endereço
+        const novoEndereco = localStorage.getItem('estabelecimentoEndereco')
+        if (novoEndereco && estabelecimento) {
+          setEstabelecimento({
+            ...estabelecimento,
+            endereco: novoEndereco
+          })
+        }
+      } else {
+        console.log('❌ Erro na resposta do endereço:', response)
+        setMessage({ type: 'error', text: 'Erro ao salvar endereço. Tente novamente.' })
+      }
+    } catch (error: any) {
+      console.error('❌ Erro ao salvar endereço:', error)
+      setMessage({ type: 'error', text: 'Erro ao salvar endereço. Verifique os dados e tente novamente.' })
+    } finally {
+      setSalvandoEndereco(false)
+    }
+  }
+
+  const iniciarEdicaoEndereco = () => {
+    setEditandoEndereco(true)
+    setMessage(null)
+    // Limpa o formulário para começar fresh
+    setEnderecoForm({
+      cep: '',
+      logradouro: '',
+      numero: '',
+      complemento: '',
+      bairro: '',
+      cidade: '',
+      estado: ''
+    })
+  }
+
+  const cancelarEdicaoEndereco = () => {
+    setEditandoEndereco(false)
+    setMessage(null)
+  }
 
   // Verificar se usuário tem permissão
   if (user?.perfil !== 'estabelecimento') {
@@ -150,6 +281,155 @@ export default function MeuEstabelecimento() {
                 </div>
               </div>
             )}
+
+            {/* Endereço */}
+            <div className="md:col-span-2">
+              <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
+                <div className="bg-blue-100 p-2 rounded-lg">
+                  <MapPin className="w-5 h-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-gray-500">Endereço</p>
+                    {!editandoEndereco && (
+                      <button
+                        onClick={iniciarEdicaoEndereco}
+                        className="flex items-center gap-2 px-3 py-1 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Editar Endereço
+                      </button>
+                    )}
+                  </div>
+                  
+                  {!editandoEndereco ? (
+                    <div>
+                      <p className="text-lg font-semibold text-gray-800">
+                        {estabelecimento.endereco || 'Endereço não informado'}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Configure seu endereço para que os clientes possam encontrar você
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <p className="text-lg font-semibold text-gray-800 mb-4">
+                        Configurar Endereço do Estabelecimento
+                      </p>
+                      
+                      {/* Mensagem de feedback */}
+                      {message && (
+                        <div className={`p-3 rounded-lg text-sm ${
+                          message.type === 'success' 
+                            ? 'bg-green-50 border border-green-200 text-green-800' 
+                            : 'bg-red-50 border border-red-200 text-red-800'
+                        }`}>
+                          {message.text}
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">CEP</label>
+                          <input
+                            type="text"
+                            value={enderecoForm.cep}
+                            onChange={(e) => handleEnderecoChange('cep', e.target.value)}
+                            placeholder="00000-000"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Logradouro</label>
+                          <input
+                            type="text"
+                            value={enderecoForm.logradouro}
+                            onChange={(e) => handleEnderecoChange('logradouro', e.target.value)}
+                            placeholder="Rua, Avenida, etc."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
+                          <input
+                            type="text"
+                            value={enderecoForm.numero}
+                            onChange={(e) => handleEnderecoChange('numero', e.target.value)}
+                            placeholder="123"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Complemento</label>
+                          <input
+                            type="text"
+                            value={enderecoForm.complemento}
+                            onChange={(e) => handleEnderecoChange('complemento', e.target.value)}
+                            placeholder="Apto, Sala, etc."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Bairro</label>
+                          <input
+                            type="text"
+                            value={enderecoForm.bairro}
+                            onChange={(e) => handleEnderecoChange('bairro', e.target.value)}
+                            placeholder="Nome do bairro"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Cidade</label>
+                          <input
+                            type="text"
+                            value={enderecoForm.cidade}
+                            onChange={(e) => handleEnderecoChange('cidade', e.target.value)}
+                            placeholder="Nome da cidade"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                          <input
+                            type="text"
+                            value={enderecoForm.estado}
+                            onChange={(e) => handleEnderecoChange('estado', e.target.value)}
+                            placeholder="SP, RJ, MG, etc."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3 pt-4">
+                        <button
+                          onClick={salvarEndereco}
+                          disabled={salvandoEndereco}
+                          className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                        >
+                          <Save className="w-4 h-4" />
+                          {salvandoEndereco ? 'Salvando...' : 'Salvar Endereço'}
+                        </button>
+                        
+                        <button
+                          onClick={cancelarEdicaoEndereco}
+                          className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

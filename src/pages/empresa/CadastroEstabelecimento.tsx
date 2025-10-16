@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { MapPin } from 'lucide-react'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { useUser } from "../../contexts/UserContext"
-import { cadastrarEstabelecimento } from "../../services/apiServicesFixed"
+import { cadastrarEstabelecimento, cadastrarEnderecoEstabelecimento } from "../../services/apiServicesFixed"
 import type { estabelecimentoRequest } from "../../services/types"
 
 // Componente Input personalizado
@@ -26,30 +27,30 @@ const InputField = ({ label, name, value, onChange, placeholder, required = fals
       onChange={onChange}
       placeholder={placeholder}
       required={required}
-      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent transition-all"
     />
   </div>
 )
 
 // Componente Button personalizado
-const ButtonComponent = ({ children, onClick, variant = "primary", disabled = false, type = "button" }: {
+const ButtonComponent = ({ children, onClick, type = "button", variant = "primary", disabled = false }: {
   children: React.ReactNode
   onClick?: () => void
+  type?: "button" | "submit"
   variant?: "primary" | "secondary"
   disabled?: boolean
-  type?: "button" | "submit"
 }) => {
-  const baseClasses = "px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+  const baseClasses = "px-6 py-3 rounded-xl font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2"
   const variantClasses = variant === "primary" 
-    ? "bg-blue-600 text-white hover:bg-blue-700" 
-    : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+    ? "bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] text-white hover:from-[#FF8C00] hover:to-[#F9A01B] focus:ring-[#F9A01B] shadow-lg hover:shadow-xl"
+    : "bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-400"
   
   return (
     <button
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`${baseClasses} ${variantClasses}`}
+      className={`${baseClasses} ${variantClasses} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       {children}
     </button>
@@ -64,11 +65,20 @@ export function CadastroEstabelecimento() {
   const [jaTemEstabelecimento, setJaTemEstabelecimento] = useState(false)
   const [estabelecimentoExistente, setEstabelecimentoExistente] = useState<any>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [buscandoCep, setBuscandoCep] = useState(false)
 
   const [formData, setFormData] = useState({
     nome: '',
     cnpj: '',
-    telefone: ''
+    telefone: '',
+    // Campos de endereço
+    cep: '',
+    logradouro: '',
+    numero: '',
+    complemento: '',
+    bairro: '',
+    cidade: '',
+    estado: ''
   })
 
   // Verificar se usuário já tem estabelecimento e pré-preencher CNPJ
@@ -113,8 +123,40 @@ export function CadastroEstabelecimento() {
     setVerificandoEstabelecimento(false)
   }, [user])
 
+  // Busca CEP via ViaCEP
+  const buscarCep = async (cep: string) => {
+    if (cep.length !== 8) return
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    try {
+      setBuscandoCep(true)
+      console.log('🔍 Buscando CEP:', cep)
+      
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+      const data = await response.json()
+      
+      if (!data.erro) {
+        console.log('✅ CEP encontrado:', data)
+        setFormData(prev => ({
+          ...prev,
+          logradouro: data.logradouro || '',
+          bairro: data.bairro || '',
+          cidade: data.localidade || '',
+          estado: data.uf || ''
+        }))
+        setMessage({ type: 'success', text: 'CEP encontrado! Dados preenchidos automaticamente.' })
+      } else {
+        console.log('❌ CEP não encontrado')
+        setMessage({ type: 'error', text: 'CEP não encontrado. Verifique e tente novamente.' })
+      }
+    } catch (err) {
+      console.error('❌ Erro ao buscar CEP:', err)
+      setMessage({ type: 'error', text: 'Erro ao buscar CEP. Tente novamente.' })
+    } finally {
+      setBuscandoCep(false)
+    }
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     
     // Formatação específica para CNPJ
@@ -143,32 +185,50 @@ export function CadastroEstabelecimento() {
       return
     }
 
+    // Formatação específica para CEP
+    if (name === 'cep') {
+      const cepFormatado = value
+        .replace(/\D/g, '')
+        .replace(/^(\d{5})(\d)/, '$1-$2')
+        .substring(0, 9)
+      
+      setFormData(prev => ({ ...prev, [name]: cepFormatado }))
+      
+      // Se CEP tem 8 dígitos, busca automaticamente
+      const cepLimpo = value.replace(/\D/g, '')
+      if (cepLimpo.length === 8) {
+        buscarCep(cepLimpo)
+      }
+      return
+    }
+
+    // Para outros campos, apenas atualiza o valor
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
+  // Validação de CNPJ
   const validarCNPJ = (cnpj: string): boolean => {
     const cnpjLimpo = cnpj.replace(/\D/g, '')
     
     if (cnpjLimpo.length !== 14) return false
     if (/^(\d)\1+$/.test(cnpjLimpo)) return false
-
-    // Validação dos dígitos verificadores
-    let soma = 0
-    let peso = 2
     
-    for (let i = 11; i >= 0; i--) {
+    // Validação do primeiro dígito verificador
+    let soma = 0
+    let peso = 5
+    for (let i = 0; i < 12; i++) {
       soma += parseInt(cnpjLimpo[i]) * peso
-      peso = peso === 9 ? 2 : peso + 1
+      peso = peso === 2 ? 9 : peso - 1
     }
     
     const digito1 = soma % 11 < 2 ? 0 : 11 - (soma % 11)
     
+    // Validação do segundo dígito verificador
     soma = 0
-    peso = 2
-    
-    for (let i = 12; i >= 0; i--) {
+    peso = 6
+    for (let i = 0; i < 13; i++) {
       soma += parseInt(cnpjLimpo[i]) * peso
-      peso = peso === 9 ? 2 : peso + 1
+      peso = peso === 2 ? 9 : peso - 1
     }
     
     const digito2 = soma % 11 < 2 ? 0 : 11 - (soma % 11)
@@ -202,15 +262,18 @@ export function CadastroEstabelecimento() {
       const estabelecimentoData: estabelecimentoRequest = {
         nome: formData.nome.trim(),
         cnpj: formData.cnpj.replace(/\D/g, ''),
-        telefone: formData.telefone.replace(/\D/g, '') || undefined
+        telefone: formData.telefone.replace(/\D/g, '') || '(00) 0000-0000'
       }
       
       console.log('📤 Payload final:', estabelecimentoData)
+      console.log('📤 Dados do usuário:', user)
+      console.log('📤 Token de autenticação:', localStorage.getItem('auth_token') ? 'Presente' : 'Ausente')
 
       const response = await cadastrarEstabelecimento(estabelecimentoData)
+      console.log('📥 Resposta recebida:', response)
       
       if (response.status) {
-        const estabelecimentoId = response.id || response.data?.id
+        const estabelecimentoId = response.id
         console.log('✅ ID do estabelecimento:', estabelecimentoId)
         
         // Salva o ID, NOME e USER_ID do estabelecimento no localStorage
@@ -221,7 +284,75 @@ export function CadastroEstabelecimento() {
           console.log('✅ Estabelecimento salvo para usuário:', user.id)
         }
         
-        setMessage({ type: 'success', text: 'Estabelecimento cadastrado com sucesso!' })
+        // SEMPRE cria um endereço (mesmo que seja padrão)
+        if (!user) {
+          console.error('❌ Usuário não encontrado para criar endereço')
+          setMessage({ type: 'success', text: 'Estabelecimento cadastrado! Erro: usuário não encontrado.' })
+          return
+        }
+        
+        try {
+          console.log('📍 Criando endereço do estabelecimento...')
+          console.log('📍 Dados do formulário:', {
+            cep: formData.cep,
+            logradouro: formData.logradouro,
+            bairro: formData.bairro,
+            cidade: formData.cidade,
+            estado: formData.estado
+          })
+          
+          // Se tem dados completos do ViaCEP, usa eles
+          if (formData.cep && formData.logradouro && formData.bairro && formData.cidade && formData.estado) {
+            const enderecoData = {
+              id_usuario: user.id,
+              cep: formData.cep.replace(/\D/g, ''),
+              logradouro: formData.logradouro,
+              numero: formData.numero || 'S/N',
+              complemento: formData.complemento || '',
+              bairro: formData.bairro,
+              cidade: formData.cidade,
+              estado: formData.estado
+            }
+            
+            console.log('📍 Usando dados completos do formulário:', enderecoData)
+            const enderecoResponse = await cadastrarEnderecoEstabelecimento(enderecoData)
+            
+            if (enderecoResponse.status) {
+              console.log('✅ Endereço completo criado com sucesso!')
+              setMessage({ type: 'success', text: 'Estabelecimento e endereço cadastrados com sucesso!' })
+            } else {
+              console.log('⚠️ Falha ao criar endereço completo, criando padrão...')
+              throw new Error('Falha no endereço completo')
+            }
+          } else {
+            // Se não tem dados completos, cria endereço padrão
+            console.log('📍 Dados incompletos, criando endereço padrão...')
+            const enderecoDefault = {
+              id_usuario: user.id,
+              cep: '00000000',
+              logradouro: 'Endereço não informado',
+              numero: 'S/N',
+              complemento: '',
+              bairro: 'Centro',
+              cidade: 'Cidade não informada',
+              estado: 'Estado não informado'
+            }
+            
+            console.log('📍 Criando endereço padrão:', enderecoDefault)
+            const enderecoResponse = await cadastrarEnderecoEstabelecimento(enderecoDefault)
+            
+            if (enderecoResponse.status) {
+              console.log('✅ Endereço padrão criado com sucesso!')
+              setMessage({ type: 'success', text: 'Estabelecimento cadastrado! Configure o endereço depois.' })
+            } else {
+              console.log('⚠️ Falha ao criar endereço padrão')
+              setMessage({ type: 'success', text: 'Estabelecimento cadastrado! Erro ao criar endereço.' })
+            }
+          }
+        } catch (enderecoError: any) {
+          console.error('❌ Erro ao criar qualquer tipo de endereço:', enderecoError)
+          setMessage({ type: 'success', text: 'Estabelecimento cadastrado! Erro ao salvar endereço.' })
+        }
         
         // Atualiza o estado para mostrar que já tem estabelecimento
         setJaTemEstabelecimento(true)
@@ -239,46 +370,37 @@ export function CadastroEstabelecimento() {
       
       let mensagemErro = 'Erro ao cadastrar estabelecimento. Tente novamente.'
       
-      // Verifica se é erro de CNPJ duplicado
-      if (error.response?.status === 500) {
-        mensagemErro = 'Este CNPJ já possui um estabelecimento cadastrado. Cada CNPJ pode ter apenas um estabelecimento.'
-      } else if (error.response?.data?.message) {
+      if (error.response?.data?.message) {
         mensagemErro = error.response.data.message
+      } else if (error.message) {
+        mensagemErro = error.message
       }
       
-      setMessage({ 
-        type: 'error', 
-        text: mensagemErro
-      })
+      setMessage({ type: 'error', text: mensagemErro })
     } finally {
       setLoading(false)
     }
   }
 
-  // Verificar se usuário tem permissão
-  if (user?.perfil !== 'estabelecimento') {
+  if (!user) {
     return (
       <SidebarLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Acesso Restrito</h2>
-            <p className="text-gray-600 mb-6">Esta funcionalidade é exclusiva para usuários jurídicos.</p>
-            <ButtonComponent onClick={() => navigate('/')}>
-              Voltar ao Início
-            </ButtonComponent>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Acesso Negado</h2>
+            <p className="text-gray-600">Você precisa estar logado para acessar esta página.</p>
           </div>
         </div>
       </SidebarLayout>
     )
   }
 
-  // Loading de verificação
   if (verificandoEstabelecimento) {
     return (
       <SidebarLayout>
-        <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F9A01B] mx-auto mb-4"></div>
             <p className="text-gray-600">Verificando estabelecimento...</p>
           </div>
         </div>
@@ -286,28 +408,32 @@ export function CadastroEstabelecimento() {
     )
   }
 
-  // Se já tem estabelecimento
   if (jaTemEstabelecimento && estabelecimentoExistente) {
     return (
       <SidebarLayout>
         <div className="max-w-4xl mx-auto p-6">
-          <div className="bg-white rounded-lg shadow-md p-8">
+          <div className="bg-white rounded-2xl shadow-xl p-8">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-gray-800 mb-2">Estabelecimento Cadastrado</h1>
-              <p className="text-gray-600">Você já possui um estabelecimento cadastrado</p>
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">Estabelecimento Já Cadastrado!</h1>
+              <p className="text-gray-600">Você já possui um estabelecimento cadastrado no sistema.</p>
             </div>
 
-            <div className="bg-green-50 border border-green-200 rounded-lg p-6 mb-6">
-              <h2 className="text-xl font-semibold text-green-800 mb-4">
-                {estabelecimentoExistente.nome}
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                {estabelecimentoExistente.cnpj && (
-                  <div>
-                    <span className="font-medium text-gray-700">CNPJ:</span>
-                    <span className="ml-2 text-gray-600">{estabelecimentoExistente.cnpj}</span>
-                  </div>
-                )}
+            <div className="bg-gray-50 rounded-xl p-6 mb-8">
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Dados do seu estabelecimento:</h2>
+              <div className="space-y-3">
+                <div>
+                  <span className="font-medium text-gray-700">Nome:</span>
+                  <span className="ml-2 text-gray-600">{estabelecimentoExistente.nome}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700">CNPJ:</span>
+                  <span className="ml-2 text-gray-600">{estabelecimentoExistente.cnpj}</span>
+                </div>
                 {estabelecimentoExistente.telefone && (
                   <div>
                     <span className="font-medium text-gray-700">Telefone:</span>
@@ -342,20 +468,17 @@ export function CadastroEstabelecimento() {
     )
   }
 
-  // Formulário de cadastro
   return (
     <SidebarLayout>
       <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Cadastrar Estabelecimento</h1>
-            <p className="text-gray-600">
-              Cadastre seu estabelecimento para começar a vender produtos na plataforma
-            </p>
+            <h1 className="text-3xl font-bold text-gray-800 mb-2">Cadastro de Estabelecimento</h1>
+            <p className="text-gray-600">Preencha os dados do seu estabelecimento para começar a vender</p>
           </div>
 
           {message && (
-            <div className={`mb-6 p-4 rounded-lg ${
+            <div className={`mb-6 p-4 rounded-xl ${
               message.type === 'success' 
                 ? 'bg-green-50 border border-green-200 text-green-800' 
                 : 'bg-red-50 border border-red-200 text-red-800'
@@ -365,44 +488,28 @@ export function CadastroEstabelecimento() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Dados do Estabelecimento */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2">
-                <h2 className="text-xl font-semibold text-gray-800 mb-4">Dados do Estabelecimento</h2>
-                <p className="text-sm text-gray-600 mb-4">
-                  Preencha os dados básicos do seu estabelecimento. Apenas um estabelecimento por CNPJ.
-                </p>
-              </div>
-              
               <div className="md:col-span-2">
                 <InputField
                   label="Nome do Estabelecimento"
                   name="nome"
                   value={formData.nome}
                   onChange={handleInputChange}
-                  placeholder="Ex: Supermercado Central"
+                  placeholder="Ex: Padaria do João"
                   required
                 />
               </div>
 
               {user?.cnpj && user.cnpj.replace(/\D/g, '').length === 14 ? (
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     CNPJ <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="cnpj"
-                    value={formData.cnpj}
-                    readOnly
-                    disabled
-                    placeholder="00.000.000/0000-00"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed text-gray-600"
-                    title="CNPJ do seu cadastro (não editável)"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    ℹ️ CNPJ vinculado ao seu cadastro
+                  <div className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-600">
+                    {formData.cnpj}
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    CNPJ pré-preenchido com base no seu cadastro
                   </p>
                 </div>
               ) : (
@@ -411,7 +518,7 @@ export function CadastroEstabelecimento() {
                   name="cnpj"
                   value={formData.cnpj}
                   onChange={handleInputChange}
-                  placeholder="00.000.000/0000-00"
+                  placeholder="00.000.000/0001-00"
                   required
                 />
               )}
@@ -422,6 +529,80 @@ export function CadastroEstabelecimento() {
                 value={formData.telefone}
                 onChange={handleInputChange}
                 placeholder="(11) 99999-9999"
+              />
+
+              {/* Seção de Endereço */}
+              <div className="md:col-span-2 mt-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-blue-600" />
+                  Endereço do Estabelecimento
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Informe o endereço para que os clientes possam encontrar seu estabelecimento
+                </p>
+              </div>
+
+              <div className="relative">
+                <InputField
+                  label="CEP"
+                  name="cep"
+                  value={formData.cep}
+                  onChange={handleInputChange}
+                  placeholder="00000-000"
+                />
+                {buscandoCep && (
+                  <div className="absolute right-3 top-9 text-sm text-blue-600">
+                    Buscando...
+                  </div>
+                )}
+              </div>
+
+              <InputField
+                label="Logradouro"
+                name="logradouro"
+                value={formData.logradouro}
+                onChange={handleInputChange}
+                placeholder="Rua, Avenida, etc."
+              />
+
+              <InputField
+                label="Número"
+                name="numero"
+                value={formData.numero}
+                onChange={handleInputChange}
+                placeholder="123"
+              />
+
+              <InputField
+                label="Complemento"
+                name="complemento"
+                value={formData.complemento}
+                onChange={handleInputChange}
+                placeholder="Apto, Sala, etc. (opcional)"
+              />
+
+              <InputField
+                label="Bairro"
+                name="bairro"
+                value={formData.bairro}
+                onChange={handleInputChange}
+                placeholder="Nome do bairro"
+              />
+
+              <InputField
+                label="Cidade"
+                name="cidade"
+                value={formData.cidade}
+                onChange={handleInputChange}
+                placeholder="Nome da cidade"
+              />
+
+              <InputField
+                label="Estado"
+                name="estado"
+                value={formData.estado}
+                onChange={handleInputChange}
+                placeholder="SP, RJ, MG, etc."
               />
             </div>
 
@@ -435,9 +616,8 @@ export function CadastroEstabelecimento() {
               </ButtonComponent>
               
               <ButtonComponent
-                type="button"
-                variant="secondary"
                 onClick={() => navigate('/HomeInicial')}
+                variant="secondary"
                 disabled={loading}
               >
                 Cancelar

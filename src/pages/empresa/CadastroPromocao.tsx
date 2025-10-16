@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Upload, Package, DollarSign, Hash, FileText, ShoppingCart, TrendingDown, Percent, Calendar, Store, Image, CheckCircle, Sparkles, Gift, Zap, AlertCircle, Tag, ChevronDown } from 'lucide-react'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { useUser } from "../../contexts/UserContext"
-import { cadastrarProduto, listarCategorias, cadastrarEstabelecimento } from "../../services/apiServicesFixed"
+import { cadastrarProduto, cadastrarEstabelecimento, cadastrarEnderecoEstabelecimento, listarCategorias } from "../../services/apiServicesFixed"
 import type { produtoRequest } from "../../services/types"
 
 export default function CadastroPromocao() {
@@ -99,6 +99,34 @@ export default function CadastroPromocao() {
           setTemEstabelecimento(true)
           
           console.log('✅ Estabelecimento criado automaticamente:', response.id, 'para usuário:', user.id)
+          
+          // Agora cria um endereço padrão para o estabelecimento
+          try {
+            console.log('📍 Criando endereço padrão para o estabelecimento automático...')
+            const enderecoData = {
+              id_usuario: user.id,
+              cep: '00000000', // CEP sem hífen para API
+              logradouro: 'Endereço não informado',
+              numero: 'S/N',
+              complemento: '',
+              bairro: 'Centro',
+              cidade: 'Cidade não informada',
+              estado: 'Estado não informado'
+            }
+            
+            console.log('📍 Payload do endereço automático:', enderecoData)
+            const enderecoResponse = await cadastrarEnderecoEstabelecimento(enderecoData)
+            
+            if (enderecoResponse && enderecoResponse.status) {
+              console.log('✅ Endereço padrão criado para o estabelecimento automático!')
+            } else {
+              console.log('⚠️ Resposta inválida ao criar endereço padrão:', enderecoResponse)
+            }
+          } catch (enderecoError: any) {
+            console.error('❌ Erro ao criar endereço padrão automático:', enderecoError)
+            console.error('❌ Detalhes do erro de endereço:', enderecoError.response?.data)
+            // Não falha a criação do estabelecimento por causa do endereço
+          }
         } else {
           console.error('❌ Erro na resposta do estabelecimento:', response)
           setTemEstabelecimento(false)
