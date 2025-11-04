@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 import { UserProvider } from './contexts/UserContext'
 import SmartRoute from './components/common/SmartRoute'
 import ProtectedRoute from './components/common/ProtectedRoute'
+import SessionManager from './components/auth/SessionManager'
 import './index.css'
 
 // Páginas de início
@@ -66,27 +67,28 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <UserProvider>
       <BrowserRouter>
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-            success: {
+        <SessionManager>
+          <Toaster 
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
               style: {
-                background: '#10b981',
+                background: '#363636',
+                color: '#fff',
               },
-            },
-            error: {
-              style: {
-                background: '#ef4444',
+              success: {
+                style: {
+                  background: '#10b981',
+                },
               },
-            },
-          }}
-        />
-        <Routes>
+              error: {
+                style: {
+                  background: '#ef4444',
+                },
+              },
+            }}
+          />
+          <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Cadastro />} />
@@ -161,7 +163,8 @@ createRoot(document.getElementById('root')!).render(
             <CadastroEndereco />
           </ProtectedRoute>
         } />
-        </Routes>
+          </Routes>
+        </SessionManager>
       </BrowserRouter>
     </UserProvider>
   </StrictMode>,

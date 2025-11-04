@@ -44,6 +44,40 @@ export type cadastroResponse = {
   }
 }
 
+// Tipos para atualização de usuário
+export type atualizarUsuarioRequest = {
+  nome?: string;
+  email?: string;
+  senha?: string;
+  cpf?: string;
+  telefone?: string;
+  data_nascimento?: string;
+}
+
+export type atualizarEmpresaRequest = {
+  nome?: string;
+  email?: string;
+  senha?: string;
+  cnpj?: string;
+  telefone?: string;
+  razao_social?: string;
+  endereco?: string;
+}
+
+export type atualizarUsuarioResponse = {
+  status: boolean,
+  status_code: number,
+  message: string,
+  data?: {
+    id: number,
+    nome: string,
+    email: string,
+    perfil: string,
+    cpf?: string,
+    cnpj?: string,
+    telefone?: string
+  }
+}
 
 
 // Solicitar código por email
@@ -193,6 +227,8 @@ export interface estabelecimentoResponse {
   id?: number;
 }
 
+// Interface listarEstabelecimentosResponse definida abaixo com estrutura completa
+
 // ============================================
 // TIPOS PARA CATEGORIA
 // ============================================
@@ -304,14 +340,6 @@ export interface produtoPromocao {
   preco_promocional: number;
   data_inicio: string;
   data_fim: string;
-}
-
-
-export interface produtoResponse {
-  status: boolean;
-  status_code: number;
-  message: string;
-  id?: number;
 }
 
 export interface listarEstabelecimentosResponse {

@@ -1,17 +1,15 @@
 import api from '../lib/api'
-import type {
-    enderecoRequest,
-    enderecoResponse,
-    categoriaRequest,
-    categoriaResponse,
-    listarCategoriasResponse,
-    produtoRequest,
-    produtoResponse,
-    listarProdutosResponse,
-    estabelecimentoRequest,
-    estabelecimentoResponse,
-    filtrosProdutos,
-    listarEstabelecimentosResponse
+import type { 
+    loginRequest, loginResponse, cadastroRequest, cadastroResponse,
+    solicitarCodigoRequest, solicitarCodigoResponse,
+    validarCodigoRequest, validarCodigoResponse,
+    redefinirSenhaRequest, redefinirSenhaResponse,
+    chatIARequest, chatIAResponse,
+    enderecoRequest, enderecoResponse,
+    estabelecimentoRequest, estabelecimentoResponse, listarEstabelecimentosResponse,
+    categoriaRequest, categoriaResponse, listarCategoriasResponse,
+    produtoRequest, produtoResponse, filtrosProdutos, listarProdutosResponse,
+    atualizarUsuarioRequest, atualizarEmpresaRequest, atualizarUsuarioResponse
 } from './types'
 
 // ============================================
@@ -372,5 +370,373 @@ export async function verificarEstabelecimento(): Promise<{ possuiEstabeleciment
     } catch (error: any) {
         console.error('Erro ao verificar estabelecimento:', error)
         return { possuiEstabelecimento: false }
+    }
+}
+
+// ============================================
+// SERVIÇOS DE ATUALIZAÇÃO DE USUÁRIO
+// ============================================
+
+/**
+ * Atualiza dados do usuário (pessoa física)
+ * Endpoint: PUT /usuario/{id}
+ */
+export async function atualizarUsuario(payload: atualizarUsuarioRequest): Promise<atualizarUsuarioResponse> {
+    try {
+        const userData = localStorage.getItem('user_data')
+        if (!userData) {
+            throw new Error('Usuário não encontrado. Faça login novamente.')
+        }
+        
+        const user = JSON.parse(userData)
+        const userId = user.id
+        
+        console.log('👤 Atualizando usuário:', userId)
+        console.log('👤 Dados para atualização:', payload)
+        
+        const { data } = await api.put<atualizarUsuarioResponse>(`/usuario/${userId}`, payload)
+        
+        // Atualiza dados no localStorage se a atualização foi bem-sucedida
+        if (data.status && data.data) {
+            const updatedUser = { ...user, ...data.data }
+            localStorage.setItem('user_data', JSON.stringify(updatedUser))
+            console.log('✅ Dados do usuário atualizados no localStorage')
+        }
+        
+        return data
+    } catch (error: any) {
+        console.error('❌ Erro ao atualizar usuário:', error.response?.data || error.message)
+        throw error
+    }
+}
+
+/**
+ * Atualiza dados da empresa (pessoa jurídica)
+ * Endpoint: PUT /usuario/{id} (mesmo endpoint, mas com dados de empresa)
+ */
+export async function atualizarEmpresa(payload: atualizarEmpresaRequest): Promise<atualizarUsuarioResponse> {
+    try {
+        const userData = localStorage.getItem('user_data')
+        if (!userData) {
+            throw new Error('Usuário não encontrado. Faça login novamente.')
+        }
+        
+        const user = JSON.parse(userData)
+        const userId = user.id
+        
+        console.log('🏢 Atualizando empresa:', userId)
+        console.log('🏢 Dados para atualização:', payload)
+        
+        const { data } = await api.put<atualizarUsuarioResponse>(`/usuario/${userId}`, payload)
+        
+        // Atualiza dados no localStorage se a atualização foi bem-sucedida
+        if (data.status && data.data) {
+            const updatedUser = { ...user, ...data.data }
+            localStorage.setItem('user_data', JSON.stringify(updatedUser))
+            console.log('✅ Dados da empresa atualizados no localStorage')
+        }
+        
+        return data
+    } catch (error: any) {
+        console.error('❌ Erro ao atualizar empresa:', error.response?.data || error.message)
+        throw error
+    }
+}
+
+/**
+ * Obtém dados atuais do usuário logado
+ */
+export function obterDadosUsuario() {
+    try {
+        const userData = localStorage.getItem('user_data')
+        return userData ? JSON.parse(userData) : null
+    } catch (error) {
+        console.error('Erro ao obter dados do usuário:', error)
+        return null
+    }
+}
+
+/**
+ * Busca dados do usuário diretamente da tabela usuario
+ */
+export async function buscarDadosUsuarioDireto() {
+    try {
+        console.log('👤 Buscando dados do usuário diretamente...')
+        
+        const userData = localStorage.getItem('user_data')
+        if (!userData) {
+            throw new Error('Usuário não encontrado no localStorage')
+        }
+        
+        const user = JSON.parse(userData)
+        const userId = user.id
+        
+        console.log('👤 Buscando dados para usuário ID:', userId)
+        
+        // Tenta diferentes endpoints que podem funcionar
+        const endpoints = [
+            `/usuarios/${userId}`,
+            `/usuario/${userId}`,
+            `/users/${userId}`,
+            `/user/${userId}`
+        ]
+        
+        for (const endpoint of endpoints) {
+            try {
+                console.log(`🔍 Tentando endpoint: ${endpoint}`)
+                const { data: response } = await api.get(endpoint)
+                
+                console.log(`📋 Resposta do ${endpoint}:`, response)
+                
+                if (response && (response.status || response.success || response.data || response.usuario)) {
+                    let dadosUsuario = null
+                    
+                    // Verifica diferentes estruturas de resposta
+                    if (response.data) {
+                        dadosUsuario = response.data
+                    } else if (response.usuario) {
+                        dadosUsuario = response.usuario
+                    } else if (response.id) {
+                        dadosUsuario = response
+                    }
+                    
+                    if (dadosUsuario) {
+                        console.log('✅ Dados do usuário encontrados:', dadosUsuario)
+                        
+                        // Monta dados completos
+                        const dadosCompletos = {
+                            ...user,
+                            cnpj: dadosUsuario.cnpj || dadosUsuario.cpf || '',
+                            telefone: dadosUsuario.telefone || '',
+                            email: dadosUsuario.email || user.email,
+                            nome: dadosUsuario.nome || user.nome,
+                            perfil: dadosUsuario.perfil || user.perfil
+                        }
+                        
+                        // Atualiza localStorage
+                        localStorage.setItem('user_data', JSON.stringify(dadosCompletos))
+                        console.log('✅ Dados do usuário salvos no localStorage:', dadosCompletos)
+                        
+                        return dadosCompletos
+                    }
+                }
+            } catch (endpointError: any) {
+                console.log(`⚠️ Endpoint ${endpoint} falhou:`, endpointError.response?.status)
+                continue
+            }
+        }
+        
+        console.log('⚠️ Nenhum endpoint de usuário funcionou, tentando estabelecimentos...')
+        return await buscarDadosEstabelecimento()
+        
+    } catch (error: any) {
+        console.error('❌ Erro ao buscar dados do usuário:', error)
+        return obterDadosUsuario()
+    }
+}
+
+/**
+ * Busca dados do estabelecimento do usuário logado
+ */
+export async function buscarDadosEstabelecimento() {
+    try {
+        console.log('🏢 Buscando dados do estabelecimento...')
+        
+        const userData = localStorage.getItem('user_data')
+        if (!userData) {
+            throw new Error('Usuário não encontrado no localStorage')
+        }
+        
+        const user = JSON.parse(userData)
+        const userId = user.id
+        
+        console.log('👤 Buscando estabelecimento para usuário ID:', userId)
+        
+        // Busca todos os estabelecimentos
+        const { data: estabelecimentos } = await api.get('/estabelecimentos')
+        
+        console.log('📋 Resposta completa da API /estabelecimentos:', estabelecimentos)
+        console.log('📋 Estrutura da resposta:', {
+            status: estabelecimentos?.status,
+            data: estabelecimentos?.data,
+            dataType: typeof estabelecimentos?.data,
+            dataLength: Array.isArray(estabelecimentos?.data) ? estabelecimentos.data.length : 'não é array'
+        })
+        
+        // Verifica diferentes estruturas de resposta possíveis
+        let listaEstabelecimentos = null
+        
+        if (estabelecimentos?.status && estabelecimentos?.estabelecimentos) {
+            // A API retorna na propriedade 'estabelecimentos'
+            listaEstabelecimentos = estabelecimentos.estabelecimentos
+        } else if (estabelecimentos?.status && estabelecimentos?.data) {
+            listaEstabelecimentos = estabelecimentos.data
+        } else if (Array.isArray(estabelecimentos)) {
+            // Caso a resposta seja diretamente um array
+            listaEstabelecimentos = estabelecimentos
+        }
+        
+        console.log('📋 Lista de estabelecimentos processada:', listaEstabelecimentos)
+        
+        if (listaEstabelecimentos && Array.isArray(listaEstabelecimentos) && listaEstabelecimentos.length > 0) {
+            console.log('📋 Total de estabelecimentos encontrados:', listaEstabelecimentos.length)
+            
+            // Mostra todos os estabelecimentos para debug
+            listaEstabelecimentos.forEach((est: any, index: number) => {
+                console.log(`📋 Estabelecimento ${index + 1}:`, {
+                    id: est.id,
+                    nome: est.nome,
+                    cnpj: est.cnpj,
+                    id_usuario: est.id_usuario,
+                    usuario_id: est.usuario_id,
+                    user_id: est.user_id
+                })
+            })
+            
+            // Procura estabelecimento do usuário com diferentes estratégias
+            let meuEstabelecimento = null
+            
+            // Estratégia 1: Busca por campos de relacionamento
+            meuEstabelecimento = listaEstabelecimentos.find((est: any) => {
+                const match = est.id_usuario === userId || est.usuario_id === userId || est.user_id === userId
+                console.log(`🔍 Verificando estabelecimento ${est.id}: id_usuario=${est.id_usuario}, usuario_id=${est.usuario_id}, user_id=${est.user_id} → Match: ${match}`)
+                return match
+            })
+            
+            // Estratégia 2: Se não encontrou por ID, busca por nome do usuário
+            if (!meuEstabelecimento) {
+                console.log('🔍 Não encontrado por ID, tentando buscar por nome do usuário...')
+                meuEstabelecimento = listaEstabelecimentos.find((est: any) => {
+                    const nomeEstabelecimento = est.nome?.toLowerCase() || ''
+                    const nomeUsuario = user.nome?.toLowerCase() || ''
+                    const match = nomeEstabelecimento.includes(nomeUsuario) && nomeUsuario.length > 0
+                    console.log(`🔍 Verificando por nome: "${est.nome}" contém "${user.nome}"? → Match: ${match}`)
+                    return match
+                })
+            }
+            
+            // Estratégia 3: Se ainda não encontrou e há apenas um estabelecimento, assume que é do usuário
+            if (!meuEstabelecimento && listaEstabelecimentos.length === 1) {
+                console.log('🔍 Apenas um estabelecimento encontrado, assumindo que é do usuário logado...')
+                meuEstabelecimento = listaEstabelecimentos[0]
+            }
+            
+            if (meuEstabelecimento) {
+                console.log('✅ Estabelecimento encontrado:', meuEstabelecimento)
+                
+                // Monta dados completos
+                const dadosCompletos = {
+                    ...user,
+                    cnpj: meuEstabelecimento.cnpj || '',
+                    telefone: meuEstabelecimento.telefone || '',
+                    razao_social: meuEstabelecimento.nome || meuEstabelecimento.razao_social || '',
+                    endereco: meuEstabelecimento.endereco ? 
+                        `${meuEstabelecimento.endereco.logradouro || ''}, ${meuEstabelecimento.endereco.bairro || ''}, ${meuEstabelecimento.endereco.cidade || ''} - ${meuEstabelecimento.endereco.estado || ''}`.replace(/^,\s*/, '').replace(/,\s*$/, '') :
+                        '',
+                    estabelecimento_id: meuEstabelecimento.id
+                }
+                
+                // Atualiza localStorage
+                localStorage.setItem('user_data', JSON.stringify(dadosCompletos))
+                console.log('✅ Dados do estabelecimento salvos no localStorage:', dadosCompletos)
+                
+                return dadosCompletos
+            } else {
+                console.log('⚠️ Nenhum estabelecimento encontrado para o usuário ID:', userId)
+                console.log('⚠️ Estabelecimentos disponíveis:', listaEstabelecimentos.map(est => ({
+                    id: est.id,
+                    nome: est.nome,
+                    id_usuario: est.id_usuario,
+                    usuario_id: est.usuario_id,
+                    user_id: est.user_id
+                })))
+                return user
+            }
+        } else {
+            console.log('⚠️ API não retornou estabelecimentos válidos ou lista está vazia')
+            console.log('⚠️ Dados recebidos:', estabelecimentos)
+            return user
+        }
+    } catch (error: any) {
+        console.error('❌ Erro ao buscar dados do estabelecimento:', error)
+        return obterDadosUsuario() // Retorna dados do localStorage como fallback
+    }
+}
+
+/**
+ * Busca dados completos do usuário na API e atualiza localStorage
+ */
+export async function buscarDadosCompletosDaAPI() {
+    try {
+        console.log('🔍 Buscando dados completos do usuário na API...')
+        
+        const userData = localStorage.getItem('user_data')
+        if (!userData) {
+            throw new Error('Usuário não encontrado no localStorage')
+        }
+        
+        const user = JSON.parse(userData)
+        const userId = user.id
+        
+        console.log('👤 ID do usuário:', userId)
+        console.log('👤 Perfil do usuário:', user.perfil)
+        
+        // Tenta diferentes endpoints baseados no perfil do usuário
+        let dadosCompletos = user
+        
+        try {
+            // Primeiro tenta o endpoint de usuário
+            console.log('🔍 Tentando endpoint /usuario/:id...')
+            const { data } = await api.get(`/usuario/${userId}`)
+            
+            if (data.status && data.data) {
+                dadosCompletos = { ...user, ...data.data }
+                console.log('✅ Dados obtidos via /usuario/:id:', dadosCompletos)
+            }
+        } catch (userError: any) {
+            console.log('⚠️ Endpoint /usuario/:id falhou:', userError.response?.status)
+            
+            // Se for estabelecimento, tenta buscar dados do estabelecimento
+            if (user.perfil === 'estabelecimento') {
+                try {
+                    console.log('🔍 Tentando buscar estabelecimento do usuário...')
+                    const { data: estabelecimentos } = await api.get('/estabelecimentos')
+                    
+                    if (estabelecimentos.status && estabelecimentos.data) {
+                        // Procura estabelecimento do usuário
+                        const meuEstabelecimento = estabelecimentos.data.find((est: any) => 
+                            est.id_usuario === userId || est.usuario_id === userId
+                        )
+                        
+                        if (meuEstabelecimento) {
+                            dadosCompletos = {
+                                ...user,
+                                cnpj: meuEstabelecimento.cnpj,
+                                telefone: meuEstabelecimento.telefone,
+                                endereco: meuEstabelecimento.endereco?.logradouro || 
+                                         `${meuEstabelecimento.endereco?.logradouro || ''}, ${meuEstabelecimento.endereco?.bairro || ''}, ${meuEstabelecimento.endereco?.cidade || ''} - ${meuEstabelecimento.endereco?.estado || ''}`.trim(),
+                                razao_social: meuEstabelecimento.nome || meuEstabelecimento.razao_social,
+                                estabelecimento_id: meuEstabelecimento.id
+                            }
+                            console.log('✅ Dados obtidos via estabelecimento:', dadosCompletos)
+                        } else {
+                            console.log('⚠️ Estabelecimento do usuário não encontrado')
+                        }
+                    }
+                } catch (estError: any) {
+                    console.log('⚠️ Erro ao buscar estabelecimentos:', estError.response?.status)
+                }
+            }
+        }
+        
+        // Atualiza localStorage com dados obtidos
+        localStorage.setItem('user_data', JSON.stringify(dadosCompletos))
+        console.log('✅ Dados finais salvos no localStorage:', dadosCompletos)
+        
+        return dadosCompletos
+        
+    } catch (error: any) {
+        console.error('❌ Erro geral ao buscar dados da API:', error)
+        return obterDadosUsuario() // Retorna dados do localStorage como fallback
     }
 }
