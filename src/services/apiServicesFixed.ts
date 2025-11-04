@@ -15,6 +15,88 @@ import type {
 } from './types'
 
 // ============================================
+// UTILITÁRIOS DE AUTENTICAÇÃO
+// ============================================
+
+/**
+ * Verifica se o usuário está autenticado
+ */
+export function isAuthenticated(): boolean {
+    const token = localStorage.getItem('auth_token')
+    const userData = localStorage.getItem('user_data')
+    return !!(token && userData)
+}
+
+/**
+ * Obtém informações do usuário logado
+ */
+export function getCurrentUser() {
+    try {
+        const userData = localStorage.getItem('user_data')
+        return userData ? JSON.parse(userData) : null
+    } catch (error) {
+        console.error('Erro ao obter dados do usuário:', error)
+        return null
+    }
+}
+
+/**
+ * Verifica se o token está válido (básico)
+ */
+export function checkTokenValidity(): { valid: boolean, token: string | null } {
+    const token = localStorage.getItem('auth_token')
+    
+    if (!token) {
+        return { valid: false, token: null }
+    }
+    
+    // Verifica se o token não está vazio
+    if (token.trim().length === 0) {
+        return { valid: false, token }
+    }
+    
+    return { valid: true, token }
+}
+
+/**
+ * Função de teste para verificar se a API está funcionando
+ */
+export async function testarListagemProdutos() {
+    console.log('🧪 TESTE - Iniciando teste de listagem de produtos')
+    
+    try {
+        // Verifica token
+        const { valid } = checkTokenValidity()
+        console.log('🔐 Token válido:', valid)
+        
+        if (!valid) {
+            console.error('❌ Token inválido - faça login novamente')
+            return
+        }
+        
+        // Testa requisição simples
+        console.log('📞 Fazendo requisição GET /produtos')
+        const response = await api.get('/produtos')
+        console.log('✅ Resposta recebida:', response.data)
+        console.log('📊 Status da resposta:', response.status)
+        console.log('📋 Headers:', response.headers)
+        
+        return response.data
+    } catch (error: any) {
+        console.error('❌ ERRO no teste:', error)
+        console.error('❌ Status:', error.response?.status)
+        console.error('❌ Data:', error.response?.data)
+        console.error('❌ Message:', error.message)
+        
+        if (error.response?.status === 401) {
+            console.error('🔐 ERRO 401 - Token inválido ou expirado')
+        }
+        
+        throw error
+    }
+}
+
+// ============================================
 // SERVIÇOS DE ENDEREÇO - ENDPOINTS CORRIGIDOS
 // ============================================
 
@@ -198,67 +280,47 @@ export async function cadastrarProduto(payload: produtoRequest): Promise<produto
  * Query params: categoria, estabelecimento, preco_min, preco_max, promocao, busca
  */
 export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarProdutosResponse> {
-    console.log('🔍 INICIANDO listagem de produtos')
-    console.log('🔍 Filtros recebidos:', filtros)
-    
     try {
         const params = new URLSearchParams()
         
         if (filtros) {
-            if (filtros.categoria) params.append('categoria', filtros.categoria.toString())
-            if (filtros.estabelecimento) params.append('estabelecimento', filtros.estabelecimento.toString())
-            if (filtros.preco_min) params.append('preco_min', filtros.preco_min.toString())
-            if (filtros.preco_max) params.append('preco_max', filtros.preco_max.toString())
-            if (filtros.promocao !== undefined) params.append('promocao', filtros.promocao.toString())
-            if (filtros.busca) params.append('busca', filtros.busca)
+            if (filtros.categoria) {
+                params.append('categoria', filtros.categoria.toString())
+            }
+            if (filtros.estabelecimento) {
+                params.append('estabelecimento', filtros.estabelecimento.toString())
+            }
+            if (filtros.preco_min) {
+                params.append('preco_min', filtros.preco_min.toString())
+            }
+            if (filtros.preco_max) {
+                params.append('preco_max', filtros.preco_max.toString())
+            }
+            if (filtros.promocao !== undefined) {
+                params.append('promocao', filtros.promocao.toString())
+            }
+            if (filtros.busca) {
+                params.append('busca', filtros.busca)
+            }
         }
         
         const url = params.toString() ? `/produtos?${params.toString()}` : '/produtos'
-        console.log('🔍 URL da requisição:', url)
         
         const { data } = await api.get<listarProdutosResponse>(url)
-        console.log('✅ Produtos listados com sucesso:', data)
-        console.log('🔍 ESTRUTURA COMPLETA DA RESPOSTA:', JSON.stringify(data, null, 2))
+        
+        // Verifica se a resposta tem a estrutura esperada
+        if (!data) {
+            return { status: false, status_code: 500, data: [] }
+        }
+        
+        if (!data.status) {
+            return { status: false, status_code: data.status_code || 500, data: [] }
+        }
         
         // CORREÇÃO: A API retorna 'produtos' ao invés de 'data'
         if (data.status && (data as any).produtos) {
-            console.log('✅ Quantidade de produtos:', (data as any).produtos.length)
-            
             // Mapeia os produtos para o formato esperado pela interface
             const produtosMapeados = await Promise.all((data as any).produtos.map(async (produto: any) => {
-                console.log('🔄 Mapeando produto:', {
-                    nome: produto.nome,
-                    promocaoOriginal: produto.promocao,
-                    temPromocao: !!produto.promocao
-                })
-                
-                console.log('🔍 TODOS OS CAMPOS DO PRODUTO:', JSON.stringify(produto, null, 2))
-                
-                // Análise específica de estabelecimento
-                console.log('🏪 ANÁLISE DETALHADA DO ESTABELECIMENTO:', {
-                    'produto.estabelecimento': produto.estabelecimento,
-                    'typeof estabelecimento': typeof produto.estabelecimento,
-                    'produto.id_estabelecimento': produto.id_estabelecimento,
-                    'produto.nome_estabelecimento': produto.nome_estabelecimento,
-                    'produto.estabelecimento_id': produto.estabelecimento_id,
-                    'produto.estabelecimento_nome': produto.estabelecimento_nome,
-                    'Todos os campos que contêm "estabelec"': Object.keys(produto).filter(key => 
-                        key.toLowerCase().includes('estabelec')
-                    ).map(key => ({ [key]: produto[key] }))
-                })
-                
-                // Análise específica de categoria
-                console.log('🏷️ ANÁLISE DETALHADA DA CATEGORIA:', {
-                    'produto.categoria': produto.categoria,
-                    'typeof categoria': typeof produto.categoria,
-                    'produto.id_categoria': produto.id_categoria,
-                    'produto.nome_categoria': produto.nome_categoria,
-                    'produto.categoria_id': produto.categoria_id,
-                    'produto.categoria_nome': produto.categoria_nome,
-                    'Todos os campos que contêm "categoria"': Object.keys(produto).filter(key => 
-                        key.toLowerCase().includes('categoria')
-                    ).map(key => ({ [key]: produto[key] }))
-                })
                 
                 // Tenta encontrar dados de promoção em diferentes campos possíveis
                 let promocaoData = null
@@ -266,10 +328,8 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                 // Verifica diferentes possibilidades de onde a promoção pode estar
                 if (produto.promocao) {
                     promocaoData = produto.promocao
-                    console.log('✅ Promoção encontrada em produto.promocao')
                 } else if (produto.promocoes && produto.promocoes.length > 0) {
                     promocaoData = produto.promocoes[0]
-                    console.log('✅ Promoção encontrada em produto.promocoes[0]')
                 } else if (produto.preco_promocional) {
                     // Se tem preço promocional direto no produto
                     promocaoData = {
@@ -277,9 +337,6 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                         data_inicio: produto.data_inicio_promocao,
                         data_fim: produto.data_fim_promocao
                     }
-                    console.log('✅ Promoção encontrada como campos diretos do produto')
-                } else {
-                    console.log('❌ Nenhum dado de promoção encontrado')
                 }
                 
                 // Mapeia categoria corretamente
@@ -295,8 +352,6 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                         nome: produto.categoria
                     }
                 } else if (produto.id_categoria) {
-                    console.log('⚠️ Produto tem apenas ID da categoria, buscando nome...')
-                    
                     // Busca o nome da categoria automaticamente
                     try {
                         const nomeCategoria = await buscarNomeCategoria(produto.id_categoria)
@@ -304,9 +359,7 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                             id: produto.id_categoria,
                             nome: nomeCategoria
                         }
-                        console.log('✅ Nome da categoria encontrado:', nomeCategoria)
                     } catch (error) {
-                        console.log('❌ Erro ao buscar nome da categoria:', error)
                         categoriaData = {
                             id: produto.id_categoria,
                             nome: `Categoria ID ${produto.id_categoria}`
@@ -327,8 +380,6 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                         nome: produto.estabelecimento
                     }
                 } else if (produto.id_estabelecimento) {
-                    console.log('⚠️ Produto tem apenas ID do estabelecimento, buscando nome...')
-                    
                     // Busca o nome do estabelecimento automaticamente
                     try {
                         const nomeEstabelecimento = await buscarNomeEstabelecimento(produto.id_estabelecimento)
@@ -336,9 +387,7 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                             id: produto.id_estabelecimento,
                             nome: nomeEstabelecimento
                         }
-                        console.log('✅ Nome do estabelecimento encontrado:', nomeEstabelecimento)
                     } catch (error) {
-                        console.log('❌ Erro ao buscar nome do estabelecimento:', error)
                         estabelecimentoData = {
                             id: produto.id_estabelecimento,
                             nome: `Estabelecimento ID ${produto.id_estabelecimento}`
@@ -346,28 +395,6 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                     }
                 }
                 
-                console.log('🏪 Mapeamento de estabelecimento:', {
-                    original: produto.estabelecimento,
-                    id_estabelecimento: produto.id_estabelecimento,
-                    nome_estabelecimento: produto.nome_estabelecimento,
-                    mapeado: estabelecimentoData
-                })
-                
-                console.log('🏷️ Mapeamento de categoria:', {
-                    original: produto.categoria,
-                    id_categoria: produto.id_categoria,
-                    nome_categoria: produto.nome_categoria,
-                    mapeado: categoriaData
-                })
-                
-                // Verifica se precisa buscar nomes de estabelecimento e categoria por ID
-                if (estabelecimentoData.nome === 'Estabelecimento não informado' && estabelecimentoData.id > 0) {
-                    console.log('⚠️ Estabelecimento sem nome, ID:', estabelecimentoData.id)
-                }
-                
-                if (categoriaData.nome === 'Categoria não informada' && categoriaData.id > 0) {
-                    console.log('⚠️ Categoria sem nome, ID:', categoriaData.id)
-                }
 
                 const produtoMapeado = {
                     id: produto.id_produto || produto.id,
@@ -602,62 +629,62 @@ export async function buscarNomeCategoria(id: number): Promise<string> {
 }
 
 export function isProdutoEmPromocao(produto: any): boolean {
-    console.log('🔍 Verificando se produto está em promoção:', {
-        nome: produto.nome,
-        temPromocao: !!produto.promocao,
-        promocao: produto.promocao
-    })
+    // Verifica diferentes estruturas de promoção que podem vir da API
+    let promocaoData = null
     
-    if (!produto.promocao) {
-        console.log('❌ Produto sem promoção:', produto.nome)
+    // Tenta encontrar dados de promoção em diferentes campos
+    if (produto.promocao) {
+        promocaoData = produto.promocao
+    } else if (produto.promocoes && produto.promocoes.length > 0) {
+        promocaoData = produto.promocoes[0]
+    } else if (produto.preco_promocional) {
+        // Promoção como campos diretos do produto
+        promocaoData = {
+            preco_promocional: produto.preco_promocional,
+            data_inicio: produto.data_inicio_promocao || produto.data_inicio,
+            data_fim: produto.data_fim_promocao || produto.data_fim
+        }
+    }
+    
+    // Se não tem dados de promoção
+    if (!promocaoData) {
         return false
     }
     
-    // Verifica se tem preço promocional
-    if (!produto.promocao.preco_promocional || produto.promocao.preco_promocional <= 0) {
-        console.log('❌ Produto sem preço promocional válido:', produto.nome)
+    // Verifica se tem preço promocional válido
+    const precoPromocional = promocaoData.preco_promocional
+    if (!precoPromocional || precoPromocional <= 0) {
         return false
     }
     
-    // Verifica se o preço promocional é menor que o preço normal
-    if (produto.promocao.preco_promocional >= produto.preco) {
-        console.log('❌ Preço promocional não é menor que o preço normal:', produto.nome)
+    // Verifica se o preço promocional é diferente do preço normal (mais flexível)
+    if (precoPromocional >= produto.preco) {
         return false
     }
     
     try {
+        // Se não tem datas definidas, considera como promoção ativa
+        if (!promocaoData.data_inicio || !promocaoData.data_fim) {
+            return true
+        }
+        
         const hoje = new Date()
+        hoje.setHours(0, 0, 0, 0)
         
-        // Se não tem datas, considera como promoção ativa (para testes)
-        if (!produto.promocao.data_inicio || !produto.promocao.data_fim) {
-            console.log('⚠️ Promoção sem datas definidas, considerando como ATIVA para testes')
-            return true
-        }
+        const dataInicio = new Date(promocaoData.data_inicio)
+        const dataFim = new Date(promocaoData.data_fim)
+        dataInicio.setHours(0, 0, 0, 0)
+        dataFim.setHours(23, 59, 59, 999)
         
-        const dataInicio = new Date(produto.promocao.data_inicio)
-        const dataFim = new Date(produto.promocao.data_fim)
-        
-        // Verifica se as datas são válidas
+        // Se datas são inválidas, considera ativo (mais permissivo)
         if (isNaN(dataInicio.getTime()) || isNaN(dataFim.getTime())) {
-            console.log('⚠️ Datas inválidas, considerando como ATIVA para testes')
             return true
         }
         
-        console.log('📅 Verificando datas:', {
-            hoje: hoje.toISOString(),
-            dataInicio: dataInicio.toISOString(),
-            dataFim: dataFim.toISOString(),
-            dentroDoPeriodo: hoje >= dataInicio && hoje <= dataFim
-        })
-        
-        const emPromocao = hoje >= dataInicio && hoje <= dataFim
-        console.log(emPromocao ? '✅ Produto EM PROMOÇÃO!' : '❌ Produto FORA do período promocional')
-        
-        return emPromocao
+        // Verifica se está dentro do período
+        return hoje >= dataInicio && hoje <= dataFim
     } catch (error) {
-        console.error('❌ Erro ao verificar datas da promoção:', error)
-        // Em caso de erro, considera como promoção ativa se tem preço promocional
-        console.log('⚠️ Erro nas datas, mas tem preço promocional válido - considerando ATIVO')
+        // Em caso de erro, considera como ativo se tem preço promocional válido
         return true
     }
 }

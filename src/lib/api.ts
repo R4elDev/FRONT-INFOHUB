@@ -14,6 +14,34 @@ api.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
+}, (error) => {
+  return Promise.reject(error);
 });
+
+// Interceptor de resposta para lidar com erros de autenticação
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      console.warn('🔐 Token inválido ou expirado. Redirecionando para login...');
+      
+      // Limpa dados de autenticação
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_data');
+      localStorage.removeItem('estabelecimentoId');
+      localStorage.removeItem('estabelecimentoNome');
+      localStorage.removeItem('estabelecimentoUserId');
+      localStorage.removeItem('estabelecimentoEndereco');
+      localStorage.removeItem('estabelecimentoEnderecoCompleto');
+      
+      // Redireciona para login
+      window.location.href = '/login';
+    }
+    
+    return Promise.reject(error);
+  }
+);
 
 export default api;

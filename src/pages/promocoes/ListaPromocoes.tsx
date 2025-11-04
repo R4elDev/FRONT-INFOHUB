@@ -111,14 +111,32 @@ export default function ListaPromocoes() {
         const buscaParam = searchParams.get('busca')
         const promocaoParam = searchParams.get('promocao')
         
-        if (categoriaParam) novosFiltros.categoria = parseInt(categoriaParam)
-        if (buscaParam) novosFiltros.busca = buscaParam
-        if (promocaoParam === 'true') novosFiltros.promocao = true
-        if (categoriaFiltro && !categoriaParam) novosFiltros.categoria = parseInt(categoriaFiltro)
-        if (busca.trim() && !buscaParam) novosFiltros.busca = busca.trim()
-        if (apenasPromocoes && !promocaoParam) novosFiltros.promocao = true
+        // Prioriza parâmetros da URL, depois estado local
+        if (categoriaParam) {
+          novosFiltros.categoria = parseInt(categoriaParam)
+          console.log('🏷️ Filtro de categoria da URL:', categoriaParam)
+        } else if (categoriaFiltro) {
+          novosFiltros.categoria = parseInt(categoriaFiltro)
+          console.log('🏷️ Filtro de categoria do estado:', categoriaFiltro)
+        }
         
-        console.log('🔍 Filtros aplicados:', novosFiltros)
+        if (buscaParam) {
+          novosFiltros.busca = buscaParam
+          console.log('🔍 Filtro de busca da URL:', buscaParam)
+        } else if (busca.trim()) {
+          novosFiltros.busca = busca.trim()
+          console.log('🔍 Filtro de busca do estado:', busca.trim())
+        }
+        
+        if (promocaoParam === 'true') {
+          novosFiltros.promocao = true
+          console.log('🎁 Filtro de promoção da URL: true')
+        } else if (apenasPromocoes) {
+          novosFiltros.promocao = true
+          console.log('🎁 Filtro de promoção do estado: true')
+        }
+        
+        console.log('🔍 Filtros finais aplicados:', novosFiltros)
         
         const produtosResponse = await listarProdutos(novosFiltros)
         console.log('📦 Resposta da API de produtos:', produtosResponse)
@@ -169,21 +187,39 @@ export default function ListaPromocoes() {
       console.log('🔄 Recarregando produtos manualmente...')
       setLoading(true)
       
-      // Monta filtros atuais
+      // Monta filtros atuais usando a mesma lógica
       const filtrosAtuais: filtrosProdutos = {}
       
       const categoriaParam = searchParams.get('categoria')
       const buscaParam = searchParams.get('busca')
       const promocaoParam = searchParams.get('promocao')
       
-      if (categoriaParam) filtrosAtuais.categoria = parseInt(categoriaParam)
-      if (buscaParam) filtrosAtuais.busca = buscaParam
-      if (promocaoParam === 'true') filtrosAtuais.promocao = true
-      if (categoriaFiltro && !categoriaParam) filtrosAtuais.categoria = parseInt(categoriaFiltro)
-      if (busca.trim() && !buscaParam) filtrosAtuais.busca = busca.trim()
-      if (apenasPromocoes && !promocaoParam) filtrosAtuais.promocao = true
+      // Prioriza parâmetros da URL, depois estado local
+      if (categoriaParam) {
+        filtrosAtuais.categoria = parseInt(categoriaParam)
+        console.log('🏷️ Recarregando com categoria da URL:', categoriaParam)
+      } else if (categoriaFiltro) {
+        filtrosAtuais.categoria = parseInt(categoriaFiltro)
+        console.log('🏷️ Recarregando com categoria do estado:', categoriaFiltro)
+      }
       
-      console.log('🔍 Recarregando com filtros:', filtrosAtuais)
+      if (buscaParam) {
+        filtrosAtuais.busca = buscaParam
+        console.log('🔍 Recarregando com busca da URL:', buscaParam)
+      } else if (busca.trim()) {
+        filtrosAtuais.busca = busca.trim()
+        console.log('🔍 Recarregando com busca do estado:', busca.trim())
+      }
+      
+      if (promocaoParam === 'true') {
+        filtrosAtuais.promocao = true
+        console.log('🎁 Recarregando com promoção da URL: true')
+      } else if (apenasPromocoes) {
+        filtrosAtuais.promocao = true
+        console.log('🎁 Recarregando com promoção do estado: true')
+      }
+      
+      console.log('🔍 Recarregando com filtros finais:', filtrosAtuais)
       
       const produtosResponse = await listarProdutos(filtrosAtuais)
       console.log('📦 Produtos recarregados:', produtosResponse)
@@ -244,6 +280,7 @@ export default function ListaPromocoes() {
               )}
             </div>
           </div>
+
 
           {/* Barra de Pesquisa */}
           <section className="mt-10">
@@ -318,14 +355,17 @@ export default function ListaPromocoes() {
               {/* Botão "Todas" */}
               <button 
                 onClick={() => {
+                  console.log('🛒 Clicou em "Todas as categorias"')
                   setCategoriaFiltro('')
                   const params = new URLSearchParams()
                   if (busca.trim()) params.set('busca', busca.trim())
                   if (apenasPromocoes) params.set('promocao', 'true')
+                  // Remove o parâmetro categoria da URL
                   setSearchParams(params)
+                  console.log('🛒 Filtros após clicar em "Todas":', { busca: busca.trim(), apenasPromocoes })
                 }}
                 className={`px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0 ${
-                  !categoriaFiltro 
+                  !categoriaFiltro && !searchParams.get('categoria')
                     ? 'bg-[#F9A01B] hover:bg-[#FF8C00] text-white' 
                     : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
                 }`}
@@ -346,19 +386,25 @@ export default function ListaPromocoes() {
                   'bg-orange-500 hover:bg-orange-600'
                 ]
                 const cor = cores[index % cores.length]
-                const isActive = categoriaFiltro === categoria.id.toString()
+                const isActive = categoriaFiltro === categoria.id.toString() || searchParams.get('categoria') === categoria.id.toString()
                 
                 return (
                   <button 
                     key={categoria.id}
                     onClick={() => {
                       const novaCategoria = categoria.id.toString()
+                      console.log('🏷️ Clicou na categoria:', categoria.nome, 'ID:', novaCategoria)
                       setCategoriaFiltro(novaCategoria)
                       const params = new URLSearchParams()
                       if (busca.trim()) params.set('busca', busca.trim())
                       params.set('categoria', novaCategoria)
                       if (apenasPromocoes) params.set('promocao', 'true')
                       setSearchParams(params)
+                      console.log('🏷️ Filtros após selecionar categoria:', { 
+                        categoria: novaCategoria, 
+                        busca: busca.trim(), 
+                        apenasPromocoes 
+                      })
                     }}
                     className={`${cor} text-white px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0 ${
                       isActive ? 'ring-2 ring-white ring-offset-2' : ''
@@ -388,6 +434,124 @@ export default function ListaPromocoes() {
                   <p>Cadastre algumas categorias no sistema para que apareçam aqui.</p>
                 </div>
               )}
+            </div>
+
+            {/* Ferramentas de Debug para Filtros */}
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">🔧 Debug - Estado dos Filtros</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div>
+                  <strong>Estado Local:</strong>
+                  <ul className="mt-1 space-y-1">
+                    <li>Categoria: {categoriaFiltro || 'Nenhuma'}</li>
+                    <li>Busca: {busca || 'Vazia'}</li>
+                    <li>Apenas Promoções: {apenasPromocoes ? 'Sim' : 'Não'}</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Parâmetros da URL:</strong>
+                  <ul className="mt-1 space-y-1">
+                    <li>Categoria: {searchParams.get('categoria') || 'Nenhuma'}</li>
+                    <li>Busca: {searchParams.get('busca') || 'Vazia'}</li>
+                    <li>Promoção: {searchParams.get('promocao') || 'Não'}</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Dados Carregados:</strong>
+                  <ul className="mt-1 space-y-1">
+                    <li>Categorias: {categorias.length}</li>
+                    <li>Produtos: {produtos.length}</li>
+                    <li>Loading: {loading ? 'Sim' : 'Não'}</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2 flex-wrap">
+                <button
+                  onClick={() => {
+                    console.log('🔧 DEBUG - Estado completo:', {
+                      categoriaFiltro,
+                      busca,
+                      apenasPromocoes,
+                      searchParams: Object.fromEntries(searchParams.entries()),
+                      categorias: categorias.map(c => ({ id: c.id, nome: c.nome })),
+                      produtos: produtos.length,
+                      loading
+                    })
+                  }}
+                  className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                >
+                  📋 Log Estado Completo
+                </button>
+                <button
+                  onClick={recarregarProdutos}
+                  className="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
+                >
+                  🔄 Forçar Recarregamento
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('🏢 DEBUG - Dados do Estabelecimento:', {
+                      localStorage_estabelecimentoId: localStorage.getItem('estabelecimentoId'),
+                      localStorage_estabelecimentoNome: localStorage.getItem('estabelecimentoNome'),
+                      localStorage_estabelecimentoUserId: localStorage.getItem('estabelecimentoUserId'),
+                      localStorage_estabelecimentoEndereco: localStorage.getItem('estabelecimentoEndereco'),
+                      localStorage_userData: localStorage.getItem('user_data'),
+                      localStorage_authToken: localStorage.getItem('auth_token')
+                    })
+                  }}
+                  className="px-3 py-1 bg-orange-500 text-white rounded text-xs hover:bg-orange-600"
+                >
+                  🏢 Debug Estabelecimento
+                </button>
+                <button
+                  onClick={async () => {
+                    console.log('🧪 TESTE - Filtro de Categoria')
+                    if (categorias.length > 0) {
+                      const primeiraCategoria = categorias[0]
+                      console.log('🏷️ Testando filtro com categoria:', primeiraCategoria)
+                      
+                      const filtroTeste = { categoria: primeiraCategoria.id }
+                      console.log('🔍 Filtro de teste:', filtroTeste)
+                      
+                      try {
+                        const resultado = await listarProdutos(filtroTeste)
+                        console.log('✅ Resultado do teste de filtro:', resultado)
+                        console.log('📦 Produtos encontrados:', resultado.data?.length || 0)
+                      } catch (error) {
+                        console.error('❌ Erro no teste de filtro:', error)
+                      }
+                    } else {
+                      console.log('⚠️ Nenhuma categoria disponível para teste')
+                    }
+                  }}
+                  className="px-3 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600"
+                >
+                  🧪 Testar Filtro
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('🎁 TESTE - Detecção de Promoções')
+                    console.log('📦 Total de produtos carregados:', produtos.length)
+                    
+                    produtos.forEach((produto, index) => {
+                      const emPromocao = isProdutoEmPromocao(produto)
+                      console.log(`📦 Produto ${index + 1}:`, {
+                        nome: produto.nome,
+                        preco: produto.preco,
+                        promocao: produto.promocao,
+                        emPromocao: emPromocao,
+                        precoPromocional: produto.promocao?.preco_promocional
+                      })
+                    })
+                    
+                    const produtosEmPromocao = produtos.filter(p => isProdutoEmPromocao(p))
+                    console.log('🎁 Total de produtos em promoção:', produtosEmPromocao.length)
+                  }}
+                  className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                >
+                  🎁 Testar Promoções
+                </button>
+              </div>
             </div>
           </section>
 
