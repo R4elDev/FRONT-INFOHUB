@@ -13,6 +13,88 @@ import type {
 } from './types'
 
 // ============================================
+// UTILITÁRIOS DE AUTENTICAÇÃO
+// ============================================
+
+/**
+ * Verifica se o usuário está autenticado
+ */
+export function isAuthenticated(): boolean {
+    const token = localStorage.getItem('auth_token')
+    const userData = localStorage.getItem('user_data')
+    return !!(token && userData)
+}
+
+/**
+ * Obtém informações do usuário logado
+ */
+export function getCurrentUser() {
+    try {
+        const userData = localStorage.getItem('user_data')
+        return userData ? JSON.parse(userData) : null
+    } catch (error) {
+        console.error('Erro ao obter dados do usuário:', error)
+        return null
+    }
+}
+
+/**
+ * Verifica se o token está válido (básico)
+ */
+export function checkTokenValidity(): { valid: boolean, token: string | null } {
+    const token = localStorage.getItem('auth_token')
+    
+    if (!token) {
+        return { valid: false, token: null }
+    }
+    
+    // Verifica se o token não está vazio
+    if (token.trim().length === 0) {
+        return { valid: false, token }
+    }
+    
+    return { valid: true, token }
+}
+
+/**
+ * Função de teste para verificar se a API está funcionando
+ */
+export async function testarListagemProdutos() {
+    console.log('🧪 TESTE - Iniciando teste de listagem de produtos')
+    
+    try {
+        // Verifica token
+        const { valid } = checkTokenValidity()
+        console.log('🔐 Token válido:', valid)
+        
+        if (!valid) {
+            console.error('❌ Token inválido - faça login novamente')
+            return
+        }
+        
+        // Testa requisição simples
+        console.log('📞 Fazendo requisição GET /produtos')
+        const response = await api.get('/produtos')
+        console.log('✅ Resposta recebida:', response.data)
+        console.log('📊 Status da resposta:', response.status)
+        console.log('📋 Headers:', response.headers)
+        
+        return response.data
+    } catch (error: any) {
+        console.error('❌ ERRO no teste:', error)
+        console.error('❌ Status:', error.response?.status)
+        console.error('❌ Data:', error.response?.data)
+        console.error('❌ Message:', error.message)
+        
+        if (error.response?.status === 401) {
+            console.error('🔐 ERRO 401 - Token inválido ou expirado')
+        }
+        
+        throw error
+    }
+}
+
+// ============================================
 // SERVIÇOS DE ENDEREÇO - ENDPOINTS CORRIGIDOS
 // ============================================
 
@@ -200,18 +282,160 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
         const params = new URLSearchParams()
         
         if (filtros) {
-            if (filtros.categoria) params.append('categoria', filtros.categoria.toString())
-            if (filtros.estabelecimento) params.append('estabelecimento', filtros.estabelecimento.toString())
-            if (filtros.preco_min) params.append('preco_min', filtros.preco_min.toString())
-            if (filtros.preco_max) params.append('preco_max', filtros.preco_max.toString())
-            if (filtros.promocao !== undefined) params.append('promocao', filtros.promocao.toString())
-            if (filtros.busca) params.append('busca', filtros.busca)
+            if (filtros.categoria) {
+                params.append('categoria', filtros.categoria.toString())
+            }
+            if (filtros.estabelecimento) {
+                params.append('estabelecimento', filtros.estabelecimento.toString())
+            }
+            if (filtros.preco_min) {
+                params.append('preco_min', filtros.preco_min.toString())
+            }
+            if (filtros.preco_max) {
+                params.append('preco_max', filtros.preco_max.toString())
+            }
+            if (filtros.promocao !== undefined) {
+                params.append('promocao', filtros.promocao.toString())
+            }
+            if (filtros.busca) {
+                params.append('busca', filtros.busca)
+            }
         }
         
         const url = params.toString() ? `/produtos?${params.toString()}` : '/produtos'
+        
         const { data } = await api.get<listarProdutosResponse>(url)
+        
+        // Verifica se a resposta tem a estrutura esperada
+        if (!data) {
+            return { status: false, status_code: 500, data: [] }
+        }
+        
+        if (!data.status) {
+            return { status: false, status_code: data.status_code || 500, data: [] }
+        }
+        
+        // CORREÇÃO: A API retorna 'produtos' ao invés de 'data'
+        if (data.status && (data as any).produtos) {
+            // Mapeia os produtos para o formato esperado pela interface
+            const produtosMapeados = await Promise.all((data as any).produtos.map(async (produto: any) => {
+                
+                // Tenta encontrar dados de promoção em diferentes campos possíveis
+                let promocaoData = null
+                
+                // Verifica diferentes possibilidades de onde a promoção pode estar
+                if (produto.promocao) {
+                    promocaoData = produto.promocao
+                } else if (produto.promocoes && produto.promocoes.length > 0) {
+                    promocaoData = produto.promocoes[0]
+                } else if (produto.preco_promocional) {
+                    // Se tem preço promocional direto no produto
+                    promocaoData = {
+                        preco_promocional: produto.preco_promocional,
+                        data_inicio: produto.data_inicio_promocao,
+                        data_fim: produto.data_fim_promocao
+                    }
+                }
+                
+                // Mapeia categoria corretamente
+                let categoriaData = { id: 0, nome: 'Categoria não informada' }
+                if (produto.categoria && typeof produto.categoria === 'object') {
+                    categoriaData = {
+                        id: produto.categoria.id || produto.categoria.id_categoria || 0,
+                        nome: produto.categoria.nome || 'Categoria não informada'
+                    }
+                } else if (produto.categoria && typeof produto.categoria === 'string') {
+                    categoriaData = {
+                        id: produto.id_categoria || 0,
+                        nome: produto.categoria
+                    }
+                } else if (produto.id_categoria) {
+                    // Busca o nome da categoria automaticamente
+                    try {
+                        const nomeCategoria = await buscarNomeCategoria(produto.id_categoria)
+                        categoriaData = {
+                            id: produto.id_categoria,
+                            nome: nomeCategoria
+                        }
+                    } catch (error) {
+                        categoriaData = {
+                            id: produto.id_categoria,
+                            nome: `Categoria ID ${produto.id_categoria}`
+                        }
+                    }
+                }
+                
+                // Mapeia estabelecimento corretamente
+                let estabelecimentoData = { id: 0, nome: 'Estabelecimento não informado' }
+                if (produto.estabelecimento && typeof produto.estabelecimento === 'object') {
+                    estabelecimentoData = {
+                        id: produto.estabelecimento.id || produto.estabelecimento.id_estabelecimento || 0,
+                        nome: produto.estabelecimento.nome || 'Estabelecimento não informado'
+                    }
+                } else if (produto.estabelecimento && typeof produto.estabelecimento === 'string') {
+                    estabelecimentoData = {
+                        id: produto.id_estabelecimento || 0,
+                        nome: produto.estabelecimento
+                    }
+                } else if (produto.id_estabelecimento) {
+                    // Busca o nome do estabelecimento automaticamente
+                    try {
+                        const nomeEstabelecimento = await buscarNomeEstabelecimento(produto.id_estabelecimento)
+                        estabelecimentoData = {
+                            id: produto.id_estabelecimento,
+                            nome: nomeEstabelecimento
+                        }
+                    } catch (error) {
+                        estabelecimentoData = {
+                            id: produto.id_estabelecimento,
+                            nome: `Estabelecimento ID ${produto.id_estabelecimento}`
+                        }
+                    }
+                }
+                
+
+                const produtoMapeado = {
+                    id: produto.id_produto || produto.id,
+                    nome: produto.nome,
+                    descricao: produto.descricao,
+                    preco: produto.preco,
+                    promocao: promocaoData ? {
+                        id: promocaoData.id || promocaoData.id_promocao || 0,
+                        preco_promocional: promocaoData.preco_promocional,
+                        data_inicio: promocaoData.data_inicio,
+                        data_fim: promocaoData.data_fim
+                    } : null,
+                    categoria: categoriaData,
+                    estabelecimento: estabelecimentoData,
+                    created_at: produto.created_at || new Date().toISOString()
+                }
+                
+                console.log('✅ Produto mapeado:', {
+                    nome: produtoMapeado.nome,
+                    promocaoMapeada: produtoMapeado.promocao,
+                    temPromocaoMapeada: !!produtoMapeado.promocao
+                })
+                
+                return produtoMapeado
+            }))
+            
+            console.log('🔄 Produtos mapeados:', produtosMapeados)
+            
+            // Mapeia a resposta para o formato esperado
+            const produtosFormatados = {
+                status: data.status,
+                status_code: data.status_code,
+                data: produtosMapeados
+            }
+            return produtosFormatados
+        }
+        
+        console.log('✅ Quantidade de produtos:', data.data?.length || 0)
         return data
     } catch (error: any) {
+        console.log('⚠️ Erro no endpoint /produtos, tentando /produto')
+        console.log('⚠️ Erro original:', error.response?.status, error.response?.data?.message || error.message)
+        
         try {
             // Tenta endpoint singular se plural falhar
             const params2 = new URLSearchParams()
@@ -224,11 +448,132 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                 if (filtros.busca) params2.append('busca', filtros.busca)
             }
             const url = params2.toString() ? `/produto?${params2.toString()}` : '/produto'
+            console.log('🔍 URL alternativa:', url)
+            
             const { data } = await api.get<listarProdutosResponse>(url)
+            console.log('✅ Produtos listados com endpoint alternativo:', data)
+            
+            // CORREÇÃO: A API retorna 'produtos' ao invés de 'data'
+            if (data.status && (data as any).produtos) {
+                console.log('✅ Quantidade de produtos:', (data as any).produtos.length)
+                
+                // Mapeia os produtos para o formato esperado pela interface
+                const produtosMapeados = (data as any).produtos.map((produto: any) => {
+                    console.log('🔄 Mapeando produto (endpoint alternativo):', {
+                        nome: produto.nome,
+                        promocaoOriginal: produto.promocao,
+                        temPromocao: !!produto.promocao
+                    })
+                    
+                    // Mapeia categoria corretamente (endpoint alternativo)
+                    let categoriaData = { id: 0, nome: 'Categoria não informada' }
+                    if (produto.categoria && typeof produto.categoria === 'object') {
+                        categoriaData = {
+                            id: produto.categoria.id || produto.categoria.id_categoria || 0,
+                            nome: produto.categoria.nome || 'Categoria não informada'
+                        }
+                    } else if (produto.categoria && typeof produto.categoria === 'string') {
+                        categoriaData = {
+                            id: produto.id_categoria || 0,
+                            nome: produto.categoria
+                        }
+                    } else if (produto.id_categoria) {
+                        categoriaData = {
+                            id: produto.id_categoria,
+                            nome: produto.nome_categoria || 'Categoria não informada'
+                        }
+                    }
+                    
+                    // Mapeia estabelecimento corretamente (endpoint alternativo)
+                    let estabelecimentoData = { id: 0, nome: 'Estabelecimento não informado' }
+                    if (produto.estabelecimento && typeof produto.estabelecimento === 'object') {
+                        estabelecimentoData = {
+                            id: produto.estabelecimento.id || produto.estabelecimento.id_estabelecimento || 0,
+                            nome: produto.estabelecimento.nome || 'Estabelecimento não informado'
+                        }
+                    } else if (produto.estabelecimento && typeof produto.estabelecimento === 'string') {
+                        estabelecimentoData = {
+                            id: produto.id_estabelecimento || 0,
+                            nome: produto.estabelecimento
+                        }
+                    } else if (produto.id_estabelecimento) {
+                        estabelecimentoData = {
+                            id: produto.id_estabelecimento,
+                            nome: produto.nome_estabelecimento || 'Estabelecimento não informado'
+                        }
+                    }
+
+                    // Tenta encontrar dados de promoção em diferentes campos possíveis
+                    let promocaoData = null
+                    
+                    // Verifica diferentes possibilidades de onde a promoção pode estar
+                    if (produto.promocao) {
+                        promocaoData = produto.promocao
+                        console.log('✅ Promoção encontrada em produto.promocao')
+                    } else if (produto.promocoes && produto.promocoes.length > 0) {
+                        promocaoData = produto.promocoes[0]
+                        console.log('✅ Promoção encontrada em produto.promocoes[0]')
+                    } else if (produto.preco_promocional) {
+                        // Se tem preço promocional direto no produto
+                        promocaoData = {
+                            preco_promocional: produto.preco_promocional,
+                            data_inicio: produto.data_inicio_promocao,
+                            data_fim: produto.data_fim_promocao
+                        }
+                        console.log('✅ Promoção encontrada como campos diretos do produto')
+                    } else {
+                        console.log('❌ Nenhum dado de promoção encontrado')
+                    }
+
+                    const produtoMapeado = {
+                        id: produto.id_produto || produto.id,
+                        nome: produto.nome,
+                        descricao: produto.descricao,
+                        preco: produto.preco,
+                        promocao: promocaoData ? {
+                            id: promocaoData.id || promocaoData.id_promocao || 0,
+                            preco_promocional: promocaoData.preco_promocional,
+                            data_inicio: promocaoData.data_inicio,
+                            data_fim: promocaoData.data_fim
+                        } : null,
+                        categoria: categoriaData,
+                        estabelecimento: estabelecimentoData,
+                        created_at: produto.created_at || new Date().toISOString()
+                    }
+                    
+                    console.log('✅ Produto mapeado (endpoint alternativo):', {
+                        nome: produtoMapeado.nome,
+                        promocaoMapeada: produtoMapeado.promocao,
+                        temPromocaoMapeada: !!produtoMapeado.promocao
+                    })
+                    
+                    return produtoMapeado
+                })
+                
+                console.log('🔄 Produtos mapeados (endpoint alternativo):', produtosMapeados)
+                
+                // Mapeia a resposta para o formato esperado
+                const produtosFormatados = {
+                    status: data.status,
+                    status_code: data.status_code,
+                    data: produtosMapeados
+                }
+                return produtosFormatados
+            }
+            
+            console.log('✅ Quantidade de produtos:', data.data?.length || 0)
             return data
         } catch (error2: any) {
-            console.error('Erro ao listar produtos:', error2.response?.data || error2.message)
-            throw error2
+            console.error('❌ Erro em ambos os endpoints de produtos:')
+            console.error('❌ /produtos:', error.response?.status, error.response?.data)
+            console.error('❌ /produto:', error2.response?.status, error2.response?.data)
+            
+            // Retorna uma resposta vazia em caso de erro para não quebrar a interface
+            return {
+                status: false,
+                status_code: error2.response?.status || 500,
+                data: []
+            }
         }
     }
 }
@@ -251,14 +596,95 @@ export function calcularDesconto(precoNormal: number, precoPromocional: number):
     return Math.round(((precoNormal - precoPromocional) / precoNormal) * 100)
 }
 
+/**
+ * Busca o nome de um estabelecimento por ID
+ */
+export async function buscarNomeEstabelecimento(id: number): Promise<string> {
+    try {
+        const { data } = await api.get(`/estabelecimento/${id}`)
+        if (data.status && data.data && data.data.nome) {
+            return data.data.nome
+        }
+    } catch (error) {
+        console.log(`⚠️ Erro ao buscar estabelecimento ${id}:`, error)
+    }
+    return 'Estabelecimento não informado'
+}
+
+/**
+ * Busca o nome de uma categoria por ID
+ */
+export async function buscarNomeCategoria(id: number): Promise<string> {
+    try {
+        const { data } = await api.get(`/categoria/${id}`)
+        if (data.status && data.data && data.data.nome) {
+            return data.data.nome
+        }
+    } catch (error) {
+        console.log(`⚠️ Erro ao buscar categoria ${id}:`, error)
+    }
+    return 'Categoria não informada'
+}
+
 export function isProdutoEmPromocao(produto: any): boolean {
-    if (!produto.promocao) return false
+    // Verifica diferentes estruturas de promoção que podem vir da API
+    let promocaoData = null
     
-    const hoje = new Date()
-    const dataInicio = new Date(produto.promocao.data_inicio)
-    const dataFim = new Date(produto.promocao.data_fim)
+    // Tenta encontrar dados de promoção em diferentes campos
+    if (produto.promocao) {
+        promocaoData = produto.promocao
+    } else if (produto.promocoes && produto.promocoes.length > 0) {
+        promocaoData = produto.promocoes[0]
+    } else if (produto.preco_promocional) {
+        // Promoção como campos diretos do produto
+        promocaoData = {
+            preco_promocional: produto.preco_promocional,
+            data_inicio: produto.data_inicio_promocao || produto.data_inicio,
+            data_fim: produto.data_fim_promocao || produto.data_fim
+        }
+    }
     
-    return hoje >= dataInicio && hoje <= dataFim
+    // Se não tem dados de promoção
+    if (!promocaoData) {
+        return false
+    }
+    
+    // Verifica se tem preço promocional válido
+    const precoPromocional = promocaoData.preco_promocional
+    if (!precoPromocional || precoPromocional <= 0) {
+        return false
+    }
+    
+    // Verifica se o preço promocional é diferente do preço normal (mais flexível)
+    if (precoPromocional >= produto.preco) {
+        return false
+    }
+    
+    try {
+        // Se não tem datas definidas, considera como promoção ativa
+        if (!promocaoData.data_inicio || !promocaoData.data_fim) {
+            return true
+        }
+        
+        const hoje = new Date()
+        hoje.setHours(0, 0, 0, 0)
+        
+        const dataInicio = new Date(promocaoData.data_inicio)
+        const dataFim = new Date(promocaoData.data_fim)
+        dataInicio.setHours(0, 0, 0, 0)
+        dataFim.setHours(23, 59, 59, 999)
+        
+        // Se datas são inválidas, considera ativo (mais permissivo)
+        if (isNaN(dataInicio.getTime()) || isNaN(dataFim.getTime())) {
+            return true
+        }
+        
+        // Verifica se está dentro do período
+        return hoje >= dataInicio && hoje <= dataFim
+    } catch (error) {
+        // Em caso de erro, considera como ativo se tem preço promocional válido
+        return true
+    }
 }
 
 // ============================================

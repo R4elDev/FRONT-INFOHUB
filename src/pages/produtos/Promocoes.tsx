@@ -1,43 +1,114 @@
 import { useState, useEffect } from "react"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import lupaPesquisa from "../../assets/lupa de pesquisa .png"
 import microfoneVoz from "../../assets/microfone de voz.png"
 import iconJarra from "../../assets/icon de jara.png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
+import { listarProdutos, listarCategorias, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
+import type { filtrosProdutos } from "../../services/types"
 
 function Promocoes() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [produtos, setProdutos] = useState<Array<any>>([])
+  const [categorias, setCategorias] = useState<Array<any>>([])
   const [busca, setBusca] = useState('')
+  const [categoriaFiltro, setCategoriaFiltro] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [mostrarPromocoes, setMostrarPromocoes] = useState(false)
 
-  // Carrega produtos em promoção
+  // Carrega categorias do banco de dados
+  useEffect(() => {
+    const carregarCategorias = async () => {
+      try {
+        const categoriasResponse = await listarCategorias()
+        
+        if (categoriasResponse.status && categoriasResponse.data && categoriasResponse.data.length > 0) {
+          setCategorias(categoriasResponse.data)
+        } else {
+          setCategorias([])
+        }
+      } catch (error) {
+        console.error('Erro ao carregar categorias:', error)
+        setCategorias([])
+      }
+    }
+    
+    carregarCategorias()
+  }, [])
+
+  // Carrega produtos quando filtros mudam
   useEffect(() => {
     const carregarProdutos = async () => {
       try {
-        // Carrega produtos em promoção
-        const produtosResponse = await listarProdutos({ promocao: true })
+        setLoading(true)
+        
+        // Monta filtros baseado no estado atual e parâmetros da URL
+        const novosFiltros: filtrosProdutos = {
+          // Não aplica filtro de promoção por padrão - mostra todos os produtos
+        }
+        
+        const categoriaParam = searchParams.get('categoria')
+        const buscaParam = searchParams.get('busca')
+        const promocaoParam = searchParams.get('promocao')
+        
+        // Prioriza parâmetros da URL, depois estado local
+        if (categoriaParam) {
+          novosFiltros.categoria = parseInt(categoriaParam)
+        } else if (categoriaFiltro) {
+          novosFiltros.categoria = parseInt(categoriaFiltro)
+        }
+        
+        if (buscaParam) {
+          novosFiltros.busca = buscaParam
+          setBusca(buscaParam)
+        } else if (busca.trim()) {
+          novosFiltros.busca = busca.trim()
+        }
+        
+        // Aplica filtro de promoção se ativo
+        if (promocaoParam === 'true' || mostrarPromocoes) {
+          novosFiltros.promocao = true
+          setMostrarPromocoes(true)
+        }
+        
+        const produtosResponse = await listarProdutos(novosFiltros)
+        
         if (produtosResponse.status && produtosResponse.data) {
-          setProdutos(produtosResponse.data)
+          // VALIDAÇÃO: Filtra produtos no frontend para garantir categoria correta
+          let produtosFiltrados = produtosResponse.data
+          
+          if (novosFiltros.categoria) {
+            produtosFiltrados = produtosResponse.data.filter(produto => {
+              const categoriaId = produto.categoria?.id || produto.id_categoria
+              return categoriaId === novosFiltros.categoria
+            })
+          }
+          
+          // Aplica filtro de promoção no frontend se necessário
+          let produtosFinais = produtosFiltrados
+          if (mostrarPromocoes || promocaoParam === 'true') {
+            produtosFinais = produtosFiltrados.filter(produto => {
+              return isProdutoEmPromocao(produto)
+            })
+          }
+          
+          setProdutos(produtosFinais)
+        } else {
+          setProdutos([])
         }
       } catch (error) {
         console.error('Erro ao carregar produtos:', error)
-        // Se der erro, tenta carregar todos os produtos
-        try {
-          const produtosResponse = await listarProdutos()
-          if (produtosResponse.status && produtosResponse.data) {
-            setProdutos(produtosResponse.data)
-          }
-        } catch (error2) {
-          console.error('Erro ao carregar produtos sem filtro:', error2)
-        }
+        setProdutos([])
+      } finally {
+        setLoading(false)
       }
     }
     
     carregarProdutos()
-  }, [])
+  }, [searchParams, categoriaFiltro, busca, mostrarPromocoes])
 
   const handleProdutoClick = (produtoId: number) => {
     navigate(`/produto/${produtoId}`)
@@ -51,6 +122,7 @@ function Promocoes() {
 
   return (
     <SidebarLayout>
+
       {/* Título */}
       <section className="mt-8">
         <h1 className="text-[#F9A01B] text-3xl sm:text-4xl md:text-5xl font-bold mb-6">
@@ -92,31 +164,146 @@ function Promocoes() {
         </div>
       </section>
 
-      {/* Filtros de Categoria */}
-      <section className="mb-8">
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          <Button className="bg-[#F9A01B] hover:bg-[#FF8C00] text-white font-semibold px-6 py-2 rounded-full whitespace-nowrap shadow-md">
-            Promoções
-          </Button>
-          <Button variant="outline" className="border-2 border-gray-200 hover:border-[#F9A01B] font-semibold px-6 py-2 rounded-full whitespace-nowrap">
-            Hortifruti
-          </Button>
-          <Button variant="outline" className="border-2 border-gray-200 hover:border-[#F9A01B] font-semibold px-6 py-2 rounded-full whitespace-nowrap">
-            Carne
-          </Button>
-          <Button variant="outline" className="border-2 border-gray-200 hover:border-[#F9A01B] font-semibold px-6 py-2 rounded-full whitespace-nowrap">
-            Bebidas
-          </Button>
+      {/* Filtros de Tipo (Todos/Promoções) */}
+      {!loading && (
+        <div className="flex gap-3 mb-4">
+          <button
+            onClick={() => {
+              setMostrarPromocoes(false)
+              const params = new URLSearchParams(searchParams)
+              params.delete('promocao')
+              if (busca.trim()) params.set('busca', busca.trim())
+              if (categoriaFiltro) params.set('categoria', categoriaFiltro)
+              setSearchParams(params)
+            }}
+            className={`px-6 py-2 rounded-full font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0 ${
+              !mostrarPromocoes && searchParams.get('promocao') !== 'true'
+                ? 'bg-blue-500 hover:bg-blue-600 text-white ring-2 ring-white ring-offset-2' 
+                : 'bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-blue-500'
+            }`}
+          >
+            📦 Todos os Produtos
+          </button>
+
+          <button
+            onClick={() => {
+              setMostrarPromocoes(true)
+              const params = new URLSearchParams(searchParams)
+              params.set('promocao', 'true')
+              if (busca.trim()) params.set('busca', busca.trim())
+              if (categoriaFiltro) params.set('categoria', categoriaFiltro)
+              setSearchParams(params)
+            }}
+            className={`px-6 py-2 rounded-full font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0 ${
+              mostrarPromocoes || searchParams.get('promocao') === 'true'
+                ? 'bg-green-500 hover:bg-green-600 text-white ring-2 ring-white ring-offset-2' 
+                : 'bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-green-500'
+            }`}
+          >
+            🎁 Apenas Promoções
+          </button>
         </div>
-      </section>
+      )}
+
+      {/* Filtros de Categoria */}
+      {!loading && (
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          {/* Botão "Todas as Categorias" */}
+          <button
+            onClick={() => {
+              setCategoriaFiltro('')
+              const params = new URLSearchParams(searchParams)
+              params.delete('categoria')
+              if (busca.trim()) params.set('busca', busca.trim())
+              if (mostrarPromocoes) params.set('promocao', 'true')
+              setSearchParams(params)
+            }}
+            className={`px-6 py-2 rounded-full font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0 ${
+              !categoriaFiltro && !searchParams.get('categoria')
+                ? 'bg-[#F9A01B] hover:bg-[#FF8C00] text-white' 
+                : 'bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-[#F9A01B]'
+            }`}
+          >
+            🏷️ Todas as Categorias
+          </button>
+
+          {/* Botões de Categoria Dinâmicos */}
+          {categorias.length > 0 ? (
+            categorias.map((categoria) => {
+              const isActive = (categoriaFiltro === categoria.id.toString()) || 
+                              (searchParams.get('categoria') === categoria.id.toString())
+              
+              return (
+                <button 
+                  key={categoria.id}
+                  onClick={() => {
+                    const novaCategoria = categoria.id.toString()
+                    setCategoriaFiltro(novaCategoria)
+                    const params = new URLSearchParams(searchParams)
+                    params.set('categoria', novaCategoria)
+                    if (busca.trim()) params.set('busca', busca.trim())
+                    if (mostrarPromocoes) params.set('promocao', 'true')
+                    setSearchParams(params)
+                  }}
+                  className={`px-6 py-2 rounded-full font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0 ${
+                    isActive 
+                      ? 'bg-[#F9A01B] hover:bg-[#FF8C00] text-white ring-2 ring-white ring-offset-2' 
+                      : 'bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 hover:border-[#F9A01B]'
+                  }`}
+                >
+                  {categoria.nome}
+                </button>
+              )
+            })
+          ) : (
+            <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4">
+              <strong>Nenhuma categoria encontrada no banco de dados</strong>
+              <p>O sistema está configurado para mostrar apenas as categorias cadastradas no banco.</p>
+              <p>Cadastre algumas categorias no sistema para que apareçam aqui.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#F9A01B]"></div>
+        </div>
+      )}
 
       {/* Grid de Produtos */}
       <section 
         className="bg-white rounded-3xl border border-gray-100 
                    shadow-[0_4px_20px_rgba(0,0,0,0.06)] p-4 sm:p-6 md:p-8"
       >
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
-          {produtos.map((produto) => {
+        {!loading && produtos.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🎁</div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">Nenhuma promoção encontrada</h3>
+            <p className="text-gray-500">
+              {searchParams.get('categoria') || categoriaFiltro 
+                ? 'Não há promoções nesta categoria no momento.' 
+                : 'Não há promoções disponíveis no momento.'
+              }
+            </p>
+            {(searchParams.get('categoria') || categoriaFiltro) && (
+              <button
+                onClick={() => {
+                  setCategoriaFiltro('')
+                  const params = new URLSearchParams()
+                  if (busca.trim()) params.set('busca', busca.trim())
+                  setSearchParams(params)
+                }}
+                className="mt-4 px-6 py-2 bg-[#F9A01B] hover:bg-[#FF8C00] text-white rounded-full font-semibold transition-all"
+              >
+                Ver todas as promoções
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
+            {produtos.map((produto) => {
             const emPromocao = isProdutoEmPromocao(produto)
             const desconto = emPromocao ? calcularDesconto(produto.preco, produto.promocao.preco_promocional) : 0
             
@@ -206,10 +393,12 @@ function Promocoes() {
               </article>
             )
           })}
-        </div>
+          </div>
+        )}
 
         {/* Paginação */}
-        <div className="flex items-center justify-center gap-2.5 mt-8">
+        {!loading && produtos.length > 0 && (
+          <div className="flex items-center justify-center gap-2.5 mt-8">
           <span 
             className="w-3 h-3 rounded-full bg-[#F9A01B] shadow-md 
                        transition-all hover:scale-125 cursor-pointer" 
@@ -222,7 +411,9 @@ function Promocoes() {
             className="w-3 h-3 rounded-full bg-[#F9A01B]/40 shadow-sm 
                        transition-all hover:scale-125 cursor-pointer" 
           />
-        </div>
+          </div>
+        )}
+
       </section>
     </SidebarLayout>
   )

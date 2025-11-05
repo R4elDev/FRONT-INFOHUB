@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Search, Filter, ShoppingCart, Tag, TrendingDown, Package, Store } from 'lucide-react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { Search, ShoppingCart, Tag, TrendingDown, Package, Store, RefreshCw } from 'lucide-react'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { listarProdutos, listarCategorias, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
 import type { filtrosProdutos } from "../../services/types"
@@ -29,8 +29,9 @@ interface Produto {
 
 export default function ListaPromocoes() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const [produtos, setProdutos] = useState<Produto[]>([])
-  const [categorias, setCategorias] = useState<Array<{ id: number; nome: string }>>([])
+  const [categorias, setCategorias] = useState<Array<{ id: number; nome: string }>>([]) 
   const [loading, setLoading] = useState(true)
   // Removido filtros e setFiltros pois agora usamos URL params
   const [busca, setBusca] = useState('')
@@ -43,14 +44,28 @@ export default function ListaPromocoes() {
     const buscaParam = searchParams.get('busca')
     const promocaoParam = searchParams.get('promocao')
     
+    console.log('🔍 Inicializando filtros da URL:', {
+      categoriaParam,
+      buscaParam,
+      promocaoParam
+    })
+    
     if (categoriaParam) {
       setCategoriaFiltro(categoriaParam)
+    } else {
+      setCategoriaFiltro('')
     }
+    
     if (buscaParam) {
       setBusca(buscaParam)
+    } else {
+      setBusca('')
     }
+    
     if (promocaoParam === 'true') {
       setApenasPromocoes(true)
+    } else {
+      setApenasPromocoes(false)
     }
   }, [searchParams])
 
@@ -58,21 +73,24 @@ export default function ListaPromocoes() {
   useEffect(() => {
     const carregarCategorias = async () => {
       try {
+        console.log('🏷️ CARREGANDO CATEGORIAS DO BANCO DE DADOS...')
         const categoriasResponse = await listarCategorias()
-        if (categoriasResponse.status && categoriasResponse.data) {
+        console.log('🏷️ Resposta da API de categorias:', categoriasResponse)
+        
+        if (categoriasResponse.status && categoriasResponse.data && categoriasResponse.data.length > 0) {
+          console.log('✅ Categorias carregadas do banco:', categoriasResponse.data)
           setCategorias(categoriasResponse.data)
+        } else {
+          console.log('⚠️ API não retornou categorias válidas')
+          console.log('🚫 MANTENDO ARRAY VAZIO - Só usar categorias do banco de dados')
+          // NÃO usa categorias padrão - só mostra as que existem no banco
+          setCategorias([])
         }
       } catch (error) {
-        console.error('Erro ao carregar categorias:', error)
-        // Usa categorias padrão se API não estiver disponível
-        setCategorias([
-          { id: 1, nome: "Alimentos e Bebidas" },
-          { id: 2, nome: "Eletrônicos" },
-          { id: 3, nome: "Roupas e Acessórios" },
-          { id: 4, nome: "Casa e Decoração" },
-          { id: 5, nome: "Saúde e Beleza" },
-          { id: 6, nome: "Outros" }
-        ])
+        console.error('❌ Erro ao carregar categorias do banco:', error)
+        console.log('🚫 MANTENDO ARRAY VAZIO - Só usar categorias do banco de dados')
+        // NÃO usa categorias padrão mesmo em caso de erro
+        setCategorias([])
       }
     }
     
@@ -83,6 +101,7 @@ export default function ListaPromocoes() {
   useEffect(() => {
     const carregarProdutos = async () => {
       try {
+        console.log('🔄 INICIANDO carregamento de produtos na página de promoções')
         setLoading(true)
         
         // Monta filtros baseado no estado atual e parâmetros da URL
@@ -92,19 +111,60 @@ export default function ListaPromocoes() {
         const buscaParam = searchParams.get('busca')
         const promocaoParam = searchParams.get('promocao')
         
-        if (categoriaParam) novosFiltros.categoria = parseInt(categoriaParam)
-        if (buscaParam) novosFiltros.busca = buscaParam
-        if (promocaoParam === 'true') novosFiltros.promocao = true
-        if (categoriaFiltro && !categoriaParam) novosFiltros.categoria = parseInt(categoriaFiltro)
-        if (busca.trim() && !buscaParam) novosFiltros.busca = busca.trim()
-        if (apenasPromocoes && !promocaoParam) novosFiltros.promocao = true
+        // Prioriza parâmetros da URL, depois estado local
+        if (categoriaParam) {
+          novosFiltros.categoria = parseInt(categoriaParam)
+          console.log('🏷️ Filtro de categoria da URL:', categoriaParam)
+        } else if (categoriaFiltro) {
+          novosFiltros.categoria = parseInt(categoriaFiltro)
+          console.log('🏷️ Filtro de categoria do estado:', categoriaFiltro)
+        }
+        
+        if (buscaParam) {
+          novosFiltros.busca = buscaParam
+          console.log('🔍 Filtro de busca da URL:', buscaParam)
+        } else if (busca.trim()) {
+          novosFiltros.busca = busca.trim()
+          console.log('🔍 Filtro de busca do estado:', busca.trim())
+        }
+        
+        if (promocaoParam === 'true') {
+          novosFiltros.promocao = true
+          console.log('🎁 Filtro de promoção da URL: true')
+        } else if (apenasPromocoes) {
+          novosFiltros.promocao = true
+          console.log('🎁 Filtro de promoção do estado: true')
+        }
+        
+        console.log('🔍 Filtros finais aplicados:', novosFiltros)
         
         const produtosResponse = await listarProdutos(novosFiltros)
+        console.log('📦 Resposta da API de produtos:', produtosResponse)
+        
         if (produtosResponse.status && produtosResponse.data) {
+          console.log('✅ Produtos carregados com sucesso:', produtosResponse.data.length, 'produtos')
+          console.log('🔍 DADOS COMPLETOS DOS PRODUTOS:', JSON.stringify(produtosResponse.data, null, 2))
+          
+          // Analisa cada produto individualmente
+          produtosResponse.data.forEach((produto, index) => {
+            console.log(`📦 PRODUTO ${index + 1}:`, {
+              id: produto.id,
+              nome: produto.nome,
+              preco: produto.preco,
+              temPromocao: !!produto.promocao,
+              promocao: produto.promocao,
+              promocaoCompleta: JSON.stringify(produto.promocao, null, 2)
+            })
+          })
+          
           setProdutos(produtosResponse.data)
+        } else {
+          console.log('⚠️ Resposta da API sem produtos válidos:', produtosResponse)
+          setProdutos([])
         }
       } catch (error) {
-        console.error('Erro ao carregar produtos:', error)
+        console.error('❌ Erro ao carregar produtos na página de promoções:', error)
+        setProdutos([]) // Define array vazio em caso de erro
       } finally {
         setLoading(false)
       }
@@ -112,17 +172,6 @@ export default function ListaPromocoes() {
     
     carregarProdutos()
   }, [searchParams, categoriaFiltro, busca, apenasPromocoes])
-
-  // Aplica filtros atualizando a URL
-  const aplicarFiltros = () => {
-    const params = new URLSearchParams()
-    
-    if (busca.trim()) params.set('busca', busca.trim())
-    if (categoriaFiltro) params.set('categoria', categoriaFiltro)
-    if (apenasPromocoes) params.set('promocao', 'true')
-    
-    setSearchParams(params)
-  }
 
   // Limpa filtros
   const limparFiltros = () => {
@@ -132,6 +181,64 @@ export default function ListaPromocoes() {
     setSearchParams({})
   }
 
+  // Recarrega produtos manualmente
+  const recarregarProdutos = async () => {
+    try {
+      console.log('🔄 Recarregando produtos manualmente...')
+      setLoading(true)
+      
+      // Monta filtros atuais usando a mesma lógica
+      const filtrosAtuais: filtrosProdutos = {}
+      
+      const categoriaParam = searchParams.get('categoria')
+      const buscaParam = searchParams.get('busca')
+      const promocaoParam = searchParams.get('promocao')
+      
+      // Prioriza parâmetros da URL, depois estado local
+      if (categoriaParam) {
+        filtrosAtuais.categoria = parseInt(categoriaParam)
+        console.log('🏷️ Recarregando com categoria da URL:', categoriaParam)
+      } else if (categoriaFiltro) {
+        filtrosAtuais.categoria = parseInt(categoriaFiltro)
+        console.log('🏷️ Recarregando com categoria do estado:', categoriaFiltro)
+      }
+      
+      if (buscaParam) {
+        filtrosAtuais.busca = buscaParam
+        console.log('🔍 Recarregando com busca da URL:', buscaParam)
+      } else if (busca.trim()) {
+        filtrosAtuais.busca = busca.trim()
+        console.log('🔍 Recarregando com busca do estado:', busca.trim())
+      }
+      
+      if (promocaoParam === 'true') {
+        filtrosAtuais.promocao = true
+        console.log('🎁 Recarregando com promoção da URL: true')
+      } else if (apenasPromocoes) {
+        filtrosAtuais.promocao = true
+        console.log('🎁 Recarregando com promoção do estado: true')
+      }
+      
+      console.log('🔍 Recarregando com filtros finais:', filtrosAtuais)
+      
+      const produtosResponse = await listarProdutos(filtrosAtuais)
+      console.log('📦 Produtos recarregados:', produtosResponse)
+      
+      if (produtosResponse.status && produtosResponse.data) {
+        console.log('✅ Produtos recarregados com sucesso:', produtosResponse.data.length, 'produtos')
+        setProdutos(produtosResponse.data)
+      } else {
+        console.log('⚠️ Nenhum produto encontrado no recarregamento')
+        setProdutos([])
+      }
+    } catch (error) {
+      console.error('❌ Erro ao recarregar produtos:', error)
+      setProdutos([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <SidebarLayout>
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-100 p-8">
@@ -139,79 +246,314 @@ export default function ListaPromocoes() {
           
           {/* Header */}
           <div className="bg-gradient-to-r from-[#F9A01B] via-[#FF8C00] to-[#F9A01B] rounded-3xl shadow-2xl p-8 text-white mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-white/20 p-3 rounded-xl">
-                <Package className="w-8 h-8" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-3 rounded-xl">
+                  <Package className="w-8 h-8" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold">Promoções Disponíveis</h1>
+                  <p className="text-white/90">
+                    {categoriaFiltro ? (
+                      <>
+                        Categoria: <span className="font-semibold">
+                          {categorias.find(c => c.id.toString() === categoriaFiltro)?.nome || 'Categoria selecionada'}
+                        </span>
+                      </>
+                    ) : (
+                      'Encontre os melhores preços da região'
+                    )}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-3xl font-bold">Promoções Disponíveis</h1>
-                <p className="text-white/90">Encontre os melhores preços da região</p>
-              </div>
+              
+              {/* Contador de produtos */}
+              {!loading && (
+                <div className="bg-white/20 px-4 py-2 rounded-xl">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{produtos.length}</div>
+                    <div className="text-sm text-white/90">
+                      {produtos.length === 1 ? 'produto' : 'produtos'}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Filtros */}
-          <div className="bg-white rounded-3xl shadow-xl p-6 mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <Filter className="w-5 h-5 text-[#F9A01B]" />
-              <h2 className="text-lg font-semibold text-gray-800">Filtros</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-              {/* Busca */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar produtos..."
-                  value={busca}
-                  onChange={(e) => setBusca(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#F9A01B] focus:outline-none"
-                />
-              </div>
 
-              {/* Categoria */}
-              <select
-                value={categoriaFiltro}
-                onChange={(e) => setCategoriaFiltro(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-[#F9A01B] focus:outline-none"
+          {/* Barra de Pesquisa */}
+          <section className="mt-10">
+            <div 
+              className="relative w-full bg-white rounded-3xl border border-gray-100 
+                       shadow-[0_4px_20px_rgba(0,0,0,0.08)] transition-all 
+                       hover:shadow-[0_6px_30px_rgba(0,0,0,0.12)]"
+            >
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
+              <input
+                placeholder="Digite para buscar produtos..."
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    const params = new URLSearchParams()
+                    if (busca.trim()) params.set('busca', busca.trim())
+                    if (categoriaFiltro) params.set('categoria', categoriaFiltro)
+                    if (apenasPromocoes) params.set('promocao', 'true')
+                    setSearchParams(params)
+                  }
+                }}
+                className="h-16 pl-16 pr-16 rounded-3xl border-0 text-gray-700 text-base 
+                         focus-visible:ring-2 focus-visible:ring-[#F9A01B] 
+                         placeholder:text-gray-400"
+              />
+              <button 
+                onClick={() => {
+                  const params = new URLSearchParams()
+                  if (busca.trim()) params.set('busca', busca.trim())
+                  if (categoriaFiltro) params.set('categoria', categoriaFiltro)
+                  if (apenasPromocoes) params.set('promocao', 'true')
+                  setSearchParams(params)
+                }}
+                className="absolute right-6 top-1/2 -translate-y-1/2 transition-transform hover:scale-110"
               >
-                <option value="">Todas as categorias</option>
-                {categorias.map(categoria => (
-                  <option key={categoria.id} value={categoria.id}>
-                    {categoria.nome}
-                  </option>
-                ))}
-              </select>
+                <Search className="w-5 h-6 text-gray-400" />
+              </button>
+            </div>
+          </section>
 
-              {/* Apenas promoções */}
-              <label className="flex items-center gap-2 px-4 py-3 bg-gray-50 rounded-xl cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={apenasPromocoes}
-                  onChange={(e) => setApenasPromocoes(e.target.checked)}
-                  className="w-4 h-4 text-[#F9A01B] rounded focus:ring-[#F9A01B]"
-                />
-                <span className="text-gray-700">Apenas promoções</span>
-              </label>
-
-              {/* Botões */}
-              <div className="flex gap-2">
-                <button
-                  onClick={aplicarFiltros}
-                  className="flex-1 bg-[#F9A01B] hover:bg-[#FF8C00] text-white px-4 py-3 rounded-xl font-semibold transition-all"
-                >
-                  Filtrar
-                </button>
+          {/* Category Filters */}
+          <section className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Categorias</h2>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-all">
+                  <input
+                    type="checkbox"
+                    checked={apenasPromocoes}
+                    onChange={(e) => {
+                      setApenasPromocoes(e.target.checked)
+                      const params = new URLSearchParams()
+                      if (busca.trim()) params.set('busca', busca.trim())
+                      if (categoriaFiltro) params.set('categoria', categoriaFiltro)
+                      if (e.target.checked) params.set('promocao', 'true')
+                      setSearchParams(params)
+                    }}
+                    className="w-4 h-4 text-[#F9A01B] rounded focus:ring-[#F9A01B]"
+                  />
+                  <span className="text-sm text-gray-700 font-medium">🎁 Apenas promoções</span>
+                </label>
                 <button
                   onClick={limparFiltros}
-                  className="px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-xl font-semibold transition-all"
+                  className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-sm font-medium transition-all"
                 >
-                  Limpar
+                  Limpar filtros
                 </button>
               </div>
             </div>
-          </div>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {/* Botão "Todas" */}
+              <button 
+                onClick={() => {
+                  console.log('🛒 Clicou em "Todas as categorias"')
+                  setCategoriaFiltro('')
+                  const params = new URLSearchParams()
+                  if (busca.trim()) params.set('busca', busca.trim())
+                  if (apenasPromocoes) params.set('promocao', 'true')
+                  // Remove o parâmetro categoria da URL
+                  setSearchParams(params)
+                  console.log('🛒 Filtros após clicar em "Todas":', { busca: busca.trim(), apenasPromocoes })
+                }}
+                className={`px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0 ${
+                  !categoriaFiltro && !searchParams.get('categoria')
+                    ? 'bg-[#F9A01B] hover:bg-[#FF8C00] text-white' 
+                    : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
+                }`}
+              >
+                🛒 Todas
+              </button>
+              
+              {/* Categorias dinâmicas da API */}
+              {categorias.map((categoria, index) => {
+                const cores = [
+                  'bg-green-500 hover:bg-green-600',
+                  'bg-purple-500 hover:bg-purple-600', 
+                  'bg-red-500 hover:bg-red-600',
+                  'bg-yellow-500 hover:bg-yellow-600',
+                  'bg-indigo-500 hover:bg-indigo-600',
+                  'bg-pink-500 hover:bg-pink-600',
+                  'bg-teal-500 hover:bg-teal-600',
+                  'bg-orange-500 hover:bg-orange-600'
+                ]
+                const cor = cores[index % cores.length]
+                const isActive = categoriaFiltro === categoria.id.toString() || searchParams.get('categoria') === categoria.id.toString()
+                
+                return (
+                  <button 
+                    key={categoria.id}
+                    onClick={() => {
+                      const novaCategoria = categoria.id.toString()
+                      console.log('🏷️ Clicou na categoria:', categoria.nome, 'ID:', novaCategoria)
+                      setCategoriaFiltro(novaCategoria)
+                      const params = new URLSearchParams()
+                      if (busca.trim()) params.set('busca', busca.trim())
+                      params.set('categoria', novaCategoria)
+                      if (apenasPromocoes) params.set('promocao', 'true')
+                      setSearchParams(params)
+                      console.log('🏷️ Filtros após selecionar categoria:', { 
+                        categoria: novaCategoria, 
+                        busca: busca.trim(), 
+                        apenasPromocoes 
+                      })
+                    }}
+                    className={`${cor} text-white px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0 ${
+                      isActive ? 'ring-2 ring-white ring-offset-2' : ''
+                    }`}
+                  >
+                    {categoria.nome}
+                  </button>
+                )
+              })}
+              
+              {/* Loading de categorias */}
+              {loading && categorias.length === 0 && (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#F9A01B]"></div>
+                  <span>Carregando categorias do banco de dados...</span>
+                </div>
+              )}
+              
+              {/* Mensagem quando não há categorias no banco */}
+              {!loading && categorias.length === 0 && (
+                <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4 text-yellow-800 text-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">⚠️</span>
+                    <strong>Nenhuma categoria encontrada no banco de dados</strong>
+                  </div>
+                  <p>O sistema está configurado para mostrar apenas as categorias cadastradas no banco.</p>
+                  <p>Cadastre algumas categorias no sistema para que apareçam aqui.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Ferramentas de Debug para Filtros */}
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">🔧 Debug - Estado dos Filtros</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div>
+                  <strong>Estado Local:</strong>
+                  <ul className="mt-1 space-y-1">
+                    <li>Categoria: {categoriaFiltro || 'Nenhuma'}</li>
+                    <li>Busca: {busca || 'Vazia'}</li>
+                    <li>Apenas Promoções: {apenasPromocoes ? 'Sim' : 'Não'}</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Parâmetros da URL:</strong>
+                  <ul className="mt-1 space-y-1">
+                    <li>Categoria: {searchParams.get('categoria') || 'Nenhuma'}</li>
+                    <li>Busca: {searchParams.get('busca') || 'Vazia'}</li>
+                    <li>Promoção: {searchParams.get('promocao') || 'Não'}</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Dados Carregados:</strong>
+                  <ul className="mt-1 space-y-1">
+                    <li>Categorias: {categorias.length}</li>
+                    <li>Produtos: {produtos.length}</li>
+                    <li>Loading: {loading ? 'Sim' : 'Não'}</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2 flex-wrap">
+                <button
+                  onClick={() => {
+                    console.log('🔧 DEBUG - Estado completo:', {
+                      categoriaFiltro,
+                      busca,
+                      apenasPromocoes,
+                      searchParams: Object.fromEntries(searchParams.entries()),
+                      categorias: categorias.map(c => ({ id: c.id, nome: c.nome })),
+                      produtos: produtos.length,
+                      loading
+                    })
+                  }}
+                  className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                >
+                  📋 Log Estado Completo
+                </button>
+                <button
+                  onClick={recarregarProdutos}
+                  className="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600"
+                >
+                  🔄 Forçar Recarregamento
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('🏢 DEBUG - Dados do Estabelecimento:', {
+                      localStorage_estabelecimentoId: localStorage.getItem('estabelecimentoId'),
+                      localStorage_estabelecimentoNome: localStorage.getItem('estabelecimentoNome'),
+                      localStorage_estabelecimentoUserId: localStorage.getItem('estabelecimentoUserId'),
+                      localStorage_estabelecimentoEndereco: localStorage.getItem('estabelecimentoEndereco'),
+                      localStorage_userData: localStorage.getItem('user_data'),
+                      localStorage_authToken: localStorage.getItem('auth_token')
+                    })
+                  }}
+                  className="px-3 py-1 bg-orange-500 text-white rounded text-xs hover:bg-orange-600"
+                >
+                  🏢 Debug Estabelecimento
+                </button>
+                <button
+                  onClick={async () => {
+                    console.log('🧪 TESTE - Filtro de Categoria')
+                    if (categorias.length > 0) {
+                      const primeiraCategoria = categorias[0]
+                      console.log('🏷️ Testando filtro com categoria:', primeiraCategoria)
+                      
+                      const filtroTeste = { categoria: primeiraCategoria.id }
+                      console.log('🔍 Filtro de teste:', filtroTeste)
+                      
+                      try {
+                        const resultado = await listarProdutos(filtroTeste)
+                        console.log('✅ Resultado do teste de filtro:', resultado)
+                        console.log('📦 Produtos encontrados:', resultado.data?.length || 0)
+                      } catch (error) {
+                        console.error('❌ Erro no teste de filtro:', error)
+                      }
+                    } else {
+                      console.log('⚠️ Nenhuma categoria disponível para teste')
+                    }
+                  }}
+                  className="px-3 py-1 bg-purple-500 text-white rounded text-xs hover:bg-purple-600"
+                >
+                  🧪 Testar Filtro
+                </button>
+                <button
+                  onClick={() => {
+                    console.log('🎁 TESTE - Detecção de Promoções')
+                    console.log('📦 Total de produtos carregados:', produtos.length)
+                    
+                    produtos.forEach((produto, index) => {
+                      const emPromocao = isProdutoEmPromocao(produto)
+                      console.log(`📦 Produto ${index + 1}:`, {
+                        nome: produto.nome,
+                        preco: produto.preco,
+                        promocao: produto.promocao,
+                        emPromocao: emPromocao,
+                        precoPromocional: produto.promocao?.preco_promocional
+                      })
+                    })
+                    
+                    const produtosEmPromocao = produtos.filter(p => isProdutoEmPromocao(p))
+                    console.log('🎁 Total de produtos em promoção:', produtosEmPromocao.length)
+                  }}
+                  className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+                >
+                  🎁 Testar Promoções
+                </button>
+              </div>
+            </div>
+          </section>
 
           {/* Loading */}
           {loading && (
@@ -227,70 +569,136 @@ export default function ListaPromocoes() {
                 <div className="col-span-full text-center py-12">
                   <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-600 mb-2">Nenhum produto encontrado</h3>
-                  <p className="text-gray-500">Tente ajustar os filtros ou buscar por outros termos</p>
+                  <p className="text-gray-500 mb-4">
+                    {Object.keys(searchParams.toString()).length > 0 || busca || categoriaFiltro || apenasPromocoes
+                      ? 'Tente ajustar os filtros ou buscar por outros termos'
+                      : 'Ainda não há produtos cadastrados no sistema'
+                    }
+                  </p>
+                  <button
+                    onClick={recarregarProdutos}
+                    disabled={loading}
+                    className="bg-[#F9A01B] hover:bg-[#FF8C00] disabled:bg-gray-300 text-white px-6 py-3 rounded-xl font-semibold transition-all flex items-center gap-2 mx-auto"
+                  >
+                    <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                    Tentar novamente
+                  </button>
                 </div>
               ) : (
                 produtos.map(produto => {
                   const emPromocao = isProdutoEmPromocao(produto)
                   const desconto = emPromocao ? calcularDesconto(produto.preco, produto.promocao!.preco_promocional) : 0
                   
+                  console.log('🔍 Produto sendo renderizado:', {
+                    id: produto.id,
+                    nome: produto.nome,
+                    preco: produto.preco,
+                    promocao: produto.promocao,
+                    emPromocao,
+                    desconto
+                  })
+                  
                   return (
-                    <div key={produto.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-                      {/* Badge de promoção */}
-                      {emPromocao && (
-                        <div className="bg-gradient-to-r from-red-500 to-red-600 text-white px-3 py-1 text-sm font-bold">
-                          <TrendingDown className="w-4 h-4 inline mr-1" />
-                          {desconto}% OFF
+                    <div 
+                      key={produto.id} 
+                      onClick={() => navigate(`/produto/${produto.id}`)}
+                      className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 cursor-pointer hover:scale-105"
+                    >
+                      {/* Badge de promoção ou produto normal */}
+                      {emPromocao ? (
+                        <div className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 text-sm font-bold flex items-center justify-center">
+                          <TrendingDown className="w-4 h-4 mr-2" />
+                          PROMOÇÃO {desconto}% OFF
+                        </div>
+                      ) : (
+                        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 text-sm font-bold flex items-center justify-center">
+                          <Package className="w-4 h-4 mr-2" />
+                          PRODUTO DISPONÍVEL
                         </div>
                       )}
                       
                       <div className="p-6">
                         {/* Nome do produto */}
-                        <h3 className="font-bold text-lg text-gray-800 mb-2 line-clamp-2">
+                        <h3 className="font-bold text-xl text-gray-800 mb-3 leading-tight">
                           {produto.nome}
                         </h3>
                         
                         {/* Descrição */}
-                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                        <p className="text-gray-600 text-sm mb-4 leading-relaxed">
                           {produto.descricao}
                         </p>
                         
-                        {/* Categoria */}
-                        <div className="flex items-center gap-1 mb-3">
-                          <Tag className="w-4 h-4 text-[#F9A01B]" />
-                          <span className="text-sm text-gray-600">{produto.categoria.nome}</span>
-                        </div>
-                        
-                        {/* Estabelecimento */}
-                        <div className="flex items-center gap-1 mb-4">
-                          <Store className="w-4 h-4 text-green-600" />
-                          <span className="text-sm text-gray-600">{produto.estabelecimento.nome}</span>
+                        {/* Informações do produto */}
+                        <div className="space-y-2 mb-4">
+                          {/* Categoria */}
+                          <div className="flex items-center gap-2">
+                            <Tag className="w-4 h-4 text-[#F9A01B]" />
+                            <span className="text-sm text-gray-700 font-medium">{produto.categoria.nome}</span>
+                          </div>
+                          
+                          {/* Estabelecimento */}
+                          <div className="flex items-center gap-2">
+                            <Store className="w-4 h-4 text-green-600" />
+                            <span className="text-sm text-gray-700 font-medium">{produto.estabelecimento.nome}</span>
+                          </div>
                         </div>
                         
                         {/* Preços */}
-                        <div className="mb-4">
+                        <div className="mb-6">
                           {emPromocao ? (
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-2xl font-bold text-green-600">
+                            <div className="space-y-2">
+                              {/* Preço promocional */}
+                              <div className="flex items-center gap-3">
+                                <span className="text-3xl font-bold text-green-600">
                                   {formatarPreco(produto.promocao!.preco_promocional)}
                                 </span>
-                                <span className="text-sm text-gray-500 line-through">
+                                <div className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-xs font-bold">
+                                  -{desconto}%
+                                </div>
+                              </div>
+                              
+                              {/* Preço original */}
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-500">De:</span>
+                                <span className="text-lg text-gray-500 line-through font-semibold">
                                   {formatarPreco(produto.preco)}
                                 </span>
                               </div>
+                              
+                              {/* Economia */}
+                              <div className="text-sm text-green-600 font-semibold">
+                                Você economiza: {formatarPreco(produto.preco - produto.promocao!.preco_promocional)}
+                              </div>
+                              
+                              {/* Período da promoção */}
+                              {produto.promocao && (
+                                <div className="text-xs text-gray-500 mt-2">
+                                  Promoção válida até: {new Date(produto.promocao.data_fim).toLocaleDateString('pt-BR')}
+                                </div>
+                              )}
                             </div>
                           ) : (
-                            <span className="text-2xl font-bold text-gray-800">
-                              {formatarPreco(produto.preco)}
-                            </span>
+                            <div>
+                              <span className="text-3xl font-bold text-gray-800">
+                                {formatarPreco(produto.preco)}
+                              </span>
+                              <div className="text-sm text-gray-500 mt-1">
+                                Preço regular
+                              </div>
+                            </div>
                           )}
                         </div>
                         
                         {/* Botão de ação */}
-                        <button className="w-full bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#F9A01B] text-white py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation() // Evita que o clique no botão acione o clique do card
+                            navigate(`/produto/${produto.id}`)
+                          }}
+                          className="w-full bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#F9A01B] text-white py-3 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                        >
                           <ShoppingCart className="w-5 h-5" />
-                          Ver Detalhes
+                          {emPromocao ? 'Aproveitar Oferta' : 'Ver Detalhes'}
                         </button>
                       </div>
                     </div>
