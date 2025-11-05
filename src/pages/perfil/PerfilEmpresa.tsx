@@ -1,33 +1,112 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
+import { Building2, Mail, Phone, MapPin, Save, X, Loader2, Plus } from "lucide-react"
+import { atualizarEmpresa, obterDadosUsuario } from "../../services/apiServicesFixed"
+import type { atualizarEmpresaRequest } from "../../services/types"
 
 function PerfilEmpresa() {
   const navigate = useNavigate()
-  const [cnpj, setCnpj] = useState<string>("")
-  const [nomeEmpresa, setNomeEmpresa] = useState<string>("")
-  const [razaoSocial, setRazaoSocial] = useState<string>("")
+  const [nome, setNome] = useState<string>("")
   const [email, setEmail] = useState<string>("")
+  const [cnpj, setCnpj] = useState<string>("")
   const [telefone, setTelefone] = useState<string>("")
+  const [razaoSocial, setRazaoSocial] = useState<string>("")
   const [endereco, setEndereco] = useState<string>("")
   const [senha, setSenha] = useState<string>("")
   const [confirmarSenha, setConfirmarSenha] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(false)
+  const [message, setMessage] = useState<string>("")
+  const [messageType, setMessageType] = useState<'success' | 'error' | ''>('')
 
-  const handleSalvar = () => {
-    // Aqui virá a lógica de salvar via API
-    console.log("Salvando perfil empresa:", { cnpj, nomeEmpresa, razaoSocial, email, telefone, endereco })
+  // Carrega dados da empresa ao montar o componente
+  useEffect(() => {
+    const dadosUsuario = obterDadosUsuario()
+    if (dadosUsuario) {
+      setNome(dadosUsuario.nome || "")
+      setEmail(dadosUsuario.email || "")
+      setCnpj(dadosUsuario.cnpj || "")
+      setTelefone(dadosUsuario.telefone || "")
+      // Campos específicos de empresa podem não estar no localStorage
+      // Vamos deixar vazios para o usuário preencher
+    }
+  }, [])
+
+  const showMessage = (msg: string, type: 'success' | 'error') => {
+    setMessage(msg)
+    setMessageType(type)
+    setTimeout(() => {
+      setMessage("")
+      setMessageType("")
+    }, 5000)
+  }
+
+  const handleSalvar = async () => {
+    // Validações básicas
+    if (!nome.trim()) {
+      showMessage("Nome da empresa é obrigatório", "error")
+      return
+    }
+    if (!email.trim()) {
+      showMessage("Email é obrigatório", "error")
+      return
+    }
+    if (senha && senha !== confirmarSenha) {
+      showMessage("Senhas não coincidem", "error")
+      return
+    }
+    if (senha && senha.length < 6) {
+      showMessage("Senha deve ter pelo menos 6 caracteres", "error")
+      return
+    }
+
+    setLoading(true)
+    try {
+      const payload: atualizarEmpresaRequest = {
+        nome: nome.trim(),
+        email: email.trim(),
+      }
+
+      // Adiciona campos opcionais apenas se preenchidos
+      if (cnpj.trim()) payload.cnpj = cnpj.trim()
+      if (telefone.trim()) payload.telefone = telefone.trim()
+      if (razaoSocial.trim()) payload.razao_social = razaoSocial.trim()
+      if (endereco.trim()) payload.endereco = endereco.trim()
+      if (senha.trim()) payload.senha = senha.trim()
+
+      const response = await atualizarEmpresa(payload)
+      
+      if (response.status) {
+        showMessage("Perfil da empresa atualizado com sucesso!", "success")
+        // Limpa campos de senha
+        setSenha("")
+        setConfirmarSenha("")
+      } else {
+        showMessage(response.message || "Erro ao atualizar perfil", "error")
+      }
+    } catch (error: any) {
+      console.error("Erro ao atualizar perfil da empresa:", error)
+      showMessage(error.response?.data?.message || "Erro ao atualizar perfil", "error")
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleCancelar = () => {
-    // Limpar campos
-    setCnpj("")
-    setNomeEmpresa("")
+    // Recarrega dados originais
+    const dadosUsuario = obterDadosUsuario()
+    if (dadosUsuario) {
+      setNome(dadosUsuario.nome || "")
+      setEmail(dadosUsuario.email || "")
+      setCnpj(dadosUsuario.cnpj || "")
+      setTelefone(dadosUsuario.telefone || "")
+    }
     setRazaoSocial("")
-    setEmail("")
-    setTelefone("")
     setEndereco("")
     setSenha("")
     setConfirmarSenha("")
+    setMessage("")
+    setMessageType("")
   }
 
   return (
@@ -35,124 +114,175 @@ function PerfilEmpresa() {
       <div className="flex flex-col items-center justify-center min-h-screen py-8 px-4">
         <div className="w-full max-w-3xl bg-white rounded-3xl shadow-lg p-8">
           {/* Título e Botão Nova Promoção */}
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-3xl font-bold text-[#F9A01B]">
-              PERFIL DA EMPRESA
-            </h1>
+          <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-[#F9A01B] mb-2">
+                PERFIL DA EMPRESA
+              </h1>
+              <p className="text-gray-600">
+                Gerencie as informações da sua empresa
+              </p>
+            </div>
             <button
               onClick={() => navigate('/cadastro-promocao')}
               className="bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#F9A01B] text-white px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-lg flex items-center gap-2"
             >
-              ➕ Nova Promoção
+              <Plus className="w-5 h-5" />
+              Nova Promoção
             </button>
           </div>
+
+          {/* Mensagem de Feedback */}
+          {message && (
+            <div className={`mb-6 p-4 rounded-lg text-center ${
+              messageType === 'success' 
+                ? 'bg-green-100 text-green-700 border border-green-200' 
+                : 'bg-red-100 text-red-700 border border-red-200'
+            }`}>
+              {message}
+            </div>
+          )}
 
           <div className="flex flex-col md:flex-row gap-8 items-start">
             {/* Logo da Empresa */}
             <div className="flex flex-col items-center">
-              <div className="w-40 h-40 rounded-full bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] flex items-center justify-center shadow-xl">
-                <div className="w-36 h-36 rounded-full bg-white flex items-center justify-center">
-                  <svg
-                    className="w-20 h-20 text-[#F9A01B]"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2zm0-4H8V9h2v2zm0-4H8V5h2v2zm10 12h-8v-2h2v-2h-2v-2h2v-2h-2V9h8v10zm-2-8h-2v2h2v-2zm0 4h-2v2h2v-2z" />
-                  </svg>
+              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] flex items-center justify-center shadow-xl">
+                <div className="w-28 h-28 rounded-full bg-white flex items-center justify-center">
+                  <Building2 className="w-12 h-12 text-[#F9A01B]" />
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-2 text-center">Logo da Empresa</p>
+              <p className="text-sm text-gray-500 mt-2">Pessoa Jurídica</p>
             </div>
 
             {/* Formulário */}
             <div className="flex-1 space-y-4 w-full">
-              {/* CNPJ */}
-              <input
-                type="text"
-                placeholder="CNPJ*"
-                value={cnpj}
-                onChange={(e) => setCnpj(e.target.value)}
-                className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
-                maxLength={18}
-              />
-
               {/* Nome da Empresa */}
-              <input
-                type="text"
-                placeholder="Nome da Empresa*"
-                value={nomeEmpresa}
-                onChange={(e) => setNomeEmpresa(e.target.value)}
-                className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
-              />
-
-              {/* Razão Social */}
-              <input
-                type="text"
-                placeholder="Razão Social*"
-                value={razaoSocial}
-                onChange={(e) => setRazaoSocial(e.target.value)}
-                className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
-              />
+              <div className="relative">
+                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Nome da Empresa *"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
+                  required
+                />
+              </div>
 
               {/* Email */}
-              <input
-                type="email"
-                placeholder="Email Corporativo*"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
-              />
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="email"
+                  placeholder="Email Corporativo *"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
+                  required
+                />
+              </div>
+
+              {/* CNPJ */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="CNPJ (opcional)"
+                  value={cnpj}
+                  onChange={(e) => setCnpj(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
+                  maxLength={18}
+                />
+              </div>
 
               {/* Telefone */}
-              <input
-                type="tel"
-                placeholder="Telefone*"
-                value={telefone}
-                onChange={(e) => setTelefone(e.target.value)}
-                className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
-                maxLength={15}
-              />
+              <div className="relative">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="tel"
+                  placeholder="Telefone (opcional)"
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
+                />
+              </div>
+
+              {/* Razão Social */}
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Razão Social (opcional)"
+                  value={razaoSocial}
+                  onChange={(e) => setRazaoSocial(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
+                />
+              </div>
 
               {/* Endereço */}
-              <input
-                type="text"
-                placeholder="Endereço Completo*"
-                value={endereco}
-                onChange={(e) => setEndereco(e.target.value)}
-                className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
-              />
+              <div className="relative">
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Endereço (opcional)"
+                  value={endereco}
+                  onChange={(e) => setEndereco(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
+                />
+              </div>
 
-              {/* Senha */}
+              {/* Divisor */}
+              <div className="border-t border-gray-200 pt-4 mt-6">
+                <p className="text-sm text-gray-600 mb-4">
+                  Alterar senha (deixe em branco para manter a atual)
+                </p>
+              </div>
+
+              {/* Nova Senha */}
               <input
                 type="password"
-                placeholder="Senha*"
+                placeholder="Nova senha (opcional)"
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
-                className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
+                minLength={6}
               />
 
               {/* Confirmar Senha */}
-              <input
-                type="password"
-                placeholder="Confirme a senha *"
-                value={confirmarSenha}
-                onChange={(e) => setConfirmarSenha(e.target.value)}
-                className="w-full px-6 py-3 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] text-gray-700"
-              />
+              {senha && (
+                <input
+                  type="password"
+                  placeholder="Confirme a nova senha"
+                  value={confirmarSenha}
+                  onChange={(e) => setConfirmarSenha(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
+                />
+              )}
 
               {/* Botões */}
-              <div className="flex gap-4 pt-4">
+              <div className="flex gap-4 pt-6">
                 <button
                   onClick={handleSalvar}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition-colors"
+                  disabled={loading}
+                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
-                  SALVAR
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Salvar Alterações
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={handleCancelar}
-                  className="flex-1 bg-[#F9A01B] hover:bg-[#FF8C00] text-white font-bold py-3 px-6 rounded-full transition-colors"
+                  disabled={loading}
+                  className="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
-                  CANCELAR
+                  <X className="w-4 h-4" />
+                  Cancelar
                 </button>
               </div>
             </div>
