@@ -1,10 +1,5 @@
 import api from '../lib/api'
 import type { 
-    loginRequest, loginResponse, cadastroRequest, cadastroResponse,
-    solicitarCodigoRequest, solicitarCodigoResponse,
-    validarCodigoRequest, validarCodigoResponse,
-    redefinirSenhaRequest, redefinirSenhaResponse,
-    chatIARequest, chatIAResponse,
     enderecoRequest, enderecoResponse,
     estabelecimentoRequest, estabelecimentoResponse, listarEstabelecimentosResponse,
     categoriaRequest, categoriaResponse, listarCategoriasResponse,
@@ -782,6 +777,64 @@ export async function listarEstabelecimentosUsuario(): Promise<listarEstabelecim
 }
 
 /**
+ * Busca dados atualizados do estabelecimento do usuário da API
+ * Endpoint: GET /estabelecimento/{id}
+ */
+export async function buscarDadosEstabelecimentoAtualizado(): Promise<any> {
+    try {
+        const userData = localStorage.getItem('user_data')
+        if (!userData) {
+            throw new Error('Usuário não encontrado')
+        }
+        
+        const user = JSON.parse(userData)
+        const estabelecimentoId = user.estabelecimento_id || 1
+        
+        console.log('🔍 Buscando dados do estabelecimento:', estabelecimentoId)
+        
+        const { data } = await api.get(`/estabelecimento/${estabelecimentoId}`)
+        console.log('✅ Dados do estabelecimento recebidos:', data)
+        
+        // Atualiza localStorage com dados mais recentes
+        if (data && data.status) {
+            const estabelecimento = data.data || data.estabelecimento || data
+            console.log('📦 Objeto estabelecimento extraído:', estabelecimento)
+            
+            // IMPORTANTE: A tabela estabelecimento NÃO tem campo endereco
+            // O endereço fica salvo apenas no localStorage
+            // Atualiza apenas os campos que vêm da API
+            const dadosAtualizados = {
+                ...user, // Mantém todos os dados atuais
+                nome: estabelecimento.nome, // Atualiza com o nome da API
+                cnpj: estabelecimento.cnpj,
+                telefone: estabelecimento.telefone,
+                razao_social: estabelecimento.nome, // Sincroniza razão social com o nome
+                // Mantém o endereço do localStorage pois a API não retorna
+                endereco: user.endereco || ""
+            }
+            
+            console.log('🔄 Comparação de dados:')
+            console.log('  - Nome anterior:', user.nome)
+            console.log('  - Nome da API:', estabelecimento.nome)
+            console.log('  - Nome final:', dadosAtualizados.nome)
+            
+            localStorage.setItem('user_data', JSON.stringify(dadosAtualizados))
+            console.log('✅ localStorage atualizado com dados da API')
+            console.log('✅ Dados finais salvos:', dadosAtualizados)
+            console.log('⚠️ NOTA: Endereço mantido do localStorage (API não retorna este campo)')
+            
+            return dadosAtualizados
+        }
+        
+        return user
+    } catch (error: any) {
+        console.error('❌ Erro ao buscar dados do estabelecimento:', error.response?.data || error.message)
+        // Retorna dados do localStorage como fallback
+        return obterDadosUsuario()
+    }
+}
+
+/**
  * Verifica se o usuário já possui estabelecimento
  * Endpoint: GET /estabelecimentos/verificar
  */
@@ -838,7 +891,7 @@ export async function atualizarUsuario(payload: atualizarUsuarioRequest): Promis
 
 /**
  * Atualiza dados da empresa (pessoa jurídica)
- * Endpoint: PUT /usuario/{id} (mesmo endpoint, mas com dados de empresa)
+ * Endpoint: PUT /estabelecimento/{id} (CORRETO - descoberto após testes)
  */
 export async function atualizarEmpresa(payload: atualizarEmpresaRequest): Promise<atualizarUsuarioResponse> {
     try {
@@ -848,21 +901,46 @@ export async function atualizarEmpresa(payload: atualizarEmpresaRequest): Promis
         }
         
         const user = JSON.parse(userData)
-        const userId = user.id
+        const estabelecimentoId = user.estabelecimento_id || 1 // ID do estabelecimento
         
-        console.log('🏢 Atualizando empresa:', userId)
+        console.log('🏢 Atualizando empresa via estabelecimento:', estabelecimentoId)
         console.log('🏢 Dados para atualização:', payload)
+        console.log('🏢 Dados do usuário atual:', user)
         
-        const { data } = await api.put<atualizarUsuarioResponse>(`/usuario/${userId}`, payload)
-        
-        // Atualiza dados no localStorage se a atualização foi bem-sucedida
-        if (data.status && data.data) {
-            const updatedUser = { ...user, ...data.data }
-            localStorage.setItem('user_data', JSON.stringify(updatedUser))
-            console.log('✅ Dados da empresa atualizados no localStorage')
+        // Validação adicional antes do envio
+        if (!payload.cnpj || payload.cnpj.trim().length === 0) {
+            throw new Error('CNPJ é obrigatório')
         }
         
-        return data
+        // Prepara payload para estabelecimento
+        const payloadEstabelecimento = {
+            nome: payload.nome, // Envia o nome que o usuário digitou
+            cnpj: payload.cnpj,
+            telefone: payload.telefone || ''
+        }
+        
+        console.log('📤 Enviando para API:', payloadEstabelecimento)
+        
+        const { data } = await api.put(`/estabelecimento/${estabelecimentoId}`, payloadEstabelecimento)
+        console.log('✅ Estabelecimento atualizado com sucesso!', data)
+        
+        // Atualiza localStorage com os novos dados
+        // IMPORTANTE: Mantém o nome que foi enviado para a API
+        const updatedUser = { 
+            ...user, 
+            ...payload,
+            nome: payload.nome, // Garante que o nome seja atualizado
+            razao_social: payload.razao_social || payload.nome // Atualiza razão social também
+        }
+        localStorage.setItem('user_data', JSON.stringify(updatedUser))
+        console.log('✅ Dados atualizados no localStorage:', updatedUser)
+        
+        return {
+            status: true,
+            status_code: 200,
+            message: 'Dados da empresa atualizados com sucesso!',
+            data: updatedUser
+        }
     } catch (error: any) {
         console.error('❌ Erro ao atualizar empresa:', error.response?.data || error.message)
         throw error

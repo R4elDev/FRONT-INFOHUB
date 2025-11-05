@@ -19,7 +19,7 @@ import {
   CheckCircle,
   AlertCircle
 } from "lucide-react"
-import { obterDadosUsuario, atualizarEmpresa, buscarDadosCompletosDaAPI, buscarDadosEstabelecimento, buscarDadosUsuarioDireto } from '../../services/apiServicesFixed'
+import { obterDadosUsuario, atualizarEmpresa, buscarDadosEstabelecimentoAtualizado } from '../../services/apiServicesFixed'
 import type { atualizarEmpresaRequest } from "../../services/types"
 
 type ConfigTab = 'geral' | 'notificacoes' | 'seguranca'
@@ -57,51 +57,58 @@ function ConfiguracoesEmpresa() {
   useEffect(() => {
     const carregarDados = async () => {
       console.log('🔍 Iniciando carregamento de dados...')
+      setLoading(true)
       
-      // Primeiro tenta carregar do localStorage
-      const dadosUsuario = obterDadosUsuario()
-      console.log('📋 Dados do localStorage:', dadosUsuario)
-      
-      if (dadosUsuario) {
-        // Preenche campos com dados do localStorage
-        setNome(dadosUsuario.nome || "")
-        setEmail(dadosUsuario.email || "")
-        setCnpj(dadosUsuario.cnpj || "")
-        setTelefone(dadosUsuario.telefone || "")
-        setRazaoSocial(dadosUsuario.razao_social || "")
-        setEndereco(dadosUsuario.endereco || "")
+      try {
+        // Busca dados atualizados da API
+        console.log('📡 Buscando dados da API...')
+        const dadosAtualizados = await buscarDadosEstabelecimentoAtualizado()
+        console.log('✅ Dados recebidos da API:', dadosAtualizados)
         
-        // Se CNPJ não estiver disponível, busca dados diretamente da tabela usuario
-        if (!dadosUsuario.cnpj) {
-          console.log('⚠️ CNPJ não encontrado no localStorage, buscando na tabela usuario...')
+        if (dadosAtualizados) {
+          // Preenche campos com dados da API
+          setNome(dadosAtualizados.nome || "")
+          setEmail(dadosAtualizados.email || "")
+          setCnpj(dadosAtualizados.cnpj || "")
+          setTelefone(dadosAtualizados.telefone || "")
+          setRazaoSocial(dadosAtualizados.razao_social || "")
+          setEndereco(dadosAtualizados.endereco || "")
           
-          try {
-            const dadosCompletos = await buscarDadosUsuarioDireto()
-            if (dadosCompletos) {
-              setNome(dadosCompletos.nome || "")
-              setEmail(dadosCompletos.email || "")
-              setCnpj(dadosCompletos.cnpj || "")
-              setTelefone(dadosCompletos.telefone || "")
-              setRazaoSocial(dadosCompletos.razao_social || "")
-              setEndereco(dadosCompletos.endereco || "")
-              
-              console.log('✅ Dados atualizados da tabela usuario:', dadosCompletos)
-            }
-          } catch (error) {
-            console.error('❌ Erro ao buscar dados da tabela usuario:', error)
+          console.log('📋 Campos preenchidos com dados da API:', {
+            nome: dadosAtualizados.nome,
+            email: dadosAtualizados.email,
+            cnpj: dadosAtualizados.cnpj,
+            telefone: dadosAtualizados.telefone,
+            razao_social: dadosAtualizados.razao_social,
+            endereco: dadosAtualizados.endereco
+          })
+        } else {
+          console.log('⚠️ Nenhum dado retornado da API, usando localStorage')
+          // Fallback para localStorage
+          const dadosUsuario = obterDadosUsuario()
+          if (dadosUsuario) {
+            setNome(dadosUsuario.nome || "")
+            setEmail(dadosUsuario.email || "")
+            setCnpj(dadosUsuario.cnpj || "")
+            setTelefone(dadosUsuario.telefone || "")
+            setRazaoSocial(dadosUsuario.razao_social || "")
+            setEndereco(dadosUsuario.endereco || "")
           }
         }
-        
-        console.log('📋 Campos finais preenchidos:', {
-          nome: nome || dadosUsuario.nome || "",
-          email: email || dadosUsuario.email || "",
-          cnpj: cnpj || dadosUsuario.cnpj || "",
-          telefone: telefone || dadosUsuario.telefone || "",
-          razao_social: razaoSocial || dadosUsuario.razao_social || "",
-          endereco: endereco || dadosUsuario.endereco || ""
-        })
-      } else {
-        console.log('⚠️ Nenhum dado de usuário encontrado no localStorage')
+      } catch (error) {
+        console.error('❌ Erro ao carregar dados da API:', error)
+        // Em caso de erro, usa dados do localStorage
+        const dadosUsuario = obterDadosUsuario()
+        if (dadosUsuario) {
+          setNome(dadosUsuario.nome || "")
+          setEmail(dadosUsuario.email || "")
+          setCnpj(dadosUsuario.cnpj || "")
+          setTelefone(dadosUsuario.telefone || "")
+          setRazaoSocial(dadosUsuario.razao_social || "")
+          setEndereco(dadosUsuario.endereco || "")
+        }
+      } finally {
+        setLoading(false)
       }
     }
     
@@ -260,48 +267,82 @@ function ConfiguracoesEmpresa() {
         return
       }
 
+      // Remove formatação do CNPJ para enviar apenas números
+      const cnpjLimpo = cnpj.replace(/\D/g, '')
+      
       const payload: atualizarEmpresaRequest = {
         nome: nome.trim(),
         email: email.trim(),
-        cnpj: cnpj.trim(), // CNPJ é obrigatório
+        cnpj: cnpjLimpo, // CNPJ apenas com números
       }
 
-      // Adiciona campos opcionais apenas se preenchidos
-      if (telefone.trim()) payload.telefone = telefone.trim()
-      if (razaoSocial.trim()) payload.razao_social = razaoSocial.trim()
-      if (endereco.trim()) payload.endereco = endereco.trim()
+      // Adiciona campos opcionais apenas se preenchidos e válidos
+      if (telefone.trim()) {
+        // Remove formatação do telefone (parênteses, espaços, hífens)
+        const telefoneLimpo = telefone.replace(/\D/g, '')
+        payload.telefone = telefoneLimpo
+      }
+      if (razaoSocial.trim()) {
+        payload.razao_social = razaoSocial.trim()
+      }
+      if (endereco.trim()) {
+        payload.endereco = endereco.trim()
+      }
 
-      // Adiciona outros campos que podem ser obrigatórios
+      // Log para debug
       console.log('🔍 Dados completos do usuário:', dadosUsuario)
       console.log('🔍 Verificando campos obrigatórios...')
-
       console.log('📋 Payload completo sendo enviado:', payload)
       console.log('📋 Tamanhos dos campos:', {
         nome: nome.trim().length,
         email: email.trim().length,
-        cnpj: cnpj.trim().length,
-        telefone: telefone.trim().length,
+        cnpj: cnpjLimpo.length,
+        telefone: payload.telefone ? payload.telefone.length : 0,
         razaoSocial: razaoSocial.trim().length,
         endereco: endereco.trim().length
       })
+      
+      console.log('📋 Valores limpos enviados:', {
+        cnpj: cnpjLimpo,
+        telefone: payload.telefone || 'não informado'
+      })
+
+      // Validação final antes do envio
+      if (cnpjLimpo.length !== 14) {
+        showMessage("CNPJ deve ter exatamente 14 dígitos", "error")
+        setLoading(false)
+        return
+      }
+      
+      // Validação do telefone se foi informado
+      if (payload.telefone && (payload.telefone.length < 10 || payload.telefone.length > 11)) {
+        showMessage("Telefone deve ter 10 ou 11 dígitos", "error")
+        setLoading(false)
+        return
+      }
 
       const response = await atualizarEmpresa(payload)
       
       if (response.status) {
         showMessage("Informações atualizadas com sucesso!", "success")
         
-        // Atualiza localStorage com os novos dados
-        const dadosUsuario = obterDadosUsuario()
-        if (dadosUsuario) {
-          const dadosAtualizados = {
-            ...dadosUsuario,
-            nome: nome.trim(),
-            email: email.trim(),
-            telefone: telefone.trim() || dadosUsuario.telefone,
-            razao_social: razaoSocial.trim() || dadosUsuario.razao_social,
-            endereco: endereco.trim() || dadosUsuario.endereco
+        // Recarrega dados atualizados da API
+        console.log('🔄 Recarregando dados da API...')
+        try {
+          const dadosAtualizados = await buscarDadosEstabelecimentoAtualizado()
+          if (dadosAtualizados) {
+            // Atualiza os campos com os dados mais recentes
+            setNome(dadosAtualizados.nome || "")
+            setEmail(dadosAtualizados.email || "")
+            setCnpj(dadosAtualizados.cnpj || "")
+            setTelefone(dadosAtualizados.telefone || "")
+            setRazaoSocial(dadosAtualizados.razao_social || "")
+            setEndereco(dadosAtualizados.endereco || "")
+            console.log('✅ Dados recarregados da API com sucesso')
           }
-          localStorage.setItem('user_data', JSON.stringify(dadosAtualizados))
+        } catch (error) {
+          console.error('⚠️ Erro ao recarregar dados da API:', error)
+          // Mantém os dados atuais em caso de erro
         }
       } else {
         showMessage(response.message || "Erro ao atualizar informações", "error")
@@ -314,13 +355,27 @@ function ConfiguracoesEmpresa() {
         showMessage("Sessão expirada. Você será redirecionado para fazer login novamente.", "error")
         // O interceptor já vai redirecionar automaticamente
       } else if (error.response?.status === 400) {
-        const errorMessage = error.response?.data?.message || "Erro de validação"
+        const errorData = error.response?.data
+        const errorMessage = errorData?.message || "Erro de validação"
+        
+        // Log detalhado do erro para debug
+        console.error("🔍 Detalhes do erro 400:", {
+          message: errorMessage,
+          status: errorData?.status,
+          status_code: errorData?.status_code,
+          fullError: errorData
+        })
+        
         if (errorMessage.includes("campos obrigatórios")) {
-          showMessage("Verifique se todos os campos obrigatórios estão preenchidos corretamente e não excedem o limite de caracteres.", "error")
+          showMessage("Erro: Campos obrigatórios não preenchidos. Verifique: Nome, Email e CNPJ são obrigatórios.", "error")
         } else if (errorMessage.includes("caracteres")) {
-          showMessage("Um ou mais campos excedem o limite de caracteres permitido.", "error")
+          showMessage("Erro: Um ou mais campos excedem o limite de caracteres. Verifique os tamanhos dos campos.", "error")
+        } else if (errorMessage.includes("CNPJ")) {
+          showMessage("Erro no CNPJ: Verifique se o CNPJ está correto e possui 14 dígitos.", "error")
+        } else if (errorMessage.includes("email")) {
+          showMessage("Erro no email: Verifique se o email está em formato válido.", "error")
         } else {
-          showMessage(errorMessage, "error")
+          showMessage(`Erro de validação: ${errorMessage}`, "error")
         }
       } else {
         showMessage(error.response?.data?.message || "Erro ao atualizar informações", "error")
@@ -388,112 +443,6 @@ function ConfiguracoesEmpresa() {
     showMessage("Preferências de notificação salvas!", "success")
   }
 
-  const testarCamposObrigatorios = async () => {
-    console.log('🧪 Testando quais campos são obrigatórios...')
-    
-    const dadosUsuario = obterDadosUsuario()
-    console.log('🔍 Dados do localStorage:', dadosUsuario)
-    
-    // Testa com payload mínimo
-    const payloadMinimo = {
-      nome: "Teste",
-      email: "teste@teste.com"
-    }
-    
-    console.log('📋 Testando payload mínimo:', payloadMinimo)
-    
-    try {
-      const response = await atualizarEmpresa(payloadMinimo)
-      console.log('✅ Payload mínimo funcionou:', response)
-    } catch (error: any) {
-      console.log('❌ Payload mínimo falhou:', error.response?.data)
-      
-      // Testa com CNPJ
-      if (cnpj.trim()) {
-        const payloadComCnpj = {
-          ...payloadMinimo,
-          cnpj: cnpj.trim()
-        }
-        
-        console.log('📋 Testando com CNPJ:', payloadComCnpj)
-        
-        try {
-          const response2 = await atualizarEmpresa(payloadComCnpj)
-          console.log('✅ Payload com CNPJ funcionou:', response2)
-        } catch (error2: any) {
-          console.log('❌ Payload com CNPJ também falhou:', error2.response?.data)
-        }
-      }
-    }
-  }
-
-  const testarEndpointEstabelecimentos = async () => {
-    console.log('🧪 Testando endpoint /estabelecimentos...')
-    setLoading(true)
-    
-    try {
-      const response = await fetch('http://localhost:8080/v1/infohub/estabelecimentos', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      console.log('📋 Status da resposta:', response.status)
-      console.log('📋 Headers da resposta:', Object.fromEntries(response.headers.entries()))
-      
-      const data = await response.json()
-      console.log('📋 Dados completos da resposta:', data)
-      console.log('📋 Tipo da resposta:', typeof data)
-      console.log('📋 É array?', Array.isArray(data))
-      
-      if (data && typeof data === 'object') {
-        console.log('📋 Propriedades da resposta:', Object.keys(data))
-        
-        if (data.data && Array.isArray(data.data)) {
-          console.log('📋 Estabelecimentos encontrados:', data.data.length)
-          data.data.forEach((est: any, index: number) => {
-            console.log(`📋 Estabelecimento ${index + 1}:`, est)
-          })
-        }
-      }
-      
-      showMessage(`Teste concluído! Verifique o console. Status: ${response.status}`, response.ok ? "success" : "error")
-    } catch (error) {
-      console.error('❌ Erro no teste:', error)
-      showMessage("Erro no teste do endpoint", "error")
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const forcarCarregamentoDaAPI = async () => {
-    console.log('🔄 Forçando carregamento de dados da tabela usuario...')
-    setLoading(true)
-    
-    try {
-      const dadosCompletos = await buscarDadosUsuarioDireto()
-      if (dadosCompletos && dadosCompletos.cnpj) {
-        setNome(dadosCompletos.nome || "")
-        setEmail(dadosCompletos.email || "")
-        setCnpj(dadosCompletos.cnpj || "")
-        setTelefone(dadosCompletos.telefone || "")
-        setRazaoSocial(dadosCompletos.razao_social || "")
-        setEndereco(dadosCompletos.endereco || "")
-        
-        showMessage("CNPJ carregado da tabela usuario com sucesso!", "success")
-        console.log('✅ Dados carregados da tabela usuario:', dadosCompletos)
-      } else {
-        showMessage("CNPJ não encontrado na tabela usuario. Verifique se o usuário tem CNPJ cadastrado.", "error")
-      }
-    } catch (error) {
-      console.error('❌ Erro ao carregar dados da tabela usuario:', error)
-      showMessage("Erro ao carregar dados da tabela usuario", "error")
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <SidebarLayout>
       <div className="min-h-screen bg-gray-50 py-6 px-4">
@@ -502,6 +451,7 @@ function ConfiguracoesEmpresa() {
           <div className="bg-white rounded-3xl shadow-lg p-6 mb-6 animate-fadeInDown">
             <div className="flex items-center gap-3">
               <button
+                type="button"
                 onClick={() => navigate('/perfil-empresa')}
                 className="w-10 h-10 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
                 title="Voltar"
@@ -539,6 +489,7 @@ function ConfiguracoesEmpresa() {
             <div className="lg:col-span-1">
               <div className="bg-white rounded-2xl shadow-md p-4 space-y-2 animate-fadeInUp">
                 <button
+                  type="button"
                   onClick={() => setActiveTab('geral')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                     activeTab === 'geral'
@@ -551,6 +502,7 @@ function ConfiguracoesEmpresa() {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setActiveTab('notificacoes')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                     activeTab === 'notificacoes'
@@ -563,6 +515,7 @@ function ConfiguracoesEmpresa() {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => setActiveTab('seguranca')}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                     activeTab === 'seguranca'
@@ -774,6 +727,7 @@ function ConfiguracoesEmpresa() {
                     {/* Botões */}
                     <div className="flex gap-3 pt-4">
                       <button
+                        type="button"
                         onClick={handleSalvarGeral}
                         disabled={loading}
                         className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors"
@@ -791,6 +745,7 @@ function ConfiguracoesEmpresa() {
                         )}
                       </button>
                       <button 
+                        type="button"
                         onClick={() => navigate('/perfil-empresa')}
                         disabled={loading}
                         className="px-6 bg-gray-200 hover:bg-gray-300 disabled:bg-gray-100 text-gray-700 py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors"
@@ -798,52 +753,6 @@ function ConfiguracoesEmpresa() {
                         <X size={20} />
                         Cancelar
                       </button>
-                    </div>
-
-                    {/* Botões de Debug */}
-                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
-                      <h3 className="text-sm font-medium text-yellow-800 mb-3">🔧 Ferramentas de Debug</h3>
-                      
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        <button
-                          onClick={forcarCarregamentoDaAPI}
-                          disabled={loading}
-                          className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                        >
-                          {loading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            "🔄"
-                          )}
-                          Carregar CNPJ da Tabela Usuario
-                        </button>
-                        
-                        <button
-                          onClick={testarEndpointEstabelecimentos}
-                          disabled={loading}
-                          className="bg-purple-500 hover:bg-purple-600 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                        >
-                          {loading ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            "🔍"
-                          )}
-                          Testar API Estabelecimentos
-                        </button>
-                        
-                        <button
-                          onClick={testarCamposObrigatorios}
-                          className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                        >
-                          🧪 Testar Campos Obrigatórios
-                        </button>
-                      </div>
-                      
-                      <div className="text-xs text-yellow-700 space-y-1">
-                        <p>• <strong>Carregar CNPJ da Tabela Usuario:</strong> Busca CNPJ diretamente da tabela usuario</p>
-                        <p>• <strong>Testar API Estabelecimentos:</strong> Verifica se a API está retornando dados (console)</p>
-                        <p>• <strong>Testar Campos:</strong> Testa quais campos são obrigatórios (verifique o console)</p>
-                      </div>
                     </div>
 
                   </div>

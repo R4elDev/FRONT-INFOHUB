@@ -1,13 +1,99 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { TrendingUp, Package, Star, Settings } from "lucide-react"
+import { TrendingUp, Package, Settings, Loader2, LogOut, FileText, ShoppingBag } from "lucide-react"
+import { buscarDadosEstabelecimentoAtualizado } from "../../services/apiServicesFixed"
 
 type TabType = 'promocoes' | 'pedidos' | 'relatorio' | 'sistema'
 
 function DashboardEmpresa() {
   const [activeTab, setActiveTab] = useState<TabType>('promocoes')
   const navigate = useNavigate()
+  
+  // Estados para dados da empresa
+  const [nomeEmpresa, setNomeEmpresa] = useState("Carregando...")
+  const [emailEmpresa, setEmailEmpresa] = useState("carregando@email.com")
+  const [localizacao, setLocalizacao] = useState("Carregando...")
+  const [loading, setLoading] = useState(true)
+  
+  // Carrega dados da empresa ao montar o componente
+  useEffect(() => {
+    const carregarDadosEmpresa = async () => {
+      console.log('🔍 [Dashboard] Carregando dados da empresa...')
+      setLoading(true)
+      
+      try {
+        const dados = await buscarDadosEstabelecimentoAtualizado()
+        console.log('✅ [Dashboard] Dados recebidos:', dados)
+        
+        if (dados) {
+          setNomeEmpresa(dados.razao_social || dados.nome || "Empresa")
+          setEmailEmpresa(dados.email || "email@empresa.com")
+          
+          // Extrai cidade e estado do endereço
+          console.log('📍 [Dashboard] Verificando endereço:', dados.endereco)
+          console.log('📍 [Dashboard] Tipo do endereço:', typeof dados.endereco)
+          
+          if (dados.endereco && dados.endereco !== "" && dados.endereco !== "undefined") {
+            console.log('📍 [Dashboard] Endereço completo:', dados.endereco)
+            
+            // Tenta extrair cidade e estado de diferentes formatos
+            // Formato esperado: "Rua X, Bairro, Cidade - Estado" ou "Rua X, Cidade/Estado"
+            let cidadeEstado = ""
+            
+            // Procura por padrão "Cidade - Estado" ou "Cidade/Estado"
+            const matchTraco = dados.endereco.match(/([^,]+)\s*-\s*([A-Z]{2})/i)
+            const matchBarra = dados.endereco.match(/([^,]+)\/([A-Z]{2})/i)
+            
+            if (matchTraco) {
+              // Formato: "Carapicuíba - SP"
+              cidadeEstado = `${matchTraco[1].trim()}, ${matchTraco[2].toUpperCase()}`
+            } else if (matchBarra) {
+              // Formato: "Carapicuíba/SP"
+              cidadeEstado = `${matchBarra[1].trim()}, ${matchBarra[2].toUpperCase()}`
+            } else {
+              // Tenta pegar as últimas 2 partes separadas por vírgula
+              const partes = dados.endereco.split(',').map((p: string) => p.trim())
+              if (partes.length >= 2) {
+                const ultimaParte = partes[partes.length - 1]
+                const penultimaParte = partes[partes.length - 2]
+                
+                // Se a última parte tem 2 letras, provavelmente é o estado
+                if (ultimaParte.length === 2) {
+                  cidadeEstado = `${penultimaParte}, ${ultimaParte.toUpperCase()}`
+                } else {
+                  cidadeEstado = ultimaParte
+                }
+              } else {
+                cidadeEstado = dados.endereco
+              }
+            }
+            
+            setLocalizacao(cidadeEstado || "Localização não informada")
+            console.log('📍 [Dashboard] Localização extraída:', cidadeEstado)
+          } else {
+            setLocalizacao("Localização não informada")
+          }
+          
+          console.log('📋 [Dashboard] Dados atualizados:', {
+            nome: dados.razao_social || dados.nome,
+            email: dados.email,
+            endereco: dados.endereco,
+            localizacao: localizacao
+          })
+        }
+      } catch (error) {
+        console.error('❌ [Dashboard] Erro ao carregar dados:', error)
+        setNomeEmpresa("Empresa")
+        setEmailEmpresa("email@empresa.com")
+        setLocalizacao("São Paulo, SP")
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    carregarDadosEmpresa()
+  }, [])
 
   return (
     <SidebarLayout>
@@ -15,97 +101,170 @@ function DashboardEmpresa() {
         <div className="max-w-4xl mx-auto">
           {/* Header - Perfil da Empresa */}
           <div className="bg-white rounded-3xl shadow-lg p-6 mb-6 relative animate-fadeInDown">
-            <div className="absolute top-4 right-4 flex gap-3">
+            <div className="absolute top-4 right-4 flex gap-2">
               <button 
+                type="button"
                 onClick={() => navigate('/cadastro-promocao')}
                 className="bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#F9A01B] text-white px-4 py-2 rounded-xl font-semibold transition-all hover:scale-105 shadow-lg flex items-center gap-2 text-sm"
               >
                 ➕ Nova Promoção
               </button>
               <button 
+                type="button"
                 onClick={() => navigate('/configuracoes-empresa')}
-                className="text-gray-400 hover:text-[#F9A01B] transition-colors"
+                className="p-2 text-gray-400 hover:text-[#F9A01B] hover:bg-gray-100 rounded-xl transition-colors"
                 title="Configurações"
               >
-                <Settings size={24} />
+                <Settings size={20} />
+              </button>
+              <button 
+                type="button"
+                onClick={() => {
+                  localStorage.removeItem('auth_token')
+                  localStorage.removeItem('user_data')
+                  navigate('/login')
+                }}
+                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                title="Sair da Conta"
+              >
+                <LogOut size={20} />
               </button>
             </div>
             
             <div className="flex flex-col items-center">
               {/* Logo */}
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] flex items-center justify-center text-white text-4xl font-bold shadow-xl mb-4 animate-bounceIn hover-glow">
-                iJ
+                {loading ? (
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                ) : (
+                  nomeEmpresa.substring(0, 2).toUpperCase()
+                )}
               </div>
               
               {/* Nome da Empresa */}
               <h1 className="text-2xl font-bold text-gray-800 mb-1">
-                SUPERMERCADO JAPÃO
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Carregando...
+                  </span>
+                ) : (
+                  nomeEmpresa.toUpperCase()
+                )}
               </h1>
-              <p className="text-gray-500 text-sm mb-2">japao@gmail.com</p>
+              <p className="text-gray-500 text-sm mb-2">
+                {loading ? "carregando..." : emailEmpresa}
+              </p>
               
               {/* Localização */}
               <div className="flex items-center gap-2 bg-[#F9A01B] text-white px-4 py-2 rounded-full">
                 <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                 </svg>
-                <span className="text-sm font-medium">São Paulo, SP</span>
+                <span className="text-sm font-medium">
+                  {loading ? "Carregando..." : localizacao}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Cards de Métricas */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          {/* Cards de Métricas - Simplificado */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {/* Promoções Ativas */}
-            <div className="bg-white rounded-2xl shadow-md p-6 animate-fadeInUp animate-delay-100 hover-lift">
-              <h3 className="text-gray-600 text-sm font-medium mb-2">Promoções Ativas</h3>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-4xl font-bold text-gray-800">47</p>
-                  <p className="text-green-600 text-sm font-medium">+8</p>
-                </div>
-                <TrendingUp className="text-blue-500" size={32} />
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl shadow-lg p-6 text-white animate-fadeInUp animate-delay-100 hover:scale-105 transition-transform cursor-pointer">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium opacity-90">Promoções Ativas</h3>
+                <TrendingUp className="opacity-80" size={24} />
               </div>
-            </div>
-
-            {/* Vendas Hoje */}
-            <div className="bg-white rounded-2xl shadow-md p-6 animate-fadeInUp animate-delay-200 hover-lift">
-              <h3 className="text-gray-600 text-sm font-medium mb-2">Vendas Hoje</h3>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-4xl font-bold text-gray-800">R$ 42.2K</p>
-                  <p className="text-green-600 text-sm font-medium">+8%</p>
-                </div>
-                <span className="text-green-500 text-4xl">$</span>
-              </div>
+              <p className="text-4xl font-bold">0</p>
+              <p className="text-xs opacity-75 mt-1">Cadastre suas promoções</p>
             </div>
 
             {/* Produtos Cadastrados */}
-            <div className="bg-white rounded-2xl shadow-md p-6 animate-fadeInUp animate-delay-300 hover-lift">
-              <h3 className="text-gray-600 text-sm font-medium mb-2">Produtos Cadastrados</h3>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-4xl font-bold text-gray-800">2.3K</p>
-                  <p className="text-green-600 text-sm font-medium">+5%</p>
-                </div>
-                <Package className="text-purple-500" size={32} />
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg p-6 text-white animate-fadeInUp animate-delay-200 hover:scale-105 transition-transform cursor-pointer">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium opacity-90">Produtos</h3>
+                <Package className="opacity-80" size={24} />
               </div>
+              <p className="text-4xl font-bold">0</p>
+              <p className="text-xs opacity-75 mt-1">Adicione seus produtos</p>
             </div>
 
-            {/* Avaliação Média */}
-            <div className="bg-white rounded-2xl shadow-md p-6 animate-fadeInUp animate-delay-400 hover-lift">
-              <h3 className="text-gray-600 text-sm font-medium mb-2">Avaliação Média</h3>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="text-4xl font-bold text-gray-800">4.8</p>
-                  <p className="text-green-600 text-sm font-medium">+0.5</p>
-                </div>
-                <Star className="text-yellow-500 fill-yellow-500" size={32} />
+            {/* Pedidos */}
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white animate-fadeInUp animate-delay-300 hover:scale-105 transition-transform cursor-pointer">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium opacity-90">Pedidos</h3>
+                <ShoppingBag className="opacity-80" size={24} />
               </div>
+              <p className="text-4xl font-bold">0</p>
+              <p className="text-xs opacity-75 mt-1">Gerencie seus pedidos</p>
             </div>
           </div>
 
-          {/* Abas de Navegação */}
-          <div className="bg-white rounded-full shadow-md p-2 mb-6 flex gap-2">
+          {/* Menu de Ações Rápidas */}
+          <div className="bg-white rounded-2xl shadow-md p-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Acesso Rápido</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/cadastro-promocao')}
+                className="flex items-center gap-3 p-4 rounded-xl border-2 border-orange-200 hover:border-orange-400 hover:bg-orange-50 transition-all group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-orange-100 group-hover:bg-orange-200 flex items-center justify-center transition-colors">
+                  <TrendingUp className="text-orange-600" size={24} />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800">Promoções</p>
+                  <p className="text-xs text-gray-500">Gerenciar promoções</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/pedidos')}
+                className="flex items-center gap-3 p-4 rounded-xl border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50 transition-all group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition-colors">
+                  <ShoppingBag className="text-blue-600" size={24} />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800">Pedidos</p>
+                  <p className="text-xs text-gray-500">Ver pedidos recebidos</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/relatorios')}
+                className="flex items-center gap-3 p-4 rounded-xl border-2 border-green-200 hover:border-green-400 hover:bg-green-50 transition-all group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-green-100 group-hover:bg-green-200 flex items-center justify-center transition-colors">
+                  <FileText className="text-green-600" size={24} />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800">Relatórios</p>
+                  <p className="text-xs text-gray-500">Análises e estatísticas</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/configuracoes-empresa')}
+                className="flex items-center gap-3 p-4 rounded-xl border-2 border-gray-200 hover:border-gray-400 hover:bg-gray-50 transition-all group"
+              >
+                <div className="w-12 h-12 rounded-xl bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors">
+                  <Settings className="text-gray-600" size={24} />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800">Configurações</p>
+                  <p className="text-xs text-gray-500">Ajustes da empresa</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Removido: Abas antigas */}
+          <div className="hidden">
             <button
               onClick={() => setActiveTab('promocoes')}
               className={`flex-1 py-2 px-4 rounded-full text-sm font-medium transition-all ${
