@@ -1,10 +1,5 @@
 import api from '../lib/api'
 import type { 
-    loginRequest, loginResponse, cadastroRequest, cadastroResponse,
-    solicitarCodigoRequest, solicitarCodigoResponse,
-    validarCodigoRequest, validarCodigoResponse,
-    redefinirSenhaRequest, redefinirSenhaResponse,
-    chatIARequest, chatIAResponse,
     enderecoRequest, enderecoResponse,
     estabelecimentoRequest, estabelecimentoResponse, listarEstabelecimentosResponse,
     categoriaRequest, categoriaResponse, listarCategoriasResponse,
@@ -306,6 +301,8 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
         
         const { data } = await api.get<listarProdutosResponse>(url)
         
+        console.log('🔍 [RESPOSTA ORIGINAL DA API]:', JSON.stringify(data, null, 2))
+        
         // Verifica se a resposta tem a estrutura esperada
         if (!data) {
             return { status: false, status_code: 500, data: [] }
@@ -323,18 +320,27 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                 // Tenta encontrar dados de promoção em diferentes campos possíveis
                 let promocaoData = null
                 
-                // Verifica diferentes possibilidades de onde a promoção pode estar
-                if (produto.promocao) {
-                    promocaoData = produto.promocao
-                } else if (produto.promocoes && produto.promocoes.length > 0) {
-                    promocaoData = produto.promocoes[0]
-                } else if (produto.preco_promocional) {
-                    // Se tem preço promocional direto no produto
+                console.log('🔍 [MAPEAMENTO] Produto:', produto.nome)
+                console.log('🔍 [MAPEAMENTO] preco_promocional:', produto.preco_promocional)
+                console.log('🔍 [MAPEAMENTO] data_inicio:', produto.data_inicio)
+                console.log('🔍 [MAPEAMENTO] data_fim:', produto.data_fim)
+                
+                // CORREÇÃO: A API retorna os campos diretos no produto
+                if (produto.preco_promocional && produto.preco_promocional !== null) {
                     promocaoData = {
                         preco_promocional: produto.preco_promocional,
-                        data_inicio: produto.data_inicio_promocao,
-                        data_fim: produto.data_fim_promocao
+                        data_inicio: produto.data_inicio,
+                        data_fim: produto.data_fim
                     }
+                    console.log('✅ [MAPEAMENTO] Promoção encontrada nos campos diretos:', promocaoData)
+                } else if (produto.promocao) {
+                    promocaoData = produto.promocao
+                    console.log('✅ [MAPEAMENTO] Promoção encontrada em produto.promocao:', promocaoData)
+                } else if (produto.promocoes && produto.promocoes.length > 0) {
+                    promocaoData = produto.promocoes[0]
+                    console.log('✅ [MAPEAMENTO] Promoção encontrada em produto.promocoes[0]:', promocaoData)
+                } else {
+                    console.log('❌ [MAPEAMENTO] Nenhuma promoção encontrada')
                 }
                 
                 // Mapeia categoria corretamente
@@ -506,21 +512,20 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                     // Tenta encontrar dados de promoção em diferentes campos possíveis
                     let promocaoData = null
                     
-                    // Verifica diferentes possibilidades de onde a promoção pode estar
-                    if (produto.promocao) {
+                    // CORREÇÃO: A API retorna os campos diretos no produto
+                    if (produto.preco_promocional && produto.preco_promocional !== null) {
+                        promocaoData = {
+                            preco_promocional: produto.preco_promocional,
+                            data_inicio: produto.data_inicio,
+                            data_fim: produto.data_fim
+                        }
+                        console.log('✅ Promoção encontrada nos campos diretos (alternativo):', promocaoData)
+                    } else if (produto.promocao) {
                         promocaoData = produto.promocao
                         console.log('✅ Promoção encontrada em produto.promocao')
                     } else if (produto.promocoes && produto.promocoes.length > 0) {
                         promocaoData = produto.promocoes[0]
                         console.log('✅ Promoção encontrada em produto.promocoes[0]')
-                    } else if (produto.preco_promocional) {
-                        // Se tem preço promocional direto no produto
-                        promocaoData = {
-                            preco_promocional: produto.preco_promocional,
-                            data_inicio: produto.data_inicio_promocao,
-                            data_fim: produto.data_fim_promocao
-                        }
-                        console.log('✅ Promoção encontrada como campos diretos do produto')
                     } else {
                         console.log('❌ Nenhum dado de promoção encontrado')
                     }
@@ -627,42 +632,61 @@ export async function buscarNomeCategoria(id: number): Promise<string> {
 }
 
 export function isProdutoEmPromocao(produto: any): boolean {
+    console.log('🔍 [isProdutoEmPromocao] Verificando produto:', produto.nome)
+    console.log('🔍 [isProdutoEmPromocao] Estrutura completa do produto:', JSON.stringify(produto, null, 2))
+    
     // Verifica diferentes estruturas de promoção que podem vir da API
     let promocaoData = null
     
     // Tenta encontrar dados de promoção em diferentes campos
-    if (produto.promocao) {
+    // PRIORIDADE 1: Objeto promocao já mapeado
+    if (produto.promocao && produto.promocao !== null) {
         promocaoData = produto.promocao
-    } else if (produto.promocoes && produto.promocoes.length > 0) {
-        promocaoData = produto.promocoes[0]
-    } else if (produto.preco_promocional) {
-        // Promoção como campos diretos do produto
+        console.log('✅ [isProdutoEmPromocao] Promoção encontrada em produto.promocao:', promocaoData)
+    } 
+    // PRIORIDADE 2: Campos diretos da API (preco_promocional, data_inicio, data_fim)
+    else if (produto.preco_promocional && produto.preco_promocional !== null) {
         promocaoData = {
             preco_promocional: produto.preco_promocional,
-            data_inicio: produto.data_inicio_promocao || produto.data_inicio,
-            data_fim: produto.data_fim_promocao || produto.data_fim
+            data_inicio: produto.data_inicio,
+            data_fim: produto.data_fim
         }
+        console.log('✅ [isProdutoEmPromocao] Promoção encontrada como campos diretos:', promocaoData)
+    } 
+    // PRIORIDADE 3: Array de promocoes
+    else if (produto.promocoes && produto.promocoes.length > 0) {
+        promocaoData = produto.promocoes[0]
+        console.log('✅ [isProdutoEmPromocao] Promoção encontrada em produto.promocoes[0]:', promocaoData)
+    } else {
+        console.log('❌ [isProdutoEmPromocao] Nenhum dado de promoção encontrado')
     }
     
     // Se não tem dados de promoção
     if (!promocaoData) {
+        console.log('❌ [isProdutoEmPromocao] Resultado: SEM PROMOÇÃO (promocaoData é null)')
         return false
     }
     
     // Verifica se tem preço promocional válido
     const precoPromocional = promocaoData.preco_promocional
+    console.log('💰 [isProdutoEmPromocao] Preço promocional:', precoPromocional)
+    console.log('💰 [isProdutoEmPromocao] Preço normal:', produto.preco)
+    
     if (!precoPromocional || precoPromocional <= 0) {
+        console.log('❌ [isProdutoEmPromocao] Resultado: SEM PROMOÇÃO (preço promocional inválido)')
         return false
     }
     
-    // Verifica se o preço promocional é diferente do preço normal (mais flexível)
+    // Verifica se o preço promocional é diferente do preço normal
     if (precoPromocional >= produto.preco) {
+        console.log('❌ [isProdutoEmPromocao] Resultado: SEM PROMOÇÃO (preço promocional >= preço normal)')
         return false
     }
     
     try {
         // Se não tem datas definidas, considera como promoção ativa
         if (!promocaoData.data_inicio || !promocaoData.data_fim) {
+            console.log('✅ [isProdutoEmPromocao] Resultado: COM PROMOÇÃO (sem datas definidas)')
             return true
         }
         
@@ -674,15 +698,22 @@ export function isProdutoEmPromocao(produto: any): boolean {
         dataInicio.setHours(0, 0, 0, 0)
         dataFim.setHours(23, 59, 59, 999)
         
-        // Se datas são inválidas, considera ativo (mais permissivo)
+        console.log('📅 [isProdutoEmPromocao] Data de hoje:', hoje.toISOString())
+        console.log('📅 [isProdutoEmPromocao] Data início:', dataInicio.toISOString())
+        console.log('📅 [isProdutoEmPromocao] Data fim:', dataFim.toISOString())
+        
+        // Se datas são inválidas, considera ativo
         if (isNaN(dataInicio.getTime()) || isNaN(dataFim.getTime())) {
+            console.log('✅ [isProdutoEmPromocao] Resultado: COM PROMOÇÃO (datas inválidas)')
             return true
         }
         
         // Verifica se está dentro do período
-        return hoje >= dataInicio && hoje <= dataFim
+        const dentroPeríodo = hoje >= dataInicio && hoje <= dataFim
+        console.log(`${dentroPeríodo ? '✅' : '❌'} [isProdutoEmPromocao] Resultado: ${dentroPeríodo ? 'COM PROMOÇÃO' : 'SEM PROMOÇÃO'} (verificação de datas)`)
+        return dentroPeríodo
     } catch (error) {
-        // Em caso de erro, considera como ativo se tem preço promocional válido
+        console.log('✅ [isProdutoEmPromocao] Resultado: COM PROMOÇÃO (erro na verificação, considerando ativo)')
         return true
     }
 }
@@ -782,6 +813,64 @@ export async function listarEstabelecimentosUsuario(): Promise<listarEstabelecim
 }
 
 /**
+ * Busca dados atualizados do estabelecimento do usuário da API
+ * Endpoint: GET /estabelecimento/{id}
+ */
+export async function buscarDadosEstabelecimentoAtualizado(): Promise<any> {
+    try {
+        const userData = localStorage.getItem('user_data')
+        if (!userData) {
+            throw new Error('Usuário não encontrado')
+        }
+        
+        const user = JSON.parse(userData)
+        const estabelecimentoId = user.estabelecimento_id || 1
+        
+        console.log('🔍 Buscando dados do estabelecimento:', estabelecimentoId)
+        
+        const { data } = await api.get(`/estabelecimento/${estabelecimentoId}`)
+        console.log('✅ Dados do estabelecimento recebidos:', data)
+        
+        // Atualiza localStorage com dados mais recentes
+        if (data && data.status) {
+            const estabelecimento = data.data || data.estabelecimento || data
+            console.log('📦 Objeto estabelecimento extraído:', estabelecimento)
+            
+            // IMPORTANTE: A tabela estabelecimento NÃO tem campo endereco
+            // O endereço fica salvo apenas no localStorage
+            // Atualiza apenas os campos que vêm da API
+            const dadosAtualizados = {
+                ...user, // Mantém todos os dados atuais
+                nome: estabelecimento.nome, // Atualiza com o nome da API
+                cnpj: estabelecimento.cnpj,
+                telefone: estabelecimento.telefone,
+                razao_social: estabelecimento.nome, // Sincroniza razão social com o nome
+                // Mantém o endereço do localStorage pois a API não retorna
+                endereco: user.endereco || ""
+            }
+            
+            console.log('🔄 Comparação de dados:')
+            console.log('  - Nome anterior:', user.nome)
+            console.log('  - Nome da API:', estabelecimento.nome)
+            console.log('  - Nome final:', dadosAtualizados.nome)
+            
+            localStorage.setItem('user_data', JSON.stringify(dadosAtualizados))
+            console.log('✅ localStorage atualizado com dados da API')
+            console.log('✅ Dados finais salvos:', dadosAtualizados)
+            console.log('⚠️ NOTA: Endereço mantido do localStorage (API não retorna este campo)')
+            
+            return dadosAtualizados
+        }
+        
+        return user
+    } catch (error: any) {
+        console.error('❌ Erro ao buscar dados do estabelecimento:', error.response?.data || error.message)
+        // Retorna dados do localStorage como fallback
+        return obterDadosUsuario()
+    }
+}
+
+/**
  * Verifica se o usuário já possui estabelecimento
  * Endpoint: GET /estabelecimentos/verificar
  */
@@ -819,6 +908,8 @@ export async function atualizarUsuario(payload: atualizarUsuarioRequest): Promis
         
         console.log('👤 Atualizando usuário:', userId)
         console.log('👤 Dados para atualização:', payload)
+        console.log('👤 Endpoint:', `/usuario/${userId}`)
+        console.log('👤 Método: PUT')
         
         const { data } = await api.put<atualizarUsuarioResponse>(`/usuario/${userId}`, payload)
         
@@ -832,13 +923,21 @@ export async function atualizarUsuario(payload: atualizarUsuarioRequest): Promis
         return data
     } catch (error: any) {
         console.error('❌ Erro ao atualizar usuário:', error.response?.data || error.message)
+        console.error('❌ Status:', error.response?.status)
+        console.error('❌ Detalhes completos do erro:', error.response)
+        
+        // Mostra mensagem mais clara sobre o que está faltando
+        if (error.response?.data?.message) {
+            console.error('💡 Mensagem do backend:', error.response.data.message)
+        }
+        
         throw error
     }
 }
 
 /**
  * Atualiza dados da empresa (pessoa jurídica)
- * Endpoint: PUT /usuario/{id} (mesmo endpoint, mas com dados de empresa)
+ * Endpoint: PUT /estabelecimento/{id} (CORRETO - descoberto após testes)
  */
 export async function atualizarEmpresa(payload: atualizarEmpresaRequest): Promise<atualizarUsuarioResponse> {
     try {
@@ -848,21 +947,46 @@ export async function atualizarEmpresa(payload: atualizarEmpresaRequest): Promis
         }
         
         const user = JSON.parse(userData)
-        const userId = user.id
+        const estabelecimentoId = user.estabelecimento_id || 1 // ID do estabelecimento
         
-        console.log('🏢 Atualizando empresa:', userId)
+        console.log('🏢 Atualizando empresa via estabelecimento:', estabelecimentoId)
         console.log('🏢 Dados para atualização:', payload)
+        console.log('🏢 Dados do usuário atual:', user)
         
-        const { data } = await api.put<atualizarUsuarioResponse>(`/usuario/${userId}`, payload)
-        
-        // Atualiza dados no localStorage se a atualização foi bem-sucedida
-        if (data.status && data.data) {
-            const updatedUser = { ...user, ...data.data }
-            localStorage.setItem('user_data', JSON.stringify(updatedUser))
-            console.log('✅ Dados da empresa atualizados no localStorage')
+        // Validação adicional antes do envio
+        if (!payload.cnpj || payload.cnpj.trim().length === 0) {
+            throw new Error('CNPJ é obrigatório')
         }
         
-        return data
+        // Prepara payload para estabelecimento
+        const payloadEstabelecimento = {
+            nome: payload.nome, // Envia o nome que o usuário digitou
+            cnpj: payload.cnpj,
+            telefone: payload.telefone || ''
+        }
+        
+        console.log('📤 Enviando para API:', payloadEstabelecimento)
+        
+        const { data } = await api.put(`/estabelecimento/${estabelecimentoId}`, payloadEstabelecimento)
+        console.log('✅ Estabelecimento atualizado com sucesso!', data)
+        
+        // Atualiza localStorage com os novos dados
+        // IMPORTANTE: Mantém o nome que foi enviado para a API
+        const updatedUser = { 
+            ...user, 
+            ...payload,
+            nome: payload.nome, // Garante que o nome seja atualizado
+            razao_social: payload.razao_social || payload.nome // Atualiza razão social também
+        }
+        localStorage.setItem('user_data', JSON.stringify(updatedUser))
+        console.log('✅ Dados atualizados no localStorage:', updatedUser)
+        
+        return {
+            status: true,
+            status_code: 200,
+            message: 'Dados da empresa atualizados com sucesso!',
+            data: updatedUser
+        }
     } catch (error: any) {
         console.error('❌ Erro ao atualizar empresa:', error.response?.data || error.message)
         throw error
@@ -932,11 +1056,13 @@ export async function buscarDadosUsuarioDireto() {
                         // Monta dados completos
                         const dadosCompletos = {
                             ...user,
+                            cpf: dadosUsuario.cpf || dadosUsuario.cnpj || '',
                             cnpj: dadosUsuario.cnpj || dadosUsuario.cpf || '',
                             telefone: dadosUsuario.telefone || '',
                             email: dadosUsuario.email || user.email,
                             nome: dadosUsuario.nome || user.nome,
-                            perfil: dadosUsuario.perfil || user.perfil
+                            perfil: dadosUsuario.perfil || user.perfil,
+                            data_nascimento: dadosUsuario.data_nascimento || ''
                         }
                         
                         // Atualiza localStorage
@@ -950,6 +1076,14 @@ export async function buscarDadosUsuarioDireto() {
                 console.log(`⚠️ Endpoint ${endpoint} falhou:`, endpointError.response?.status)
                 continue
             }
+        }
+        
+        // Verifica o perfil do usuário antes de buscar estabelecimento
+        const perfil = user.perfil?.toLowerCase()
+        if (perfil === 'consumidor' || perfil === 'usuario') {
+            console.log('⚠️ Usuário é consumidor, não deve buscar dados de estabelecimento')
+            console.log('⚠️ Retornando dados do localStorage')
+            return obterDadosUsuario()
         }
         
         console.log('⚠️ Nenhum endpoint de usuário funcionou, tentando estabelecimentos...')

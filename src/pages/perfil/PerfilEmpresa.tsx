@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { Building2, Mail, Phone, MapPin, Save, X, Loader2, Plus } from "lucide-react"
-import { atualizarEmpresa, obterDadosUsuario } from "../../services/apiServicesFixed"
+import { Building2, Mail, Phone, MapPin, Save, X, Loader2, Settings, ArrowLeft, LogOut } from "lucide-react"
+import { atualizarEmpresa, obterDadosUsuario, buscarDadosEstabelecimentoAtualizado } from "../../services/apiServicesFixed"
 import type { atualizarEmpresaRequest } from "../../services/types"
 
 function PerfilEmpresa() {
@@ -21,15 +21,49 @@ function PerfilEmpresa() {
 
   // Carrega dados da empresa ao montar o componente
   useEffect(() => {
-    const dadosUsuario = obterDadosUsuario()
-    if (dadosUsuario) {
-      setNome(dadosUsuario.nome || "")
-      setEmail(dadosUsuario.email || "")
-      setCnpj(dadosUsuario.cnpj || "")
-      setTelefone(dadosUsuario.telefone || "")
-      // Campos específicos de empresa podem não estar no localStorage
-      // Vamos deixar vazios para o usuário preencher
+    const carregarDados = async () => {
+      console.log('🔍 [PerfilEmpresa] Carregando dados da API...')
+      setLoading(true)
+      
+      try {
+        // Busca dados atualizados da API
+        const dadosAtualizados = await buscarDadosEstabelecimentoAtualizado()
+        console.log('✅ [PerfilEmpresa] Dados recebidos:', dadosAtualizados)
+        
+        if (dadosAtualizados) {
+          setNome(dadosAtualizados.nome || "")
+          setEmail(dadosAtualizados.email || "")
+          setCnpj(dadosAtualizados.cnpj || "")
+          setTelefone(dadosAtualizados.telefone || "")
+          setRazaoSocial(dadosAtualizados.razao_social || "")
+          setEndereco(dadosAtualizados.endereco || "")
+          
+          console.log('📋 [PerfilEmpresa] Campos preenchidos:', {
+            nome: dadosAtualizados.nome,
+            email: dadosAtualizados.email,
+            cnpj: dadosAtualizados.cnpj,
+            telefone: dadosAtualizados.telefone,
+            endereco: dadosAtualizados.endereco
+          })
+        }
+      } catch (error) {
+        console.error('❌ [PerfilEmpresa] Erro ao carregar dados:', error)
+        // Fallback para localStorage
+        const dadosUsuario = obterDadosUsuario()
+        if (dadosUsuario) {
+          setNome(dadosUsuario.nome || "")
+          setEmail(dadosUsuario.email || "")
+          setCnpj(dadosUsuario.cnpj || "")
+          setTelefone(dadosUsuario.telefone || "")
+          setRazaoSocial(dadosUsuario.razao_social || "")
+          setEndereco(dadosUsuario.endereco || "")
+        }
+      } finally {
+        setLoading(false)
+      }
     }
+    
+    carregarDados()
   }, [])
 
   const showMessage = (msg: string, type: 'success' | 'error') => {
@@ -68,8 +102,16 @@ function PerfilEmpresa() {
       }
 
       // Adiciona campos opcionais apenas se preenchidos
-      if (cnpj.trim()) payload.cnpj = cnpj.trim()
-      if (telefone.trim()) payload.telefone = telefone.trim()
+      if (cnpj.trim()) {
+        // Remove formatação do CNPJ (apenas números)
+        const cnpjLimpo = cnpj.replace(/\D/g, '')
+        payload.cnpj = cnpjLimpo
+      }
+      if (telefone.trim()) {
+        // Remove formatação do telefone (apenas números)
+        const telefoneLimpo = telefone.replace(/\D/g, '')
+        payload.telefone = telefoneLimpo
+      }
       if (razaoSocial.trim()) payload.razao_social = razaoSocial.trim()
       if (endereco.trim()) payload.endereco = endereco.trim()
       if (senha.trim()) payload.senha = senha.trim()
@@ -78,6 +120,24 @@ function PerfilEmpresa() {
       
       if (response.status) {
         showMessage("Perfil da empresa atualizado com sucesso!", "success")
+        
+        // Recarrega dados atualizados da API
+        console.log('🔄 [PerfilEmpresa] Recarregando dados da API...')
+        try {
+          const dadosAtualizados = await buscarDadosEstabelecimentoAtualizado()
+          if (dadosAtualizados) {
+            setNome(dadosAtualizados.nome || "")
+            setEmail(dadosAtualizados.email || "")
+            setCnpj(dadosAtualizados.cnpj || "")
+            setTelefone(dadosAtualizados.telefone || "")
+            setRazaoSocial(dadosAtualizados.razao_social || "")
+            setEndereco(dadosAtualizados.endereco || "")
+            console.log('✅ [PerfilEmpresa] Dados recarregados com sucesso')
+          }
+        } catch (error) {
+          console.error('⚠️ [PerfilEmpresa] Erro ao recarregar dados:', error)
+        }
+        
         // Limpa campos de senha
         setSenha("")
         setConfirmarSenha("")
@@ -111,25 +171,50 @@ function PerfilEmpresa() {
 
   return (
     <SidebarLayout>
-      <div className="flex flex-col items-center justify-center min-h-screen py-8 px-4">
-        <div className="w-full max-w-3xl bg-white rounded-3xl shadow-lg p-8">
-          {/* Título e Botão Nova Promoção */}
-          <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-[#F9A01B] mb-2">
-                PERFIL DA EMPRESA
-              </h1>
-              <p className="text-gray-600">
-                Gerencie as informações da sua empresa
-              </p>
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-orange-50 py-6 px-4">
+        <div className="max-w-5xl mx-auto">
+          {/* Header Elegante */}
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-3xl shadow-xl p-6 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => navigate('/dashboard-empresa')}
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-xl transition-all"
+                  title="Voltar ao Dashboard"
+                >
+                  <ArrowLeft className="w-5 h-5 text-white" />
+                </button>
+                <div>
+                  <h1 className="text-3xl font-bold text-white">
+                    Perfil da Empresa
+                  </h1>
+                  <p className="text-orange-100 mt-1">Gerencie as informações da sua empresa</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/configuracoes-empresa')}
+                  className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all"
+                  title="Configurações"
+                >
+                  <Settings className="w-5 h-5 text-white" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.clear()
+                    navigate('/login')
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500/90 hover:bg-red-600 rounded-xl transition-all"
+                  title="Sair da Conta"
+                >
+                  <LogOut className="w-4 h-4 text-white" />
+                  <span className="text-white font-medium text-sm">Sair</span>
+                </button>
+              </div>
             </div>
-            <button
-              onClick={() => navigate('/cadastro-promocao')}
-              className="bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#F9A01B] text-white px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-lg flex items-center gap-2"
-            >
-              <Plus className="w-5 h-5" />
-              Nova Promoção
-            </button>
           </div>
 
           {/* Mensagem de Feedback */}
@@ -143,147 +228,195 @@ function PerfilEmpresa() {
             </div>
           )}
 
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            {/* Logo da Empresa */}
-            <div className="flex flex-col items-center">
-              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] flex items-center justify-center shadow-xl">
-                <div className="w-28 h-28 rounded-full bg-white flex items-center justify-center">
-                  <Building2 className="w-12 h-12 text-[#F9A01B]" />
+          {/* Card Principal com Design Moderno */}
+          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+            {/* Banner Superior */}
+            <div className="bg-gradient-to-r from-orange-400 to-orange-500 h-32 relative">
+              <div className="absolute -bottom-16 left-8">
+                <div className="w-32 h-32 rounded-2xl bg-white p-2 shadow-xl">
+                  <div className="w-full h-full rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+                    <Building2 className="w-16 h-16 text-white" />
+                  </div>
                 </div>
               </div>
-              <p className="text-sm text-gray-500 mt-2">Pessoa Jurídica</p>
             </div>
-
-            {/* Formulário */}
-            <div className="flex-1 space-y-4 w-full">
-              {/* Nome da Empresa */}
-              <div className="relative">
-                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Nome da Empresa *"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
-                  required
-                />
+            
+            {/* Conteúdo */}
+            <div className="pt-20 px-6 md:px-8 pb-8">
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">Pessoa Jurídica</span>
+                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">✓ Verificado</span>
+                </div>
+                <h2 className="text-2xl font-bold text-gray-800">{nome || "Sua Empresa"}</h2>
+                <p className="text-gray-500">{email || "email@empresa.com"}</p>
               </div>
 
-              {/* Email */}
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="email"
-                  placeholder="Email Corporativo *"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
-                  required
-                />
-              </div>
+              {/* Formulário Organizado */}
+              <div className="space-y-6">
+                {/* Seção: Dados Principais */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b-2 border-orange-200 flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-orange-600" />
+                    Dados da Empresa
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Nome da Empresa */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Nome da Empresa *</label>
+                      <div className="relative group">
+                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-400 group-focus-within:text-orange-600 transition-colors" />
+                        <input
+                          type="text"
+                          placeholder="Digite o nome da empresa"
+                          value={nome}
+                          onChange={(e) => setNome(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all bg-gray-50 focus:bg-white"
+                          required
+                        />
+                      </div>
+                    </div>
 
-              {/* CNPJ */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="CNPJ (opcional)"
-                  value={cnpj}
-                  onChange={(e) => setCnpj(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
-                  maxLength={18}
-                />
-              </div>
+                    {/* Email */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Email Corporativo *</label>
+                      <div className="relative group">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-400 group-focus-within:text-orange-600 transition-colors" />
+                        <input
+                          type="email"
+                          placeholder="email@empresa.com"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all bg-gray-50 focus:bg-white"
+                          required
+                        />
+                      </div>
+                    </div>
 
-              {/* Telefone */}
-              <div className="relative">
-                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="tel"
-                  placeholder="Telefone (opcional)"
-                  value={telefone}
-                  onChange={(e) => setTelefone(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
-                />
-              </div>
+                    {/* CNPJ */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">CNPJ</label>
+                      <input
+                        type="text"
+                        placeholder="00.000.000/0000-00"
+                        value={cnpj}
+                        onChange={(e) => setCnpj(e.target.value)}
+                        className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all bg-gray-50 focus:bg-white"
+                        maxLength={18}
+                      />
+                    </div>
 
-              {/* Razão Social */}
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Razão Social (opcional)"
-                  value={razaoSocial}
-                  onChange={(e) => setRazaoSocial(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
-                />
-              </div>
+                    {/* Telefone */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Telefone</label>
+                      <div className="relative group">
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-400 group-focus-within:text-orange-600 transition-colors" />
+                        <input
+                          type="tel"
+                          placeholder="(00) 00000-0000"
+                          value={telefone}
+                          onChange={(e) => setTelefone(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all bg-gray-50 focus:bg-white"
+                        />
+                      </div>
+                    </div>
 
-              {/* Endereço */}
-              <div className="relative">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Endereço (opcional)"
-                  value={endereco}
-                  onChange={(e) => setEndereco(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
-                />
-              </div>
+                    {/* Razão Social */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Razão Social</label>
+                      <input
+                        type="text"
+                        placeholder="Razão social da empresa"
+                        value={razaoSocial}
+                        onChange={(e) => setRazaoSocial(e.target.value)}
+                        className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all bg-gray-50 focus:bg-white"
+                      />
+                    </div>
 
-              {/* Divisor */}
-              <div className="border-t border-gray-200 pt-4 mt-6">
-                <p className="text-sm text-gray-600 mb-4">
-                  Alterar senha (deixe em branco para manter a atual)
-                </p>
-              </div>
+                    {/* Endereço */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Endereço Completo</label>
+                      <div className="relative group">
+                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-400 group-focus-within:text-orange-600 transition-colors" />
+                        <input
+                          type="text"
+                          placeholder="Rua, número, bairro, cidade - UF"
+                          value={endereco}
+                          onChange={(e) => setEndereco(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all bg-gray-50 focus:bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-              {/* Nova Senha */}
-              <input
-                type="password"
-                placeholder="Nova senha (opcional)"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
-                minLength={6}
-              />
+                {/* Seção: Segurança */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b-2 border-orange-200">Segurança</h3>
+                  <p className="text-sm text-gray-600 mb-4 bg-blue-50 border-l-4 border-blue-400 p-3 rounded">
+                    💡 <strong>Dica:</strong> Deixe os campos em branco para manter sua senha atual
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Nova Senha */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Nova Senha</label>
+                      <input
+                        type="password"
+                        placeholder="Mínimo 6 caracteres"
+                        value={senha}
+                        onChange={(e) => setSenha(e.target.value)}
+                        className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all bg-gray-50 focus:bg-white"
+                        minLength={6}
+                      />
+                    </div>
 
-              {/* Confirmar Senha */}
-              {senha && (
-                <input
-                  type="password"
-                  placeholder="Confirme a nova senha"
-                  value={confirmarSenha}
-                  onChange={(e) => setConfirmarSenha(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F9A01B] focus:border-transparent"
-                />
-              )}
+                    {/* Confirmar Senha */}
+                    {senha && (
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Confirmar Senha</label>
+                        <input
+                          type="password"
+                          placeholder="Digite a senha novamente"
+                          value={confirmarSenha}
+                          onChange={(e) => setConfirmarSenha(e.target.value)}
+                          className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all bg-gray-50 focus:bg-white"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-              {/* Botões */}
-              <div className="flex gap-4 pt-6">
-                <button
-                  onClick={handleSalvar}
-                  disabled={loading}
-                  className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Salvando...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      Salvar Alterações
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={handleCancelar}
-                  disabled={loading}
-                  className="flex-1 bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  Cancelar
-                </button>
+                {/* Botões de Ação */}
+                <div className="flex flex-col sm:flex-row gap-3 pt-8 border-t-2 border-gray-100 mt-6">
+                  <button
+                    type="button"
+                    onClick={handleSalvar}
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-400 disabled:to-gray-400 text-white font-bold py-4 px-8 rounded-xl transition-all hover:scale-105 hover:shadow-2xl shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-5 h-5" />
+                        Salvar Alterações
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelar}
+                    disabled={loading}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 text-gray-700 font-bold py-4 px-8 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2 border-2 border-gray-200"
+                  >
+                    <X className="w-5 h-5" />
+                    Cancelar
+                  </button>
+                </div>
               </div>
             </div>
           </div>

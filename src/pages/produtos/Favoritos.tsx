@@ -1,84 +1,46 @@
-import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { Button as Botao } from "../../components/ui/button"
+import { useFavoritos } from "../../contexts/FavoritosContext"
+import { useCarrinho } from "../../contexts/CarrinhoContext"
 import iconJarra from "../../assets/icon de jara.png"
 
-// Produtos favoritos de exemplo
-const produtosFavoritos = [
-  {
-    id: 1,
-    nome: "Garrafa de suco de laranja 250 ml",
-    preco: 8.99,
-    precoAntigo: 11.98,
-    imagem: iconJarra,
-    desconto: 33
-  },
-  {
-    id: 2,
-    nome: "Garrafa de suco de uva 250 ml",
-    preco: 9.50,
-    precoAntigo: 12.90,
-    imagem: iconJarra,
-    desconto: 26
-  },
-  {
-    id: 3,
-    nome: "Garrafa de suco de maçã 250 ml",
-    preco: 7.99,
-    precoAntigo: 10.50,
-    imagem: iconJarra,
-    desconto: 24
-  },
-  {
-    id: 4,
-    nome: "Garrafa de suco de limão 250 ml",
-    preco: 8.50,
-    precoAntigo: 11.20,
-    imagem: iconJarra,
-    desconto: 24
-  },
-  {
-    id: 5,
-    nome: "Garrafa de suco de morango 250 ml",
-    preco: 10.90,
-    precoAntigo: 14.90,
-    imagem: iconJarra,
-    desconto: 27
-  },
-  {
-    id: 6,
-    nome: "Garrafa de suco de abacaxi 250 ml",
-    preco: 9.99,
-    precoAntigo: 13.49,
-    imagem: iconJarra,
-    desconto: 26
-  },
-  {
-    id: 7,
-    nome: "Garrafa de suco de manga 250 ml",
-    preco: 11.50,
-    precoAntigo: 15.90,
-    imagem: iconJarra,
-    desconto: 28
-  },
-  {
-    id: 8,
-    nome: "Garrafa de suco de pêssego 250 ml",
-    preco: 10.20,
-    precoAntigo: 13.90,
-    imagem: iconJarra,
-    desconto: 27
-  }
-]
 
 export default function Favoritos() {
   const navigate = useNavigate()
-  const [favoritos, setFavoritos] = useState(produtosFavoritos)
+  const { favoritos, removeFavorite, clearFavorites, loading, count } = useFavoritos()
+  const { addToCart } = useCarrinho()
 
-  const removerFavorito = (id: number, e: React.MouseEvent) => {
+  // Função helper para formatar preços de forma segura
+  const formatarPreco = (preco: any): string => {
+    const precoNum = Number(preco)
+    if (isNaN(precoNum)) return '0.00'
+    return precoNum.toFixed(2)
+  }
+
+  // Função helper para calcular desconto
+  const calcularDesconto = (precoAntigo: any, precoAtual: any): number => {
+    const antigoNum = Number(precoAntigo)
+    const atualNum = Number(precoAtual)
+    if (isNaN(antigoNum) || isNaN(atualNum) || antigoNum === 0) return 0
+    return Math.round(((antigoNum - atualNum) / antigoNum) * 100)
+  }
+
+  const removerFavorito = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation()
-    setFavoritos(favoritos.filter(p => p.id !== id))
+    await removeFavorite(id)
+  }
+
+  const handleAdicionarCarrinho = async (produto: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+    await addToCart(produto, 1)
+    navigate('/carrinho')
+  }
+
+  const handleLimparTodos = async () => {
+    if (confirm('Deseja remover todos os favoritos?')) {
+      await clearFavorites()
+    }
   }
 
   const handleProdutoClick = (produtoId: number) => {
@@ -93,12 +55,17 @@ export default function Favoritos() {
            Meus Favoritos
         </h2>
         <span className="text-sm text-gray-600">
-          {favoritos.length} {favoritos.length === 1 ? 'produto' : 'produtos'}
+          {loading ? 'Carregando...' : `${count} ${count === 1 ? 'produto' : 'produtos'}`}
         </span>
       </div>
 
       {/* Tela Vazia */}
-      {favoritos.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-20">
+          <div className="text-4xl mb-4">⏳</div>
+          <p className="text-gray-500">Carregando favoritos...</p>
+        </div>
+      ) : favoritos.length === 0 ? (
         <div className="text-center py-20 animate-fadeInUp">
           <div className="text-6xl mb-4">💔</div>
           <h2 className="text-2xl font-semibold text-gray-700 mb-2">
@@ -151,35 +118,34 @@ export default function Favoritos() {
                              rounded-xl mb-3"
                 >
                   <img 
-                    src={produto.imagem} 
+                    src={produto.imagem || iconJarra} 
                     alt={produto.nome} 
                     className="w-24 h-24 object-contain drop-shadow-md" 
                   />
                 </div>
 
                 {/* Preço antigo + desconto */}
-                <div className="flex items-center justify-between text-xs mb-2">
-                  <span 
-                    className="bg-gradient-to-r from-orange-100 to-orange-50 
-                               text-orange-700 font-bold px-2 py-1 rounded-md"
-                  >
-                    -{produto.desconto}%
-                  </span>
-                  <span className="text-gray-400 line-through">
-                    R$ {produto.precoAntigo.toFixed(2)}
-                  </span>
-                </div>
+                {produto.precoAntigo && Number(produto.precoAntigo) > 0 && (
+                  <div className="flex items-center justify-between text-xs mb-2">
+                    <span 
+                      className="bg-gradient-to-r from-orange-100 to-orange-50 
+                                 text-orange-700 font-bold px-2 py-1 rounded-md"
+                    >
+                      -{calcularDesconto(produto.precoAntigo, produto.preco)}%
+                    </span>
+                    <span className="text-gray-400 line-through">
+                      R$ {formatarPreco(produto.precoAntigo)}
+                    </span>
+                  </div>
+                )}
 
                 {/* Preço atual + botão adicionar */}
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-green-700 font-bold text-lg">
-                    R$ {produto.preco.toFixed(2)}
+                    R$ {formatarPreco(produto.preco)}
                   </p>
                   <Botao 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      navigate('/carrinho')
-                    }}
+                    onClick={(e) => handleAdicionarCarrinho(produto, e)}
                     className="h-8 w-8 rounded-full p-0 text-white font-bold 
                                bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] 
                                hover:from-[#FF8C00] hover:to-[#F9A01B] 
@@ -200,14 +166,11 @@ export default function Favoritos() {
           {/* Botão Limpar Todos */}
           <div className="mt-8 text-center animate-fadeInUp">
             <Botao
-              onClick={() => {
-                if (confirm('Deseja remover todos os favoritos?')) {
-                  setFavoritos([])
-                }
-              }}
-              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-full shadow-lg hover-scale"
+              onClick={handleLimparTodos}
+              disabled={loading}
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-full shadow-lg hover-scale disabled:opacity-50"
             >
-              Limpar Todos os Favoritos
+              {loading ? 'Processando...' : 'Limpar Todos os Favoritos'}
             </Botao>
           </div>
         </>

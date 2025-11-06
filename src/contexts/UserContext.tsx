@@ -135,7 +135,7 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
 
   const isAuthenticated = !!user && !!localStorage.getItem('auth_token')
   const isAdmin = user?.perfil === 'admin'
-  const isCompany = user?.perfil === 'estabelecimento' || user?.perfil === 'admin'
+  const isCompany = user?.perfil === 'estabelecimento' // Admin NÃO é company
 
   const value: UserContextType = {
     user,

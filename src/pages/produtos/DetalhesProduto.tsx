@@ -4,6 +4,10 @@ import { ChevronLeft, Heart, Plus, Minus, Package, Store, Tag, TrendingDown } fr
 import { useState, useEffect } from "react"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
+import { useFavoritos } from "../../contexts/FavoritosContext"
+import { useCarrinho } from "../../contexts/CarrinhoContext"
+import type { Product } from "../../types"
+import iconJarra from "../../assets/icon de jara.png"
 
 interface Produto {
   id: number
@@ -31,10 +35,13 @@ function DetalhesProduto() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [quantidade, setQuantidade] = useState(1)
-  const [favorito, setFavorito] = useState(false)
   const [produto, setProduto] = useState<Produto | null>(null)
   const [loading, setLoading] = useState(true)
   const [produtosRelacionados, setProdutosRelacionados] = useState<Produto[]>([])
+  
+  // Contextos de favoritos e carrinho
+  const { addFavorite, removeFavorite, isFavorite } = useFavoritos()
+  const { addToCart } = useCarrinho()
 
   // Carrega o produto específico
   useEffect(() => {
@@ -108,8 +115,39 @@ function DetalhesProduto() {
     navigate(-1)
   }
 
-  const handleAdicionarCarrinho = () => {
-    console.log(`Adicionado ${quantidade} unidade(s) ao carrinho`)
+  // Converter produto da API para o tipo Product
+  const converterParaProduct = (produto: Produto): Product => {
+    const emPromocao = isProdutoEmPromocao(produto)
+    return {
+      id: produto.id,
+      nome: produto.nome,
+      preco: emPromocao ? produto.promocao!.preco_promocional : produto.preco,
+      precoAntigo: emPromocao ? produto.preco : undefined,
+      imagem: iconJarra,
+      categoria: produto.categoria?.nome,
+      descricao: produto.descricao
+    }
+  }
+
+  const handleFavoritar = async () => {
+    if (!produto) return
+    
+    const produtoConvertido = converterParaProduct(produto)
+    
+    if (isFavorite(produto.id)) {
+      await removeFavorite(produto.id)
+    } else {
+      await addFavorite(produtoConvertido)
+    }
+  }
+
+  const handleAdicionarCarrinho = async () => {
+    if (!produto) return
+    
+    const produtoConvertido = converterParaProduct(produto)
+    await addToCart(produtoConvertido, quantidade)
+    
+    console.log(`✅ Adicionado ${quantidade} unidade(s) ao carrinho`)
     // Navega para o carrinho
     navigate('/carrinho')
   }
@@ -160,14 +198,14 @@ function DetalhesProduto() {
                 </span>
               )}
               <button 
-                onClick={() => setFavorito(!favorito)}
+                onClick={handleFavoritar}
                 className={`p-2 rounded-full transition-all ${
-                  favorito 
+                  isFavorite(produto.id) 
                     ? 'bg-red-50 text-red-500' 
                     : 'bg-gray-100 text-gray-400 hover:text-red-500'
                 }`}
               >
-                <Heart className={`w-6 h-6 ${favorito ? 'fill-current' : ''}`} />
+                <Heart className={`w-6 h-6 ${isFavorite(produto.id) ? 'fill-current' : ''}`} />
               </button>
             </div>
 

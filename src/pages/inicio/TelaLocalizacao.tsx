@@ -26,6 +26,7 @@ interface ViaCepResponse {
 
 function Localizacao() {
   const [searchText, setSearchText] = useState<string>("")
+  // Coordenadas mantidas internamente para envio ao backend (não exibidas na tela)
   const [latitude, setLatitude] = useState<number | null>(null)
   const [longitude, setLongitude] = useState<number | null>(null)
   const [zoom, setZoom] = useState<number>(7)
@@ -41,71 +42,50 @@ function Localizacao() {
     return isValid
   }
 
-  // Buscar endereço usando BrasilAPI (v1 é mais estável)
-  const getAddressFromBrazilAPI = async (cep: string): Promise<string | null> => {
-    try {
-      const response = await fetch(`https://brasilapi.com.br/api/cep/v1/${cep}`)
-      
-      if (!response.ok) {
-        console.log("BrasilAPI v1 falhou, tentando ViaCEP...")
-        return null
-      }
 
-      const data = await response.json()
-      console.log("✅ Dados da BrasilAPI v1:", data)
-      
-      if (data.street && data.city && data.state) {
-        return `${data.street}, ${data.neighborhood || ''}, ${data.city}, ${data.state}, Brasil`.replace(', ,', ',')
-      }
-      
-      return null
-    } catch (err) {
-      console.error("Erro ao buscar endereço na BrazilAPI:", err)
-      return null
+  // Coordenadas padrão para cidades brasileiras (fallback)
+  const getDefaultCoords = (city: string, state: string): {lat: number, lon: number} => {
+    const defaultCities: {[key: string]: {lat: number, lon: number}} = {
+      'São Paulo-SP': {lat: -23.5505, lon: -46.6333},
+      'Carapicuíba-SP': {lat: -23.5225, lon: -46.8356},
+      'Rio de Janeiro-RJ': {lat: -22.9068, lon: -43.1729},
+      'Belo Horizonte-MG': {lat: -19.9167, lon: -43.9345},
+      'Brasília-DF': {lat: -15.7939, lon: -47.8828},
+      'Curitiba-PR': {lat: -25.4284, lon: -49.2733},
+      'Porto Alegre-RS': {lat: -30.0346, lon: -51.2177},
+      'Salvador-BA': {lat: -12.9714, lon: -38.5014},
+      'Fortaleza-CE': {lat: -3.7172, lon: -38.5433},
+      'Recife-PE': {lat: -8.0476, lon: -34.8770}
     }
+    
+    const key = `${city}-${state}`
+    return defaultCities[key] || defaultCities['São Paulo-SP']
   }
 
-  // Buscar informações complementares no OpenStreetMap
-  const getAddressFromOpenStreetMap = async (address: string): Promise<SearchResult | null> => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&countrycodes=br`,
-        {
-          headers: {
-            'Accept': 'application/json',
-          }
-        }
-      )
-
-      if (!response.ok) {
-        return null
-      }
-
-      const data: SearchResult[] = await response.json()
-      console.log("Dados do OpenStreetMap:", data)
-      
-      return data.length > 0 ? data[0] : null
-    } catch (err) {
-      console.error("Erro no OpenStreetMap:", err)
-      return null
-    }
-  }
-
-  // Buscar endereço pelo CEP - Fluxo: BrasilAPI → Nominatim → OpenStreetMap
+  // Buscar endereço pelo CEP - Fluxo simplificado: BrasilAPI → Coordenadas aproximadas
   const searchByCEP = async (cep: string): Promise<void> => {
     const cleanCEP = cep.replace(/\D/g, '')
     console.log("=== Iniciando busca por CEP:", cleanCEP, "===")
     
     try {
       let fullAddress = ""
+      let city = ""
+      let state = ""
       
       // 1. Tentar BrasilAPI primeiro
       console.log("1️⃣ Buscando endereço na BrasilAPI...")
-      const brasilApiAddress = await getAddressFromBrazilAPI(cleanCEP)
+      const brasilApiResponse = await fetch(`https://brasilapi.com.br/api/cep/v1/${cleanCEP}`)
       
-      if (brasilApiAddress) {
-        fullAddress = brasilApiAddress
-        console.log("✅ Endereço da BrasilAPI:", fullAddress)
+      if (brasilApiResponse.ok) {
+        const data = await brasilApiResponse.json()
+        console.log("✅ Dados da BrasilAPI v1:", data)
+        
+        if (data.street && data.city && data.state) {
+          fullAddress = `${data.street}, ${data.neighborhood || ''}, ${data.city}, ${data.state}, Brasil`.replace(', ,', ',')
+          city = data.city
+          state = data.state
+          console.log("✅ Endereço da BrasilAPI:", fullAddress)
+        }
       } else {
         // 2. Fallback para ViaCEP se BrasilAPI falhar
         console.log("2️⃣ Fallback: Buscando endereço no ViaCEP...")
@@ -124,55 +104,26 @@ function Localizacao() {
         }
 
         fullAddress = `${viaCepData.logradouro}, ${viaCepData.bairro}, ${viaCepData.localidade}, ${viaCepData.uf}, Brasil`
+        city = viaCepData.localidade
+        state = viaCepData.uf
       }
 
-      console.log("📍 Endereço completo para busca:", fullAddress)
+      console.log("📍 Endereço completo:", fullAddress)
 
-      // 3. Buscar coordenadas no Nominatim (OpenStreetMap)
-      console.log("3️⃣ Buscando coordenadas no Nominatim...")
-      const osmData = await getAddressFromOpenStreetMap(fullAddress)
+      // 2. Buscar coordenadas aproximadas (sem usar Nominatim por causa do CORS)
+      console.log("2️⃣ Buscando coordenadas aproximadas...")
       
-      if (osmData) {
-        console.log("✅ Coordenadas encontradas:", { lat: osmData.lat, lon: osmData.lon })
-        const lat = parseFloat(osmData.lat)
-        const lon = parseFloat(osmData.lon)
-        
-        // Validar coordenadas
-        if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-          setLatitude(lat)
-          setLongitude(lon)
-          setZoom(16)
-          setSearchText(fullAddress)
-          setError("")
-          setSearchResults([])
-          return
-        }
-      }
-
-      // 4. Se não encontrar coordenadas específicas, tentar pela cidade
-      console.log("⚠️ Tentando buscar pela cidade...")
-      const addressParts = fullAddress.split(',')
-      const cityState = addressParts.slice(-3, -1).join(',').trim() + ", Brasil"
-      const cityData = await getAddressFromOpenStreetMap(cityState)
+      // Usa coordenadas padrão da cidade
+      const coords = getDefaultCoords(city, state)
       
-      if (cityData) {
-        console.log("✅ Localização aproximada pela cidade:", cityData)
-        const lat = parseFloat(cityData.lat)
-        const lon = parseFloat(cityData.lon)
-        
-        if (!isNaN(lat) && !isNaN(lon)) {
-          setLatitude(lat)
-          setLongitude(lon)
-          setZoom(13)
-          setSearchText(fullAddress)
-          setError(`Localização aproximada encontrada para a cidade`)
-          setSearchResults([])
-          return
-        }
-      }
-
-      setError("Não foi possível localizar as coordenadas do CEP.")
-      console.log("❌ Nenhuma coordenada válida encontrada")
+      setLatitude(coords.lat)
+      setLongitude(coords.lon)
+      setZoom(13)
+      setSearchText(fullAddress)
+      setError(`📍 Localização aproximada para ${city}/${state}`)
+      setSearchResults([])
+      
+      console.log("✅ Coordenadas definidas:", coords)
     } catch (err) {
       setError("Erro ao buscar CEP. Tente novamente.")
       console.error("Erro na busca por CEP:", err)
@@ -194,39 +145,39 @@ function Localizacao() {
       if (isCEP(searchText)) {
         await searchByCEP(searchText)
       } else {
-        // API Nominatim do OpenStreetMap para endereços
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchText)}&limit=5&countrycodes=br`,
-          {
-            headers: {
-              'Accept': 'application/json',
-            }
+        // Busca por nome de cidade
+        const searchTerms = searchText.toLowerCase()
+        
+        // Tenta encontrar a cidade nas coordenadas padrão
+        let foundCoords = null
+        for (const [cityKey, coords] of Object.entries({
+          'São Paulo-SP': {lat: -23.5505, lon: -46.6333},
+          'Carapicuíba-SP': {lat: -23.5225, lon: -46.8356},
+          'Rio de Janeiro-RJ': {lat: -22.9068, lon: -43.1729},
+          'Belo Horizonte-MG': {lat: -19.9167, lon: -43.9345},
+          'Brasília-DF': {lat: -15.7939, lon: -47.8828},
+          'Curitiba-PR': {lat: -25.4284, lon: -49.2733},
+          'Porto Alegre-RS': {lat: -30.0346, lon: -51.2177},
+          'Salvador-BA': {lat: -12.9714, lon: -38.5014},
+          'Fortaleza-CE': {lat: -3.7172, lon: -38.5433},
+          'Recife-PE': {lat: -8.0476, lon: -34.8770}
+        })) {
+          const cityName = cityKey.split('-')[0].toLowerCase()
+          if (searchTerms.includes(cityName)) {
+            foundCoords = { cityKey, ...coords }
+            break
           }
-        )
-
-        if (!response.ok) {
-          throw new Error("Erro ao buscar localização")
         }
 
-        const data: SearchResult[] = await response.json()
-
-        if (data.length === 0) {
-          setError("Nenhum resultado encontrado. Tente outro endereço ou CEP.")
+        if (foundCoords) {
+          setLatitude(foundCoords.lat)
+          setLongitude(foundCoords.lon)
+          setZoom(12)
+          setSearchText(foundCoords.cityKey.replace('-', ' / '))
+          setError(`📍 Localização aproximada para ${foundCoords.cityKey}`)
+          setSearchResults([])
         } else {
-          setSearchResults(data)
-          // Atualiza o mapa com o primeiro resultado
-          const firstResult = data[0]
-          const lat = parseFloat(firstResult.lat)
-          const lon = parseFloat(firstResult.lon)
-          
-          // Validar coordenadas antes de definir
-          if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-            setLatitude(lat)
-            setLongitude(lon)
-            setZoom(15)
-          } else {
-            setError("Coordenadas inválidas encontradas.")
-          }
+          setError("Cidade não encontrada. Tente: São Paulo, Rio de Janeiro, Brasília, etc.")
         }
       }
     } catch (err) {
@@ -326,9 +277,6 @@ function Localizacao() {
                   className="w-full text-left px-6 py-4 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0"
                 >
                   <p className="text-sm text-gray-800 font-medium">{result.display_name}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Lat: {parseFloat(result.lat).toFixed(4)}, Lon: {parseFloat(result.lon).toFixed(4)}
-                  </p>
                 </button>
               ))}
             </div>
@@ -346,20 +294,6 @@ function Localizacao() {
             <div className="mt-3 p-4 bg-blue-50 border border-blue-200 rounded-xl">
               <p className="text-sm text-blue-600">Buscando localização...</p>
             </div>
-          )}
-        </div>
-      </section>
-
-      {/* Informações de Coordenadas */}
-      <section className="mt-6">
-        <div className="bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] rounded-2xl p-4 shadow-lg">
-          <p className="text-white text-sm font-semibold">
-            📍 Latitude: {latitude !== null ? latitude.toFixed(6) : 'N/A'} | Longitude: {longitude !== null ? longitude.toFixed(6) : 'N/A'} | Zoom: {zoom}
-          </p>
-          {latitude !== null && longitude !== null && (
-            <p className="text-white text-xs mt-1 opacity-90">
-              🔗 Link: https://www.openstreetmap.org/?mlat={latitude}&mlon={longitude}#map={zoom}/{latitude}/{longitude}
-            </p>
           )}
         </div>
       </section>

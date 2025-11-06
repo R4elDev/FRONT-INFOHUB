@@ -51,11 +51,11 @@ function Login() {
           perfil: res.usuario.perfil as 'consumidor' | 'estabelecimento' | 'admin'
         });
 
-        toast.success("Login realizado com sucesso!");
-        
-        // Route based on user type
-        if (res.usuario.perfil === 'estabelecimento' || res.usuario.perfil === 'admin') {
-          navigate(ROUTES.PERFIL_EMPRESA); // Admin/Company dashboard
+        // Route based on user type - SEM TOAST
+        if (res.usuario.perfil === 'admin') {
+          navigate(ROUTES.HOME_INICIAL); // Admin vai para HomeInicial (que renderiza HomeInicialAdmin via SmartRoute)
+        } else if (res.usuario.perfil === 'estabelecimento') {
+          navigate(ROUTES.PERFIL_EMPRESA); // Company dashboard
         } else {
           navigate(ROUTES.HOME_INICIAL); // Regular user home
         }
