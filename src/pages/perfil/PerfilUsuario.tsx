@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { User, Mail, Phone, Calendar, Save, X, Loader2, Settings, ArrowLeft, LogOut } from "lucide-react"
-import { atualizarUsuario, obterDadosUsuario, buscarDadosUsuarioDireto } from "../../services/apiServicesFixed"
-import type { atualizarUsuarioRequest } from "../../services/types"
+import { User, Mail, Phone, Calendar, Save, X, Loader2, Settings, ArrowLeft, LogOut, Lock } from "lucide-react"
+import { obterDadosUsuario, buscarDadosUsuarioDireto, atualizarUsuario } from "../../services/apiServicesFixed"
 
 function PerfilUsuario() {
   const navigate = useNavigate()
@@ -12,6 +11,8 @@ function PerfilUsuario() {
   const [cpf, setCpf] = useState<string>("")
   const [telefone, setTelefone] = useState<string>("")
   const [dataNascimento, setDataNascimento] = useState<string>("")
+  const [novaSenha, setNovaSenha] = useState<string>("")
+  const [confirmarSenha, setConfirmarSenha] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string>("")
   const [messageType, setMessageType] = useState<'success' | 'error' | ''>('')
@@ -19,47 +20,74 @@ function PerfilUsuario() {
   // Carrega dados do usuário ao montar o componente
   useEffect(() => {
     const carregarDados = async () => {
+      setLoading(true)
       console.log('🔄 [PerfilUsuario] Iniciando carregamento de dados...')
       
-      // Primeiro tenta do localStorage
-      let dadosUsuario = obterDadosUsuario()
-      console.log('📦 [PerfilUsuario] Dados do localStorage:', dadosUsuario)
-      
-      // Se tiver CNPJ ao invés de CPF (dados incorretos), limpa e busca da API
-      if (dadosUsuario && dadosUsuario.cnpj && !dadosUsuario.cpf) {
-        console.warn('⚠️ [PerfilUsuario] Dados incorretos no localStorage (CNPJ ao invés de CPF)')
-        console.log('🔍 Buscando dados corretos da API...')
+      try {
+        // Sempre tenta buscar dados atualizados da API primeiro
+        console.log('🔍 [PerfilUsuario] Buscando dados atualizados da API...')
         const dadosAPI = await buscarDadosUsuarioDireto()
+        
+        // Se conseguiu dados da API, usa eles
         if (dadosAPI) {
-          dadosUsuario = dadosAPI
-          console.log('✅ [PerfilUsuario] Dados atualizados da API:', dadosAPI)
+          console.log('✅ [PerfilUsuario] Dados obtidos da API:', dadosAPI)
+          preencherFormulario(dadosAPI)
+          return
         }
+        
+        // Se não conseguiu da API, tenta do localStorage
+        console.log('⚠️ [PerfilUsuario] Não foi possível obter dados da API, usando localStorage')
+        const dadosUsuario = obterDadosUsuario()
+        console.log('📦 [PerfilUsuario] Dados do localStorage:', dadosUsuario)
+        
+        if (dadosUsuario) {
+          preencherFormulario(dadosUsuario)
+        } else {
+          console.error('❌ [PerfilUsuario] Nenhum dado de usuário encontrado!')
+          showMessage("Não foi possível carregar seus dados. Por favor, faça login novamente.", "error")
+          setTimeout(() => {
+            window.location.href = '/login'
+          }, 3000)
+        }
+      } catch (error) {
+        console.error('❌ [PerfilUsuario] Erro ao carregar dados:', error)
+        showMessage("Erro ao carregar seus dados. Por favor, tente novamente.", "error")
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    // Função auxiliar para preencher o formulário com os dados do usuário
+    const preencherFormulario = (dadosUsuario: any) => {
+      if (!dadosUsuario) return
+      
+      setNome(dadosUsuario.nome || "")
+      setEmail(dadosUsuario.email || "")
+      
+      // Para usuário consumidor, só aceita CPF (não CNPJ)
+      if (dadosUsuario.perfil === 'consumidor') {
+        const cpfValue = dadosUsuario.cpf || ""
+        setCpf(cpfValue)
+        console.log('✅ [PerfilUsuario] CPF carregado:', cpfValue || 'vazio/null')
+      } else {
+        // Para outros perfis, pode usar CNPJ
+        const cpfValue = dadosUsuario.cpf || dadosUsuario.cnpj || ""
+        setCpf(cpfValue)
+        console.log('✅ [PerfilUsuario] CPF/CNPJ carregado:', cpfValue)
       }
       
-      if (dadosUsuario) {
-        setNome(dadosUsuario.nome || "")
-        setEmail(dadosUsuario.email || "")
-        
-        // Para usuário consumidor, só aceita CPF (não CNPJ)
-        if (dadosUsuario.perfil === 'consumidor') {
-          const cpfValue = dadosUsuario.cpf || ""
-          setCpf(cpfValue)
-          console.log('✅ [PerfilUsuario] CPF carregado:', cpfValue || 'vazio/null')
-        } else {
-          // Para outros perfis, pode usar CNPJ
-          const cpfValue = dadosUsuario.cpf || dadosUsuario.cnpj || ""
-          setCpf(cpfValue)
-          console.log('✅ [PerfilUsuario] CPF/CNPJ carregado:', cpfValue)
-        }
-        
-        setTelefone(dadosUsuario.telefone || "")
-        // dataNascimento pode vir em formatos diferentes, vamos tratar
-        if (dadosUsuario.data_nascimento) {
+      setTelefone(dadosUsuario.telefone || "")
+      
+      // dataNascimento pode vir em formatos diferentes, vamos tratar
+      if (dadosUsuario.data_nascimento) {
+        try {
           const data = new Date(dadosUsuario.data_nascimento)
-          setDataNascimento(data.toISOString().split('T')[0])
+          if (!isNaN(data.getTime())) {
+            setDataNascimento(data.toISOString().split('T')[0])
+          }
+        } catch (error) {
+          console.error('❌ [PerfilUsuario] Erro ao processar data de nascimento:', error)
         }
-      } else {
-        console.error('❌ [PerfilUsuario] Nenhum dado de usuário encontrado!')
       }
     }
     
@@ -96,289 +124,159 @@ function PerfilUsuario() {
   }
 
   const handleSalvar = async () => {
-    // Verifica se o usuário está autenticado
-    const token = localStorage.getItem('auth_token')
-    if (!token) {
-      showMessage("Sessão expirada. Redirecionando para login...", "error")
-      setTimeout(() => {
-        window.location.href = '/login'
-      }, 2000)
+    // Verificação básica
+    if (!nome.trim() || !email.trim() || !validarEmail(email.trim())) {
+      showMessage("Preencha todos os campos obrigatórios corretamente", "error")
       return
     }
 
-    // Validações obrigatórias
-    if (!nome.trim()) {
-      showMessage("Nome é obrigatório", "error")
-      return
-    }
-    if (nome.trim().length < 2) {
-      showMessage("Nome deve ter pelo menos 2 caracteres", "error")
-      return
-    }
-    if (nome.trim().length > 255) {
-      showMessage("Nome não pode ter mais de 255 caracteres", "error")
-      return
-    }
-    if (!email.trim()) {
-      showMessage("Email é obrigatório", "error")
-      return
-    }
-    if (email.trim().length > 255) {
-      showMessage("Email não pode ter mais de 255 caracteres", "error")
-      return
-    }
-    if (!validarEmail(email.trim())) {
-      showMessage("Email deve ter um formato válido (exemplo@dominio.com)", "error")
-      return
-    }
-
-    // CPF não é obrigatório - será enviado como null se não existir
-
-    // Validações opcionais (se preenchidas)
-    if (telefone.trim() && !validarTelefone(telefone.trim())) {
-      showMessage("Telefone deve estar no formato (11) 99999-9999", "error")
-      return
-    }
-    if (telefone.trim().length > 20) {
-      showMessage("Telefone não pode ter mais de 20 caracteres", "error")
-      return
+    // Validação de senha (se preenchida)
+    if (novaSenha || confirmarSenha) {
+      if (novaSenha.length < 6) {
+        showMessage("A nova senha deve ter no mínimo 6 caracteres", "error")
+        return
+      }
+      if (novaSenha !== confirmarSenha) {
+        showMessage("As senhas não coincidem", "error")
+        return
+      }
     }
 
     setLoading(true)
     
-    // Declara payload fora do try para estar disponível no catch
-    let payload: atualizarUsuarioRequest = {
-      nome: nome.trim(),
-      email: email.trim()
-    }
-    
     try {
-      console.log('🔍 [PerfilUsuario] CPF atual:', cpf)
-      
-      // Busca dados atuais do usuário para garantir que temos todos os campos
-      const dadosAtuais = obterDadosUsuario()
-      
-      if (!dadosAtuais) {
-        showMessage("Erro: dados do usuário não encontrados. Faça login novamente.", "error")
-        setLoading(false)
+      // Pega os dados do usuário do localStorage
+      const userData = localStorage.getItem('user_data')
+      if (!userData) {
+        showMessage("Sessão expirada. Faça login novamente.", "error")
+        setTimeout(() => window.location.href = '/login', 2000)
         return
       }
       
-      console.log('📋 [PerfilUsuario] Dados atuais do usuário:', dadosAtuais)
+      const user = JSON.parse(userData)
+      const userId = user.id
       
-      // CPF: usa o valor do formulário ou o valor atual do usuário
-      const cpfParaEnviar = cpf && cpf.trim() ? cpf.trim() : dadosAtuais?.cpf
-      const cpfLimpo = cpfParaEnviar ? cpfParaEnviar.replace(/\D/g, '') : ''
-      
-      // Valida CPF se fornecido (deve ter 11 dígitos)
-      if (cpfLimpo && cpfLimpo.length !== 11) {
-        showMessage("CPF deve ter exatamente 11 dígitos", "error")
-        setLoading(false)
+      if (!userId) {
+        showMessage("ID de usuário não encontrado. Faça login novamente.", "error")
+        setTimeout(() => window.location.href = '/login', 2000)
         return
       }
       
-      // Telefone: usa o valor do formulário ou o valor atual
-      const telefoneParaEnviar = telefone.trim() || dadosAtuais?.telefone
-      // Remove formatação do telefone (mantém apenas números)
-      const telefoneLimpo = telefoneParaEnviar ? telefoneParaEnviar.replace(/\D/g, '') : ''
+      console.log('🔑 ID do usuário para atualização:', userId)
+      console.log('👤 Dados do usuário atual:', user)
       
-      // Data de nascimento: usa o valor do formulário ou o valor atual
-      const dataParaEnviar = dataNascimento || dadosAtuais?.data_nascimento
-      
-      // SOLUÇÃO: Backend exige TODOS os campos obrigatórios em cada PUT
-      // Sempre envia dados completos do usuário (formulário OU dados atuais)
-      
-      payload = {
-        nome: nome.trim(),
-        email: email.trim()
-      }
-      
-      // CPF: só incluir no payload se existir e for válido (não enviar null)
-      if (cpfLimpo && cpfLimpo.length === 11) {
-        payload.cpf = cpfLimpo
-        console.log('✅ [PerfilUsuario] CPF adicionado ao payload:', payload.cpf)
-      } else if (dadosAtuais?.cpf) {
-        // Se não tem CPF no formulário, usa o CPF atual do usuário
-        const cpfAtual = dadosAtuais.cpf.replace(/\D/g, '')
-        if (cpfAtual && cpfAtual.length === 11) {
-          payload.cpf = cpfAtual
-          console.log('✅ [PerfilUsuario] CPF atual adicionado ao payload:', payload.cpf)
-        } else {
-          console.log('⚠️ [PerfilUsuario] CPF inválido, não será enviado:', dadosAtuais.cpf)
-        }
-      } else {
-        // Não incluir CPF no payload se não existir
-        console.log('⚠️ [PerfilUsuario] CPF não existe, não será enviado no payload')
-      }
-      
-      // Telefone: usa valor do formulário OU valor atual (SEMPRE envia se existir)
-      if (telefoneLimpo && (telefoneLimpo.length === 10 || telefoneLimpo.length === 11)) {
-        payload.telefone = telefoneLimpo
-        console.log('✅ [PerfilUsuario] Telefone do formulário adicionado ao payload:', payload.telefone)
-      } else if (dadosAtuais?.telefone) {
-        // Se não tem telefone válido no formulário, usa o telefone atual
-        const telefoneAtual = dadosAtuais.telefone.replace(/\D/g, '')
-        if (telefoneAtual && (telefoneAtual.length === 10 || telefoneAtual.length === 11)) {
-          payload.telefone = telefoneAtual
-          console.log('✅ [PerfilUsuario] Telefone atual adicionado ao payload:', payload.telefone)
-        }
-      } else {
-        console.log('⚠️ [PerfilUsuario] Telefone não disponível')
-      }
-      
-      // Data de nascimento: usa valor do formulário OU valor atual (SEMPRE envia se existir)
-      if (dataParaEnviar && dataParaEnviar.trim() !== '') {
-        // Garante que a data está no formato correto (YYYY-MM-DD)
-        const dataFormatada = dataParaEnviar.includes('T') ? dataParaEnviar.split('T')[0] : dataParaEnviar
-        payload.data_nascimento = dataFormatada
-        console.log('✅ [PerfilUsuario] Data nascimento adicionada ao payload:', payload.data_nascimento)
-      } else if (dadosAtuais?.data_nascimento) {
-        // Se não tem data no formulário, usa a data atual do usuário
-        const dataAtual = dadosAtuais.data_nascimento.includes('T') 
-          ? dadosAtuais.data_nascimento.split('T')[0] 
-          : dadosAtuais.data_nascimento
-        payload.data_nascimento = dataAtual
-        console.log('✅ [PerfilUsuario] Data nascimento atual adicionada ao payload:', payload.data_nascimento)
-      } else {
-        console.log('⚠️ [PerfilUsuario] Data nascimento não disponível')
-      }
-
-      console.log('📤 [PerfilUsuario] Payload final:', payload)
-      console.log('🔍 [PerfilUsuario] Campos no payload:', Object.keys(payload))
-      console.log('🔍 [PerfilUsuario] Tem CPF no payload?', !!payload.cpf)
-      console.log('🔍 [PerfilUsuario] Tem telefone no payload?', !!payload.telefone)
-      console.log('🔍 [PerfilUsuario] Tem data_nascimento no payload?', !!payload.data_nascimento)
-      
-      // Validação adicional dos campos
-      console.log('🔍 [PerfilUsuario] Validação dos campos:')
-      console.log('  - Nome:', payload.nome, '(length:', payload.nome?.length, ')')
-      console.log('  - Email:', payload.email, '(length:', payload.email?.length, ')')
-      if (payload.cpf) console.log('  - CPF:', payload.cpf, '(length:', payload.cpf.length, ')')
-      if (payload.telefone) console.log('  - Telefone:', payload.telefone, '(length:', payload.telefone.length, ')')
-      if (payload.data_nascimento) console.log('  - Data:', payload.data_nascimento, '(format: YYYY-MM-DD)')
-      
-      // Verificações específicas de validação
-      const problemas = []
-      if (!payload.nome || payload.nome.length < 2) problemas.push('Nome muito curto')
-      if (!payload.email || !validarEmail(payload.email)) problemas.push('Email inválido')
-      if (payload.telefone && (payload.telefone.length < 10 || payload.telefone.length > 11)) problemas.push('Telefone inválido')
-      
-      if (problemas.length > 0) {
-        console.error('❌ [PerfilUsuario] Problemas encontrados:', problemas)
-      } else {
-        console.log('✅ [PerfilUsuario] Todos os campos parecem válidos')
-      }
-
-      // TESTE SISTEMÁTICO: Vamos testar diferentes combinações
-      console.log('🧪 [TESTE] Iniciando teste sistemático de campos...')
-      
-      // Teste 1: Payload mínimo (só nome + email)
-      const payloadMinimo = {
-        nome: nome.trim(),
-        email: email.trim()
-      }
-      console.log('🧪 [TESTE 1] Payload mínimo:', payloadMinimo)
-      
-      // Teste 2: Com CPF vazio (string)
-      const payloadComCpfVazio = {
-        ...payloadMinimo,
-        cpf: ""
-      }
-      console.log('🧪 [TESTE 2] Payload com CPF vazio:', payloadComCpfVazio)
-      
-      // Teste 3: Com telefone formatado vs sem formatação
-      const payloadComTelefoneFormatado = {
-        ...payloadMinimo,
-        telefone: telefone.trim() // Com formatação (11) 99999-9999
-      }
-      const payloadComTelefoneLimpo = {
-        ...payloadMinimo,
-        telefone: telefoneLimpo // Só números 11999999999
-      }
-      console.log('🧪 [TESTE 3a] Payload com telefone formatado:', payloadComTelefoneFormatado)
-      console.log('🧪 [TESTE 3b] Payload com telefone limpo:', payloadComTelefoneLimpo)
-      
-      // Teste 4: Payload atual completo
-      console.log('🧪 [TESTE 4] Payload atual completo:', payload)
-      
-      // RESULTADO: CPF vazio também falhou! Backend exige MAIS campos.
-      // TESTE FINAL: Vamos testar com TODOS os campos obrigatórios
-      const payloadCompleto = {
+      // Estratégia: Enviar apenas os dados que realmente mudaram
+      // Baseado no schema do banco: nome, email, senha_hash são NOT NULL
+      const payloadBase: any = {
         nome: nome.trim(),
         email: email.trim(),
-        cpf: "", // CPF vazio (string)
-        telefone: telefoneLimpo || "", // Telefone limpo ou vazio
-        data_nascimento: dataParaEnviar || "" // Data ou vazio
+        telefone: telefone.trim() || null,  // null se vazio
+        data_nascimento: dataNascimento || null  // null se vazio
       }
       
-      console.log('🚀 [TESTE FINAL] CPF vazio FALHOU! Testando com TODOS os campos...')
-      console.log('📋 [PAYLOAD COMPLETO]:', payloadCompleto)
-      const response = await atualizarUsuario(payloadCompleto)
-      
-      if (response.status) {
-        showMessage("Perfil atualizado com sucesso!", "success")
-        
-        // Atualiza localStorage com os novos dados
-        const dadosUsuario = obterDadosUsuario()
-        if (dadosUsuario) {
-          const dadosAtualizados = {
-            ...dadosUsuario,
-            nome: nome.trim(),
-            email: email.trim(),
-            telefone: telefone.trim() || dadosUsuario.telefone,
-            data_nascimento: dataNascimento || dadosUsuario.data_nascimento
-          }
-          localStorage.setItem('user_data', JSON.stringify(dadosAtualizados))
-        }
+      // Adiciona CPF apenas se não estiver vazio (evita enviar string vazia)
+      if (cpf && cpf.trim() !== '') {
+        payloadBase.cpf = cpf.trim()
       } else {
-        showMessage(response.message || "Erro ao atualizar perfil", "error")
+        payloadBase.cpf = null  // Envia null explicitamente
+      }
+      
+      // Mantém o perfil do usuário (não deve mudar)
+      if (user.perfil) {
+        payloadBase.perfil = user.perfil
+      }
+      
+      // Adiciona senha apenas se o usuário preencheu (quer alterar)
+      if (novaSenha && novaSenha.trim() !== '') {
+        payloadBase.senha_hash = novaSenha.trim()
+        console.log('🔐 Nova senha será atualizada')
+      } else {
+        console.log('🔐 Senha não será alterada (campo vazio)')
+      }
+      
+      console.log('📤 Enviando payload para API:', payloadBase)
+      
+      // Chama a API para atualizar os dados no backend
+      const response = await atualizarUsuario(payloadBase)
+      
+      console.log('📥 Resposta da API:', response)
+      
+      // Verifica se a atualização foi bem-sucedida
+      if (response.status) {
+        showMessage(response.message || "Seus dados foram atualizados com sucesso!", "success")
+        console.log('✅ Dados atualizados com sucesso no backend e localStorage')
+        // Limpa os campos de senha após sucesso
+        setNovaSenha("")
+        setConfirmarSenha("")
+      } else {
+        showMessage(response.message || "Erro ao atualizar dados no servidor", "error")
       }
     } catch (error: any) {
-      console.error("Erro ao atualizar perfil:", error)
-      
-      if (error.response?.status === 401) {
-        showMessage("Sessão expirada. Você será redirecionado para fazer login novamente.", "error")
-        // O interceptor já vai redirecionar automaticamente
-      } else if (error.response?.status === 400) {
-        // Erro 400 - Bad Request: campos obrigatórios ou limites excedidos
-        const errorMessage = error.response?.data?.message || "Erro de validação nos dados"
-        console.error("❌ Erro 400 - Detalhes:", {
-          message: errorMessage,
-          payload: payload,
-          response: error.response?.data
-        })
-        
-        // Mensagem mais específica para o usuário
-        if (errorMessage.includes("obrigatórios")) {
-          showMessage("Verifique se todos os campos obrigatórios estão preenchidos corretamente", "error")
-        } else if (errorMessage.includes("caracteres")) {
-          showMessage("Alguns campos excedem o limite de caracteres permitido", "error")
-        } else {
-          showMessage(errorMessage, "error")
-        }
-      } else {
-        showMessage(error.response?.data?.message || "Erro ao atualizar perfil", "error")
-      }
+      console.error('❌ Erro ao atualizar dados:', error)
+      const errorMessage = error.response?.data?.message || error.message || "Erro ao atualizar seus dados. Tente novamente."
+      showMessage(errorMessage, "error")
     } finally {
       setLoading(false)
     }
   }
 
-  const handleCancelar = () => {
-    // Recarrega dados originais
-    const dadosUsuario = obterDadosUsuario()
-    if (dadosUsuario) {
-      setNome(dadosUsuario.nome || "")
-      setEmail(dadosUsuario.email || "")
-      setCpf(dadosUsuario.cpf || "")
-      setTelefone(dadosUsuario.telefone || "")
-      if (dadosUsuario.data_nascimento) {
-        const data = new Date(dadosUsuario.data_nascimento)
-        setDataNascimento(data.toISOString().split('T')[0])
-      }
-    }
+  const handleCancelar = async () => {
+    setLoading(true)
     setMessage("")
     setMessageType("")
+    // Limpa os campos de senha
+    setNovaSenha("")
+    setConfirmarSenha("")
+    
+    try {
+      // Tenta buscar dados atualizados da API
+      const dadosAPI = await buscarDadosUsuarioDireto()
+      
+      if (dadosAPI) {
+        console.log('✅ [PerfilUsuario] Dados recarregados da API:', dadosAPI)
+        setNome(dadosAPI.nome || "")
+        setEmail(dadosAPI.email || "")
+        setCpf(dadosAPI.cpf || "")
+        setTelefone(dadosAPI.telefone || "")
+        
+        if (dadosAPI.data_nascimento) {
+          try {
+            const data = new Date(dadosAPI.data_nascimento)
+            if (!isNaN(data.getTime())) {
+              setDataNascimento(data.toISOString().split('T')[0])
+            }
+          } catch (error) {
+            console.error('❌ [PerfilUsuario] Erro ao processar data de nascimento:', error)
+          }
+        }
+        
+        showMessage("Dados recarregados com sucesso!", "success")
+      } else {
+        // Se não conseguiu da API, usa dados do localStorage
+        const dadosUsuario = obterDadosUsuario()
+        if (dadosUsuario) {
+          setNome(dadosUsuario.nome || "")
+          setEmail(dadosUsuario.email || "")
+          setCpf(dadosUsuario.cpf || "")
+          setTelefone(dadosUsuario.telefone || "")
+          
+          if (dadosUsuario.data_nascimento) {
+            try {
+              const data = new Date(dadosUsuario.data_nascimento)
+              if (!isNaN(data.getTime())) {
+                setDataNascimento(data.toISOString().split('T')[0])
+              }
+            } catch (error) {
+              console.error('❌ [PerfilUsuario] Erro ao processar data de nascimento:', error)
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ [PerfilUsuario] Erro ao recarregar dados:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -437,6 +335,14 @@ function PerfilUsuario() {
                 : 'bg-red-100 text-red-700 border border-red-200'
             }`}>
               {message}
+            </div>
+          )}
+          
+          {/* Indicador de Carregamento */}
+          {loading && (
+            <div className="mb-6 p-4 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-700"></div>
+              <p className="text-blue-700 font-medium">Carregando dados...</p>
             </div>
           )}
 
@@ -514,18 +420,23 @@ function PerfilUsuario() {
                       )}
                     </div>
 
-                    {/* CPF */}
+                    {/* CPF - Campo somente leitura */}
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">CPF</label>
-                      <input
-                        type="text"
-                        placeholder={cpf ? "CPF cadastrado" : "CPF não cadastrado"}
-                        value={cpf || "Não informado"}
-                        readOnly
-                        className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 bg-gray-100 text-gray-600 cursor-not-allowed"
-                      />
+                      <div className="relative group">
+                        <input
+                          type="text"
+                          placeholder={cpf ? "CPF cadastrado" : "CPF não cadastrado"}
+                          value={cpf || "Não informado"}
+                          readOnly
+                          className="w-full px-4 py-3.5 rounded-xl border-2 border-gray-200 bg-gray-100 text-gray-600 cursor-not-allowed"
+                        />
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                          <span className="text-orange-500 text-xs font-semibold bg-orange-100 px-2 py-1 rounded-full">Bloqueado</span>
+                        </div>
+                      </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        {cpf ? "📋 CPF não pode ser alterado" : "⚠️ CPF não foi cadastrado no sistema"}
+                        {cpf ? "📋 CPF não pode ser alterado após o cadastro" : "⚠️ CPF não foi cadastrado no sistema"}
                       </p>
                     </div>
 
@@ -569,6 +480,71 @@ function PerfilUsuario() {
                           className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all bg-gray-50 focus:bg-white"
                         />
                       </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Seção: Segurança (Alterar Senha) */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b-2 border-orange-200 flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-orange-600" />
+                    Segurança - Alterar Senha (Opcional)
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    💡 Deixe em branco se não quiser alterar a senha
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Nova Senha */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Nova Senha</label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-400 group-focus-within:text-orange-600 transition-colors" />
+                        <input
+                          type="password"
+                          placeholder="Mínimo 6 caracteres"
+                          value={novaSenha}
+                          onChange={(e) => setNovaSenha(e.target.value)}
+                          className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 focus:outline-none focus:ring-2 transition-all bg-gray-50 focus:bg-white ${
+                            novaSenha && novaSenha.length < 6
+                              ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                              : 'border-gray-200 focus:ring-orange-400 focus:border-orange-400'
+                          }`}
+                        />
+                      </div>
+                      {novaSenha && novaSenha.length < 6 && (
+                        <p className="text-xs text-red-500 mt-1">
+                          ❌ A senha deve ter no mínimo 6 caracteres
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Confirmar Senha */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Confirmar Nova Senha</label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-400 group-focus-within:text-orange-600 transition-colors" />
+                        <input
+                          type="password"
+                          placeholder="Digite a senha novamente"
+                          value={confirmarSenha}
+                          onChange={(e) => setConfirmarSenha(e.target.value)}
+                          className={`w-full pl-12 pr-4 py-3.5 rounded-xl border-2 focus:outline-none focus:ring-2 transition-all bg-gray-50 focus:bg-white ${
+                            confirmarSenha && novaSenha !== confirmarSenha
+                              ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                              : 'border-gray-200 focus:ring-orange-400 focus:border-orange-400'
+                          }`}
+                        />
+                      </div>
+                      {confirmarSenha && novaSenha !== confirmarSenha && (
+                        <p className="text-xs text-red-500 mt-1">
+                          ❌ As senhas não coincidem
+                        </p>
+                      )}
+                      {confirmarSenha && novaSenha === confirmarSenha && novaSenha.length >= 6 && (
+                        <p className="text-xs text-green-600 mt-1">
+                          ✅ As senhas coincidem
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

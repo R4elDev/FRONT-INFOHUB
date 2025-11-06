@@ -52,6 +52,7 @@ export type atualizarUsuarioRequest = {
   cpf?: string | null;
   telefone?: string;
   data_nascimento?: string;
+  perfil?: string;
 }
 
 export type atualizarEmpresaRequest = {
