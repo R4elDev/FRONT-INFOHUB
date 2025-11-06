@@ -8,6 +8,9 @@ import iconJarra from "../../assets/icon de jara.png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { listarProdutos, listarCategorias, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
 import type { filtrosProdutos } from "../../services/types"
+import { useFavoritos } from "../../contexts/FavoritosContext"
+import { useCarrinho } from "../../contexts/CarrinhoContext"
+import type { Product } from "../../types"
 
 function Promocoes() {
   const navigate = useNavigate()
@@ -18,6 +21,10 @@ function Promocoes() {
   const [categoriaFiltro, setCategoriaFiltro] = useState('')
   const [loading, setLoading] = useState(false)
   const [mostrarPromocoes, setMostrarPromocoes] = useState(false)
+  
+  // Contextos de favoritos e carrinho
+  const { addFavorite, removeFavorite, isFavorite } = useFavoritos()
+  const { addToCart } = useCarrinho()
 
   // Carrega categorias do banco de dados
   useEffect(() => {
@@ -44,6 +51,8 @@ function Promocoes() {
     const carregarProdutos = async () => {
       try {
         setLoading(true)
+        
+        console.log('🔄 [Promocoes] Carregando produtos...')
         
         // Monta filtros baseado no estado atual e parâmetros da URL
         const novosFiltros: filtrosProdutos = {
@@ -74,7 +83,11 @@ function Promocoes() {
           setMostrarPromocoes(true)
         }
         
+        console.log('🔍 [Promocoes] Filtros aplicados:', novosFiltros)
+        
         const produtosResponse = await listarProdutos(novosFiltros)
+        
+        console.log('📦 [Promocoes] Produtos recebidos:', produtosResponse.data?.length || 0)
         
         if (produtosResponse.status && produtosResponse.data) {
           // VALIDAÇÃO: Filtra produtos no frontend para garantir categoria correta
@@ -118,6 +131,37 @@ function Promocoes() {
     if (busca.trim()) {
       navigate(`/promocoes?busca=${encodeURIComponent(busca.trim())}`)
     }
+  }
+
+  // Converter produto da API para o tipo Product
+  const converterParaProduct = (produto: any): Product => {
+    const emPromocao = isProdutoEmPromocao(produto)
+    return {
+      id: produto.id,
+      nome: produto.nome,
+      preco: emPromocao ? produto.promocao.preco_promocional : produto.preco,
+      precoAntigo: emPromocao ? produto.preco : undefined,
+      imagem: produto.imagem || iconJarra,
+      categoria: produto.categoria?.nome,
+      descricao: produto.descricao
+    }
+  }
+
+  const handleFavoritar = async (produto: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const produtoConvertido = converterParaProduct(produto)
+    
+    if (isFavorite(produto.id)) {
+      await removeFavorite(produto.id)
+    } else {
+      await addFavorite(produtoConvertido)
+    }
+  }
+
+  const handleAdicionarCarrinho = async (produto: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const produtoConvertido = converterParaProduct(produto)
+    await addToCart(produtoConvertido, 1)
   }
 
   return (
@@ -327,13 +371,14 @@ function Promocoes() {
                     </span>
                   )}
                   <button 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      console.log('Favorito clicado:', produto.id)
-                    }}
-                    className="text-gray-300 hover:text-red-500 transition-colors text-xl"
+                    onClick={(e) => handleFavoritar(produto, e)}
+                    className={`transition-colors text-xl ${
+                      isFavorite(produto.id) 
+                        ? 'text-red-500 hover:text-red-600' 
+                        : 'text-gray-300 hover:text-red-500'
+                    }`}
                   >
-                    ♡
+                    {isFavorite(produto.id) ? '♥' : '♡'}
                   </button>
                 </div>
 
@@ -373,10 +418,7 @@ function Promocoes() {
                     }
                   </p>
                   <Button 
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      console.log('Adicionar ao carrinho:', produto.id)
-                    }}
+                    onClick={(e) => handleAdicionarCarrinho(produto, e)}
                     className="h-7 w-7 sm:h-8 sm:w-8 rounded-full p-0 text-white font-bold 
                                bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] 
                                hover:from-[#FF8C00] hover:to-[#F9A01B] 

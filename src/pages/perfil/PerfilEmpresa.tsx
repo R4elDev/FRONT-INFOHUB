@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { Building2, Mail, Phone, MapPin, Save, X, Loader2, Settings, ArrowLeft } from "lucide-react"
+import { Building2, Mail, Phone, MapPin, Save, X, Loader2, Settings, ArrowLeft, LogOut } from "lucide-react"
 import { atualizarEmpresa, obterDadosUsuario, buscarDadosEstabelecimentoAtualizado } from "../../services/apiServicesFixed"
 import type { atualizarEmpresaRequest } from "../../services/types"
 
@@ -192,14 +192,28 @@ function PerfilEmpresa() {
                   <p className="text-orange-100 mt-1">Gerencie as informações da sua empresa</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => navigate('/configuracoes-empresa')}
-                className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all"
-                title="Configurações Avançadas"
-              >
-                <Settings className="w-6 h-6 text-white" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => navigate('/configuracoes-empresa')}
+                  className="p-3 bg-white/20 hover:bg-white/30 rounded-xl transition-all"
+                  title="Configurações"
+                >
+                  <Settings className="w-5 h-5 text-white" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.clear()
+                    navigate('/login')
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500/90 hover:bg-red-600 rounded-xl transition-all"
+                  title="Sair da Conta"
+                >
+                  <LogOut className="w-4 h-4 text-white" />
+                  <span className="text-white font-medium text-sm">Sair</span>
+                </button>
+              </div>
             </div>
           </div>
 

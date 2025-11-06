@@ -1,8 +1,10 @@
-import { StrictMode } from 'react'
+// import { StrictMode } from 'react' // Removido temporariamente
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { UserProvider } from './contexts/UserContext'
+import { FavoritosProvider } from './contexts/FavoritosContext'
+import { CarrinhoProvider } from './contexts/CarrinhoContext'
 import SmartRoute from './components/common/SmartRoute'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import SessionManager from './components/auth/SessionManager'
@@ -61,34 +63,40 @@ import ListaPromocoes from './pages/promocoes/ListaPromocoes'
 // Páginas de Perfil
 import CadastroEndereco from './pages/perfil/CadastroEndereco'
 
+// Páginas de Teste
+import TesteProdutos from './pages/teste/TesteProdutos'
+
 
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
+  // StrictMode removido temporariamente para evitar duplo carregamento
+  // <StrictMode>
     <UserProvider>
-      <BrowserRouter>
-        <SessionManager>
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-              },
-              success: {
-                style: {
-                  background: '#10b981',
-                },
-              },
-              error: {
-                style: {
-                  background: '#ef4444',
-                },
-              },
-            }}
-          />
-          <Routes>
+      <FavoritosProvider>
+        <CarrinhoProvider>
+          <BrowserRouter>
+            <SessionManager>
+              <Toaster 
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: '#363636',
+                    color: '#fff',
+                  },
+                  success: {
+                    style: {
+                      background: '#10b981',
+                    },
+                  },
+                  error: {
+                    style: {
+                      background: '#ef4444',
+                    },
+                  },
+                }}
+              />
+              <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/cadastro" element={<Cadastro />} />
@@ -116,6 +124,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/editar-perfil-empresa" element={<PerfilEmpresa/>} />
         <Route path="/configuracoes-empresa" element={<ConfiguracoesEmpresa/>} />
         <Route path="/configuracoes" element={<ConfiguracoesUsuario/>} />
+        <Route path="/configuracoes-usuario" element={<ConfiguracoesUsuario/>} />
+        <Route path="/perfil-usuario" element={<PerfilUsuario/>} />
         <Route path="/infocash" element={<InfoCash/>} />
         <Route path="/infocash/comentarios" element={<InfoCashComentarios/>} />
         <Route path="/infocash/novo" element={<InfoCashNovoComentario/>} />
@@ -163,9 +173,14 @@ createRoot(document.getElementById('root')!).render(
             <CadastroEndereco />
           </ProtectedRoute>
         } />
-          </Routes>
-        </SessionManager>
-      </BrowserRouter>
+        
+        {/* Rota de Teste - Verificação de Promoções */}
+        <Route path="/teste-produtos" element={<TesteProdutos />} />
+              </Routes>
+            </SessionManager>
+          </BrowserRouter>
+        </CarrinhoProvider>
+      </FavoritosProvider>
     </UserProvider>
-  </StrictMode>,
+  // </StrictMode>
 )

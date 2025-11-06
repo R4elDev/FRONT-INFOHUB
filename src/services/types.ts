@@ -49,7 +49,7 @@ export type atualizarUsuarioRequest = {
   nome?: string;
   email?: string;
   senha?: string;
-  cpf?: string;
+  cpf?: string | null;
   telefone?: string;
   data_nascimento?: string;
 }

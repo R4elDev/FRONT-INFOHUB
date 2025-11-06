@@ -17,7 +17,8 @@ import {
   ArrowLeft,
   Loader2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  LogOut
 } from "lucide-react"
 import { obterDadosUsuario, atualizarEmpresa, buscarDadosEstabelecimentoAtualizado } from '../../services/apiServicesFixed'
 import type { atualizarEmpresaRequest } from "../../services/types"
@@ -458,8 +459,22 @@ function ConfiguracoesEmpresa() {
               >
                 <ArrowLeft className="text-gray-600" size={20} />
               </button>
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] flex items-center justify-center">
-                <Settings className="text-white" size={24} />
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] flex items-center justify-center">
+                  <Settings className="text-white" size={24} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.clear()
+                    navigate('/login')
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-500/90 hover:bg-red-600 rounded-xl transition-all"
+                  title="Sair da Conta"
+                >
+                  <LogOut className="w-4 h-4 text-white" />
+                  <span className="text-white font-medium text-sm">Sair</span>
+                </button>
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-800">Configurações</h1>
