@@ -1,6 +1,6 @@
 import { Button } from "../../components/ui/button"
 import { useParams, useNavigate } from "react-router-dom"
-import { ChevronLeft, Heart, Plus, Minus, Package, Store, Tag, TrendingDown } from "lucide-react"
+import { ChevronLeft, Heart, Plus, Minus, Package, Store, Tag, TrendingDown, ShoppingCart, Star, Sparkles, Check, Truck } from "lucide-react"
 import { useState, useEffect } from "react"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
@@ -8,6 +8,49 @@ import { useFavoritos } from "../../contexts/FavoritosContext"
 import { useCarrinho } from "../../contexts/CarrinhoContext"
 import type { Product } from "../../types"
 import iconJarra from "../../assets/icon de jara.png"
+
+// Animações CSS customizadas
+const styles = document.createElement('style')
+styles.textContent = `
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+  
+  @keyframes pulse-badge {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+  
+  .animate-pulse-badge {
+    animation: pulse-badge 2s ease-in-out infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 2s infinite linear;
+    background: linear-gradient(to right, #f6f7f8 0%, #edeef1 20%, #f6f7f8 40%, #f6f7f8 100%);
+    background-size: 1000px 100%;
+  }
+`
+if (!document.head.querySelector('style[data-detalhes-produto-animations]')) {
+  styles.setAttribute('data-detalhes-produto-animations', 'true')
+  document.head.appendChild(styles)
+}
 
 interface Produto {
   id: number
@@ -164,24 +207,42 @@ function DetalhesProduto() {
 
   return (
     <SidebarLayout>
-      {/* Header com botão voltar */}
-      <section className="mt-8 mb-6">
-        <button 
-          onClick={handleVoltar}
-          className="flex items-center gap-2 text-[#F9A01B] hover:text-[#FF8C00] 
-                     font-semibold transition-colors group"
-        >
-          <ChevronLeft className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
-          <span className="text-lg">Voltar</span>
-        </button>
-      </section>
+      <div className="max-w-[1400px] mx-auto px-2 sm:px-4">
+        {/* Header Premium */}
+        <section className="mt-8 mb-8 animate-fade-in">
+          <button 
+            onClick={handleVoltar}
+            className="flex items-center gap-2 text-[#FFA726] hover:text-[#FF8C00] 
+                       font-bold transition-all group mb-6 hover:scale-105"
+          >
+            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center group-hover:bg-orange-200 transition-colors">
+              <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+            </div>
+            <span className="text-lg">Voltar</span>
+          </button>
+          
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FFA726] to-[#FF8C00] flex items-center justify-center shadow-xl">
+              <Package className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-black text-gray-800 tracking-tight">
+                Detalhes do Produto
+              </h1>
+              <p className="text-base text-gray-600 mt-1">
+                Informações completas e compra rápida
+              </p>
+            </div>
+          </div>
+        </section>
 
-      {/* Container Principal */}
-      <section 
-        className="bg-white rounded-3xl border border-gray-100 
-                   shadow-[0_4px_20px_rgba(0,0,0,0.06)] p-4 sm:p-6 md:p-8 
-                   overflow-hidden"
-      >
+        {/* Container Principal */}
+        <section 
+          className="bg-white rounded-3xl border-2 border-gray-200 
+                     shadow-[0_8px_30px_rgba(0,0,0,0.12)] p-4 sm:p-6 md:p-10 
+                     overflow-hidden animate-fade-in"
+          style={{ animationDelay: '0.1s' }}
+        >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Coluna Esquerda - Imagem */}
           <div className="flex flex-col">
@@ -190,48 +251,67 @@ function DetalhesProduto() {
               {emPromocao && (
                 <span 
                   className="bg-gradient-to-r from-red-500 to-red-600 
-                             text-white text-sm font-semibold px-4 py-2 
-                             rounded-lg shadow-md flex items-center gap-2"
+                             text-white text-sm font-bold px-5 py-2.5 
+                             rounded-2xl shadow-lg flex items-center gap-2 animate-pulse-badge"
                 >
-                  <TrendingDown className="w-4 h-4" />
-                  PROMOÇÃO {desconto}% OFF
+                  <TrendingDown className="w-5 h-5" />
+                  PROMOÇÃO -{desconto}% OFF
                 </span>
               )}
               <button 
                 onClick={handleFavoritar}
-                className={`p-2 rounded-full transition-all ${
+                className={`p-3 rounded-full transition-all hover:scale-110 ${
                   isFavorite(produto.id) 
-                    ? 'bg-red-50 text-red-500' 
-                    : 'bg-gray-100 text-gray-400 hover:text-red-500'
+                    ? 'bg-gradient-to-br from-red-500 to-pink-500 text-white shadow-lg' 
+                    : 'bg-white border-2 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-300'
                 }`}
               >
-                <Heart className={`w-6 h-6 ${isFavorite(produto.id) ? 'fill-current' : ''}`} />
+                <Heart className={`w-7 h-7 ${isFavorite(produto.id) ? 'fill-current' : ''}`} />
               </button>
             </div>
 
             {/* Imagem do Produto */}
             <div 
-              className="flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 
-                         rounded-2xl p-8 sm:p-12 mb-6 shadow-inner"
+              className="flex items-center justify-center bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-50 
+                         rounded-3xl p-8 sm:p-12 mb-6 shadow-[inset_0_2px_12px_rgba(0,0,0,0.1)] border-2 border-orange-100 relative overflow-hidden"
             >
-              <Package className="w-48 h-48 sm:w-64 sm:h-64 text-gray-300" />
+              {/* Efeito de brilho */}
+              <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent"></div>
+              <Package className="w-48 h-48 sm:w-64 sm:h-64 text-orange-300 relative z-10" />
+              {emPromocao && (
+                <Sparkles className="absolute top-4 right-4 w-8 h-8 text-yellow-400 animate-pulse" />
+              )}
             </div>
 
             {/* Informações do Estabelecimento */}
             <div className="space-y-3 mb-6">
-              <div className="flex items-center gap-3 bg-blue-50 p-4 rounded-xl border border-blue-100">
-                <Store className="w-5 h-5 text-blue-600" />
+              <div className="flex items-center gap-4 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-2xl border-2 border-blue-200 hover:scale-105 transition-transform shadow-md">
+                <div className="w-12 h-12 rounded-xl bg-blue-500 flex items-center justify-center flex-shrink-0">
+                  <Store className="w-6 h-6 text-white" />
+                </div>
                 <div>
-                  <p className="text-xs text-gray-500 font-medium">Estabelecimento</p>
-                  <p className="text-sm text-gray-700 font-semibold">{produto.estabelecimento.nome}</p>
+                  <p className="text-xs text-blue-600 font-bold uppercase tracking-wide">Estabelecimento</p>
+                  <p className="text-base text-gray-800 font-bold">{produto.estabelecimento.nome}</p>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 bg-orange-50 p-4 rounded-xl border border-orange-100">
-                <Tag className="w-5 h-5 text-[#F9A01B]" />
+              <div className="flex items-center gap-4 bg-gradient-to-r from-orange-50 to-yellow-50 p-4 rounded-2xl border-2 border-orange-200 hover:scale-105 transition-transform shadow-md">
+                <div className="w-12 h-12 rounded-xl bg-[#FFA726] flex items-center justify-center flex-shrink-0">
+                  <Tag className="w-6 h-6 text-white" />
+                </div>
                 <div>
-                  <p className="text-xs text-gray-500 font-medium">Categoria</p>
-                  <p className="text-sm text-gray-700 font-semibold">{produto.categoria.nome}</p>
+                  <p className="text-xs text-orange-600 font-bold uppercase tracking-wide">Categoria</p>
+                  <p className="text-base text-gray-800 font-bold">{produto.categoria.nome}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4 bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-2xl border-2 border-green-200 hover:scale-105 transition-transform shadow-md">
+                <div className="w-12 h-12 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
+                  <Truck className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-xs text-green-600 font-bold uppercase tracking-wide">Entrega</p>
+                  <p className="text-base text-gray-800 font-bold">Rápida e Segura</p>
                 </div>
               </div>
             </div>
@@ -240,9 +320,19 @@ function DetalhesProduto() {
           {/* Coluna Direita - Informações */}
           <div className="flex flex-col">
             {/* Nome do Produto */}
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-800 mb-4">
-              {produto.nome}
-            </h1>
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <Star className="w-6 h-6 text-yellow-400 fill-current" />
+                <Star className="w-6 h-6 text-yellow-400 fill-current" />
+                <Star className="w-6 h-6 text-yellow-400 fill-current" />
+                <Star className="w-6 h-6 text-yellow-400 fill-current" />
+                <Star className="w-6 h-6 text-yellow-400 fill-current" />
+                <span className="text-sm text-gray-600 ml-2 font-semibold">(5.0)</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-gray-800 mb-2 leading-tight">
+                {produto.nome}
+              </h1>
+            </div>
 
             {/* Preços */}
             <div className="mb-6">
@@ -318,34 +408,59 @@ function DetalhesProduto() {
             {/* Botão Adicionar ao Carrinho */}
             <Button
               onClick={handleAdicionarCarrinho}
-              className="w-full h-14 sm:h-16 bg-gradient-to-r from-[#25992E] to-[#1f7a24] 
-                         hover:from-[#1f7a24] hover:to-[#25992E] text-white text-lg font-bold 
-                         rounded-2xl shadow-lg hover:shadow-xl transition-all 
-                         hover:scale-105 active:scale-95"
+              className="w-full h-16 sm:h-20 bg-gradient-to-r from-[#25992E] to-[#1f7a24] 
+                         hover:from-[#1f7a24] hover:to-[#25992E] text-white text-xl font-black 
+                         rounded-2xl shadow-xl hover:shadow-2xl transition-all 
+                         hover:scale-105 active:scale-95 flex items-center justify-center gap-3"
             >
-              Adicionar ao Carrinho - {formatarPreco(precoFinal * quantidade)}
+              <ShoppingCart className="w-7 h-7" />
+              Adicionar - {formatarPreco(precoFinal * quantidade)}
             </Button>
+            
+            {/* Badge de garantia */}
+            <div className="mt-4 flex items-center justify-center gap-2 text-green-600">
+              <Check className="w-5 h-5" />
+              <span className="text-sm font-bold">Compra 100% Segura e Garantida</span>
+            </div>
 
             {/* Informações Adicionais */}
-            <div className="mt-6 p-4 bg-gray-50 rounded-xl">
-              <h3 className="text-sm font-bold text-gray-700 mb-2">Informações do Produto</h3>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Categoria: {produto.categoria.nome}</li>
-                <li>• Estabelecimento: {produto.estabelecimento.nome}</li>
-                <li>• Cadastrado em: {new Date(produto.created_at).toLocaleDateString('pt-BR')}</li>
-                <li>• ID do produto: #{produto.id}</li>
-              </ul>
+            <div className="mt-6 p-6 bg-gradient-to-br from-gray-50 to-blue-50 rounded-2xl border-2 border-gray-200">
+              <h3 className="text-base font-black text-gray-800 mb-4 flex items-center gap-2">
+                <Package className="w-5 h-5 text-[#FFA726]" />
+                Informações do Produto
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white p-3 rounded-xl">
+                  <p className="text-xs text-gray-500 font-semibold">Categoria</p>
+                  <p className="text-sm text-gray-800 font-bold">{produto.categoria.nome}</p>
+                </div>
+                <div className="bg-white p-3 rounded-xl">
+                  <p className="text-xs text-gray-500 font-semibold">Loja</p>
+                  <p className="text-sm text-gray-800 font-bold">{produto.estabelecimento.nome}</p>
+                </div>
+                <div className="bg-white p-3 rounded-xl">
+                  <p className="text-xs text-gray-500 font-semibold">Cadastrado</p>
+                  <p className="text-sm text-gray-800 font-bold">{new Date(produto.created_at).toLocaleDateString('pt-BR')}</p>
+                </div>
+                <div className="bg-white p-3 rounded-xl">
+                  <p className="text-xs text-gray-500 font-semibold">Código</p>
+                  <p className="text-sm text-gray-800 font-bold">#{produto.id}</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Produtos Relacionados */}
-      {produtosRelacionados.length > 0 && (
-        <section className="mt-12">
-          <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6">
-            Produtos Relacionados - {produto.categoria.nome}
-          </h2>
+        {/* Produtos Relacionados */}
+        {produtosRelacionados.length > 0 && (
+          <section className="mt-12 animate-fade-in" style={{ animationDelay: '0.3s' }}>
+            <div className="flex items-center gap-3 mb-6">
+              <Sparkles className="w-7 h-7 text-[#FFA726]" />
+              <h2 className="text-2xl sm:text-3xl font-black text-gray-800">
+                Produtos Relacionados - {produto.categoria.nome}
+              </h2>
+            </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {produtosRelacionados.map((produtoRelacionado) => {
               const emPromocaoRelacionado = isProdutoEmPromocao(produtoRelacionado)
@@ -396,8 +511,9 @@ function DetalhesProduto() {
               )
             })}
           </div>
-        </section>
-      )}
+          </section>
+        )}
+      </div>
     </SidebarLayout>
   )
 }

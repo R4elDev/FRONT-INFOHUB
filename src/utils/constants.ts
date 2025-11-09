@@ -27,7 +27,7 @@ export const ROUTES = {
   // Perfil
   PERFIL: '/perfil',
   PERFIL_EMPRESA: '/perfil-empresa',
-  EDITAR_PERFIL_EMPRESA: '/editar-perfil-empresa',
+  DASHBOARD_EMPRESA: '/dashboard-empresa',
   CONFIGURACOES: '/configuracoes',
   CONFIGURACOES_EMPRESA: '/configuracoes-empresa',
   

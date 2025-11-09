@@ -30,6 +30,9 @@ import Promocoes from './pages/produtos/Promocoes'
 import DetalhesProduto from './pages/produtos/DetalhesProduto'
 import Favoritos from './pages/produtos/Favoritos'
 
+// Páginas de notificações
+import NotificacoesTodas from './pages/notificacoes/NotificacoesTodas'
+
 // Páginas de carrinho
 import Carrinho from './pages/carrinho/Carrinho'
 import Checkout from './pages/carrinho/Checkout'
@@ -120,8 +123,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/checkout" element={<Checkout/>} />
         <Route path="/pagamento-sucesso" element={<PagamentoSucesso/>} />
         <Route path="/perfil" element={<PerfilUsuario/>} />
-        <Route path="/perfil-empresa" element={<DashboardEmpresa/>} />
-        <Route path="/editar-perfil-empresa" element={<PerfilEmpresa/>} />
+        <Route path="/dashboard-empresa" element={<DashboardEmpresa/>} />
+        <Route path="/perfil-empresa" element={<PerfilEmpresa/>} />
         <Route path="/configuracoes-empresa" element={<ConfiguracoesEmpresa/>} />
         <Route path="/configuracoes" element={<ConfiguracoesUsuario/>} />
         <Route path="/configuracoes-usuario" element={<ConfiguracoesUsuario/>} />
@@ -130,6 +133,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/infocash/comentarios" element={<InfoCashComentarios/>} />
         <Route path="/infocash/novo" element={<InfoCashNovoComentario/>} />
         <Route path="/favoritos" element={<Favoritos/>} />
+        <Route path="/notificacoes" element={<NotificacoesTodas/>} />
         
         {/* Admin Routes */}
         <Route path="/usuarios-admin" element={

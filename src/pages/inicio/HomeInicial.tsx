@@ -1,44 +1,122 @@
-import { useState, useEffect } from 'react'
-import { Button as Botao } from "../../components/ui/button"
+import { useState, useEffect, useCallback } from 'react'
 import { Input as CampoTexto } from "../../components/ui/input"
 import { useNavigate } from "react-router-dom"
+import { Search, Heart, Plus, ChevronLeft, ChevronRight, Tag, Sparkles, TrendingUp, ShoppingBag } from 'lucide-react'
 import iconJarra from "../../assets/icon de jara.png"
-import lupaPesquisa from "../../assets/lupa de pesquisa .png"
-import microfoneVoz from "../../assets/microfone de voz.png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { listarCategorias, listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
+import { listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
+import { useFavoritos } from "../../contexts/FavoritosContext"
+import { useCarrinho } from "../../contexts/CarrinhoContext"
+import type { Product } from "../../types"
+
+// Animações CSS customizadas
+const styles = document.createElement('style')
+styles.textContent = `
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+`
+if (!document.head.querySelector('style[data-home-animations]')) {
+  styles.setAttribute('data-home-animations', 'true')
+  document.head.appendChild(styles)
+}
+
+// Imagens do carrossel de promoções
+const promocoesCarrossel = [
+  {
+    id: 1,
+    titulo: 'Promoção Tenda Atacado - Ofertas Especiais',
+    imagem: 'https://cdn2.newtail.com.br/retail_media/ads/2025/11/05/4958717408875ad204e81c9a4c727d4a.jpeg',
+    descricao: 'Aproveite as melhores ofertas em produtos selecionados'
+  },
+  {
+    id: 2,
+    titulo: 'Promoção Tenda Atacado - Bebidas Geladas',
+    imagem: 'https://cdn2.newtail.com.br/retail_media/ads/2025/11/06/a647bf102e88be794547e10242cd240c.jpeg',
+    descricao: 'Descontos imperdíveis em bebidas'
+  },
+  {
+    id: 3,
+    titulo: 'Promoção Tenda Atacado - Alimentos',
+    imagem: 'https://cdn2.newtail.com.br/retail_media/ads/2025/11/04/281745a556d26b864f7dcc41d1ea1c6a.jpeg',
+    descricao: 'Economize em sua compra mensal'
+  },
+  {
+    id: 4,
+    titulo: 'Promoção Tenda Atacado - Limpeza com até 60% OFF',
+    imagem: 'https://d3gdr9n5lqb5z7.cloudfront.net/fotos/omo-comfort-e-cif-com-ate-60-de-desconto-na-2%E2%94%AC%C2%AC-unidade_1178x406-home-05-11-2025-15-33-32-522.jpg',
+    descricao: 'Omo, Comfort e Cif com descontos incríveis'
+  },
+  {
+    id: 5,
+    titulo: 'Promoção Tenda Atacado - Ofertas da Semana',
+    imagem: 'https://d3gdr9n5lqb5z7.cloudfront.net/fotos/arte1_1178x406-home-06-11-2025-10-18-46-350.jpg',
+    descricao: 'Confira as ofertas válidas até domingo'
+  },
+  {
+    id: 6,
+    titulo: 'Extra Mercado - Promoção de Carnes',
+    imagem: 'https://static.clubeextra.com.br/static/ex/1762439666056-desk-desk-carne.png?im=Resize,width=1600',
+    descricao: 'Carnes nobres com preços especiais'
+  },
+  {
+    id: 7,
+    titulo: 'Extra Mercado - Cervejas em Oferta',
+    imagem: 'https://static.clubeextra.com.br/static/ex/1762440605486-desk-desk-cervejas.png?im=Resize,width=1600',
+    descricao: 'As melhores marcas com descontos'
+  },
+  {
+    id: 8,
+    titulo: 'Extra Mercado - Hortifruti Fresquinho',
+    imagem: 'https://static.clubeextra.com.br/static/ex/1762367405844-desk-kjh.jpg?im=Resize,width=1600',
+    descricao: 'Frutas e verduras fresquinhas todos os dias'
+  },
+  {
+    id: 9,
+    titulo: 'Extra Mercado - Higiene e Papel',
+    imagem: 'https://static.clubeextra.com.br/static/ex/1762342467276-desk-desk-papel.jpg?im=Resize,width=1600',
+    descricao: 'Produtos de higiene e papel com preços baixos'
+  },
+  {
+    id: 10,
+    titulo: 'Extra Mercado - Aves Frescas',
+    imagem: 'https://static.clubeextra.com.br/static/ex/1762440206680-desk-desk-aves.png?im=Resize,width=1600',
+    descricao: 'Frango e aves com qualidade garantida'
+  }
+]
 
 function HomeInicial() {
   const navigate = useNavigate()
-  const [categorias, setCategorias] = useState<Array<{ id: number; nome: string }>>([]) 
-  const [produtos, setProdutos] = useState<Array<any>>([]) 
-  const [loading, setLoading] = useState(true)
+  const [bannerAtual, setBannerAtual] = useState(0)
+  const [produtos, setProdutos] = useState<any[]>([])
   const [busca, setBusca] = useState('')
+  const [produtoHover, setProdutoHover] = useState<number | null>(null)
+  const [favoritoHover, setFavoritoHover] = useState<number | null>(null)
+  const [produtoAdicionando, setProdutoAdicionando] = useState<number | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [carrosselAtivo, setCarrosselAtivo] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  
+  // Contextos
+  const { addFavorite, removeFavorite, isFavorite } = useFavoritos()
+  const { addToCart } = useCarrinho()
 
-  // Carrega categorias e produtos ao montar o componente
+  // Carrega produtos ao montar o componente
   useEffect(() => {
     const carregarDados = async () => {
       try {
         setLoading(true)
-        
-        // Tenta carregar categorias da API, mas usa categorias padrão se falhar
-        try {
-          const categoriasResponse = await listarCategorias()
-          if (categoriasResponse.status && categoriasResponse.data) {
-            setCategorias(categoriasResponse.data)
-          }
-        } catch (error) {
-          console.log('ℹ️ Usando categorias padrão (endpoint não disponível)')
-          // Usa categorias padrão se API não estiver disponível
-          setCategorias([
-            { id: 1, nome: "Alimentos e Bebidas" },
-            { id: 2, nome: "Eletrônicos" },
-            { id: 3, nome: "Roupas e Acessórios" },
-            { id: 4, nome: "Casa e Decoração" },
-            { id: 5, nome: "Saúde e Beleza" },
-            { id: 6, nome: "Outros" }
-          ])
-        }
         
         // Carrega produtos em promoção
         const produtosResponse = await listarProdutos({ promocao: true })
@@ -67,9 +145,49 @@ function HomeInicial() {
   const handleProdutoClick = (produtoId: number) => {
     navigate(`/produto/${produtoId}`)
   }
-
-  const handleCategoriaClick = (categoriaId: number) => {
-    navigate(`/promocoes?categoria=${categoriaId}`)
+  
+  // Converter produto para tipo Product
+  const converterParaProduct = (produto: any): Product => {
+    const emPromocao = isProdutoEmPromocao(produto)
+    return {
+      id: produto.id,
+      nome: produto.nome,
+      preco: emPromocao ? produto.promocao.preco_promocional : produto.preco,
+      precoAntigo: emPromocao ? produto.preco : undefined,
+      imagem: produto.imagem || iconJarra,
+      categoria: produto.categoria?.nome,
+      descricao: produto.descricao
+    }
+  }
+  
+  // Adicionar ao carrinho
+  const handleAdicionarCarrinho = async (produto: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setProdutoAdicionando(produto.id)
+    
+    try {
+      const produtoConvertido = converterParaProduct(produto)
+      await addToCart(produtoConvertido, 1)
+      console.log('✅ Produto adicionado ao carrinho:', produto.nome)
+    } catch (error) {
+      console.error('❌ Erro ao adicionar ao carrinho:', error)
+    } finally {
+      setTimeout(() => {
+        setProdutoAdicionando(null)
+      }, 500)
+    }
+  }
+  
+  // Favoritar/Desfavoritar
+  const handleFavoritar = async (produto: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const produtoConvertido = converterParaProduct(produto)
+    
+    if (isFavorite(produto.id)) {
+      await removeFavorite(produto.id)
+    } else {
+      await addFavorite(produtoConvertido)
+    }
   }
 
   const handleBusca = () => {
@@ -78,115 +196,133 @@ function HomeInicial() {
     }
   }
 
+  // Navegação do carrossel
+  const proximoSlide = useCallback(() => {
+    setCarrosselAtivo((prev) => (prev + 1) % promocoesCarrossel.length)
+  }, [])
+
+  const slideAnterior = () => {
+    setCarrosselAtivo((prev) => (prev - 1 + promocoesCarrossel.length) % promocoesCarrossel.length)
+  }
+
+  const irParaSlide = (index: number) => {
+    setCarrosselAtivo(index)
+  }
+
+  // Auto-play do carrossel (4 segundos)
+  useEffect(() => {
+    if (!isPaused) {
+      const interval = setInterval(proximoSlide, 4000)
+      return () => clearInterval(interval)
+    }
+  }, [isPaused, proximoSlide])
+
   return (
     <SidebarLayout>
-        {/* Banner Principal */}
+        {/* Carrossel de Promoções Premium */}
         <section className="mt-8">
           <div 
-            className="w-full h-52 md:h-80 bg-gradient-to-br from-[#F9A01B] 
-                       via-[#FF8C00] to-[#FFA500] rounded-3xl shadow-2xl 
-                       relative overflow-hidden"
+            className="relative w-full h-80 sm:h-96 md:h-[450px] lg:h-[500px] xl:h-[550px] rounded-3xl shadow-2xl overflow-hidden group"
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
           >
-            <div 
-              className="absolute inset-0 opacity-30 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')']"
-            ></div>
+            {/* Slides do Carrossel */}
+            <div className="relative w-full h-full bg-gray-100">
+              {promocoesCarrossel.map((promo, index) => (
+                <div
+                  key={promo.id}
+                  className={`absolute inset-0 transition-all duration-700 ease-in-out ${
+                    index === carrosselAtivo 
+                      ? 'opacity-100 scale-100' 
+                      : 'opacity-0 scale-105 pointer-events-none'
+                  }`}
+                >
+                  <img
+                    src={promo.imagem}
+                    alt={promo.titulo}
+                    className="w-full h-full object-contain md:object-cover"
+                    loading="lazy"
+                  />
+                  
+                  {/* Overlay com gradiente para melhor legibilidade */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+                  
+                  {/* Informações da promoção */}
+                  <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 lg:p-12 text-white">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Tag className="w-6 h-6" />
+                      <span className="text-base font-bold uppercase tracking-wider">Promoção</span>
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black mb-3 drop-shadow-2xl leading-tight">
+                      {promo.titulo}
+                    </h2>
+                    <p className="text-base md:text-lg lg:text-xl text-white/95 drop-shadow-lg font-medium max-w-3xl">
+                      {promo.descricao}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Setas de Navegação */}
+            <button
+              onClick={slideAnterior}
+              className="absolute left-4 md:left-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/95 hover:bg-white flex items-center justify-center shadow-xl transition-all opacity-0 group-hover:opacity-100 hover:scale-110 z-10 backdrop-blur-sm"
+              aria-label="Slide anterior"
+            >
+              <ChevronLeft className="w-7 h-7 text-gray-800" />
+            </button>
             
+            <button
+              onClick={proximoSlide}
+              className="absolute right-4 md:right-6 top-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/95 hover:bg-white flex items-center justify-center shadow-xl transition-all opacity-0 group-hover:opacity-100 hover:scale-110 z-10 backdrop-blur-sm"
+              aria-label="Próximo slide"
+            >
+              <ChevronRight className="w-7 h-7 text-gray-800" />
+            </button>
           </div>
-          {/* Pontinhos do Carrossel */}
-          <div className="flex items-center justify-center gap-2.5 mt-5">
-            <span 
-              className="w-3 h-3 rounded-full bg-[#F9A01B] shadow-md 
-                         transition-all hover:scale-125 cursor-pointer" 
-            />
-            <span 
-              className="w-3 h-3 rounded-full bg-[#F9A01B]/60 shadow-sm 
-                         transition-all hover:scale-125 cursor-pointer" 
-            />
-            <span 
-              className="w-3 h-3 rounded-full bg-[#F9A01B]/40 shadow-sm 
-                         transition-all hover:scale-125 cursor-pointer" 
-            />
+
+          {/* Indicadores do Carrossel */}
+          <div className="flex items-center justify-center gap-2.5 mt-6">
+            {promocoesCarrossel.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => irParaSlide(index)}
+                className={`transition-all rounded-full shadow-sm hover:scale-110 ${
+                  index === carrosselAtivo
+                    ? 'w-10 h-3.5 bg-[#FFA726]'
+                    : 'w-3.5 h-3.5 bg-gray-300 hover:bg-gray-400'
+                }`}
+                aria-label={`Ir para slide ${index + 1}`}
+              />
+            ))}
           </div>
         </section>
 
-        {/* Barra de Pesquisa */}
+        {/* Barra de Pesquisa Modernizada */}
         <section className="mt-10">
           <div 
-            className="relative w-full bg-white rounded-3xl border border-gray-100 
+            className="relative w-full bg-white rounded-3xl border-2 border-gray-100 
                        shadow-[0_4px_20px_rgba(0,0,0,0.08)] transition-all 
-                       hover:shadow-[0_6px_30px_rgba(0,0,0,0.12)]"
+                       hover:shadow-[0_8px_32px_rgba(249,160,27,0.15)] hover:border-[#FFA726]/30"
           >
-            <img
-              src={lupaPesquisa}
-              alt="Pesquisar"
-              className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400"
-            />
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" />
             <CampoTexto
-              placeholder="Digite para buscar produtos..."
+              placeholder="Buscar produtos, marcas ou categorias..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleBusca()}
               className="h-16 pl-16 pr-16 rounded-3xl border-0 text-gray-700 text-base 
-                         focus-visible:ring-2 focus-visible:ring-[#F9A01B] 
-                         placeholder:text-gray-400"
+                         focus-visible:ring-2 focus-visible:ring-[#FFA726] 
+                         placeholder:text-gray-400 font-medium"
             />
             <button 
               onClick={handleBusca}
-              className="absolute right-6 top-1/2 -translate-y-1/2 transition-transform hover:scale-110"
+              className="absolute right-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-gradient-to-br from-[#FFA726] to-[#FF8C00] flex items-center justify-center shadow-lg transition-all hover:scale-110 group"
+              title="Pesquisar"
             >
-              <img
-                src={microfoneVoz}
-                alt="Pesquisar por voz"
-                className="w-5 h-6"
-              />
+              <Search className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
             </button>
-          </div>
-        </section>
-
-        {/* Category Filters */}
-        <section className="mt-8">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Categorias</h2>
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {/* Botão "Todas" */}
-            <button 
-              onClick={() => navigate('/promocoes')}
-              className="bg-[#F9A01B] hover:bg-[#FF8C00] text-white px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0"
-            >
-              🛒 Todas
-            </button>
-            
-            {/* Categorias dinâmicas da API */}
-            {categorias.map((categoria, index) => {
-              const cores = [
-                'bg-green-500 hover:bg-green-600',
-                'bg-purple-500 hover:bg-purple-600', 
-                'bg-red-500 hover:bg-red-600',
-                'bg-yellow-500 hover:bg-yellow-600',
-                'bg-indigo-500 hover:bg-indigo-600',
-                'bg-pink-500 hover:bg-pink-600',
-                'bg-teal-500 hover:bg-teal-600',
-                'bg-orange-500 hover:bg-orange-600'
-              ]
-              const cor = cores[index % cores.length]
-              
-              return (
-                <button 
-                  key={categoria.id}
-                  onClick={() => handleCategoriaClick(categoria.id)}
-                  className={`${cor} text-white px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0`}
-                >
-                  {categoria.nome}
-                </button>
-              )
-            })}
-            
-            {/* Loading de categorias */}
-            {loading && categorias.length === 0 && (
-              <div className="flex items-center gap-2 text-gray-500">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#F9A01B]"></div>
-                <span>Carregando categorias...</span>
-              </div>
-            )}
           </div>
         </section>
 
@@ -211,14 +347,14 @@ function HomeInicial() {
             </button>
           </div>
 
-          {/* Cards de Produtos */}
+          {/* Cards de Produtos Modernizados */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-5 md:gap-6">
             {loading ? (
               // Loading skeleton
               [1, 2, 3, 4].map((i) => (
-                <div key={i} className="rounded-2xl border border-gray-200 bg-white p-4 animate-pulse">
+                <div key={i} className="rounded-3xl border-2 border-gray-200 bg-white p-4 animate-pulse">
                   <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-24 bg-gray-200 rounded-xl mb-3"></div>
+                  <div className="h-28 bg-gray-200 rounded-2xl mb-3"></div>
                   <div className="h-3 bg-gray-200 rounded mb-2"></div>
                   <div className="h-4 bg-gray-200 rounded mb-2"></div>
                   <div className="h-3 bg-gray-200 rounded"></div>
@@ -226,13 +362,21 @@ function HomeInicial() {
               ))
             ) : produtos.length === 0 ? (
               // Sem produtos
-              <div className="col-span-full text-center py-12">
-                <div className="text-6xl mb-4">🛒</div>
-                <h3 className="text-xl font-semibold text-gray-600 mb-2">Nenhuma promoção ativa</h3>
-                <p className="text-gray-500">Volte em breve para ver as melhores ofertas!</p>
+              <div className="col-span-full text-center py-16">
+                <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center">
+                  <Sparkles className="w-12 h-12 text-[#FFA726]" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-2">Nenhuma promoção ativa</h3>
+                <p className="text-gray-600 mb-6 max-w-md mx-auto">Volte em breve para conferir as melhores ofertas e economizar nas suas compras!</p>
+                <button
+                  onClick={() => navigate('/promocoes')}
+                  className="px-8 py-3 bg-gradient-to-r from-[#FFA726] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#FFA726] text-white rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl hover:scale-105"
+                >
+                  Ver todos os produtos
+                </button>
               </div>
             ) : (
-              // Produtos reais da API
+              // Produtos reais da API com design premium
               produtos.map((produto) => {
                 const emPromocao = isProdutoEmPromocao(produto)
                 const desconto = emPromocao ? calcularDesconto(produto.preco, produto.promocao!.preco_promocional) : 0
@@ -241,108 +385,120 @@ function HomeInicial() {
                   <article
                     key={produto.id}
                     onClick={() => handleProdutoClick(produto.id)}
-                    className="rounded-2xl border border-gray-200 bg-white p-4 cursor-pointer
-                               shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all 
-                               hover:shadow-[0_8px_24px_rgba(0,0,0,0.12)] hover:-translate-y-1"
+                    onMouseEnter={() => setProdutoHover(produto.id)}
+                    onMouseLeave={() => setProdutoHover(null)}
+                    className="group relative rounded-3xl border-2 border-gray-200 bg-white p-4 cursor-pointer
+                               shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all duration-300
+                               hover:shadow-[0_12px_32px_rgba(249,160,27,0.2)] hover:-translate-y-2 hover:border-[#FFA726]"
                   >
-                    {/* Oferta + Favorito */}
-                    <div className="flex items-start justify-between mb-2">
-                      <span 
-                        className="bg-gradient-to-r from-green-600 to-green-500 
-                                   text-white text-[10px] font-semibold px-2.5 py-1 
-                                   rounded-md shadow-sm"
-                      >
-                        {emPromocao ? 'OFERTA' : 'PRODUTO'}
-                      </span>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          console.log('Favorito clicado:', produto.id)
-                        }}
-                        className="text-gray-300 hover:text-red-500 transition-colors text-xl"
-                      >
-                        ♡
-                      </button>
-                    </div>
-
-                    {/* Imagem do Produto */}
-                    <div 
-                      className="flex items-center justify-center py-4 bg-gray-50 
-                                 rounded-xl mb-3"
-                    >
-                      <img 
-                        src={iconJarra} 
-                        alt={produto.nome} 
-                        className="w-24 h-24 object-contain drop-shadow-md" 
-                      />
-                    </div>
-
-                    {/* Preço antigo + desconto */}
+                    {/* Badge de Desconto Animado */}
                     {emPromocao && (
-                      <div className="flex items-center justify-between text-xs mb-2">
-                        <span 
-                          className="bg-gradient-to-r from-orange-100 to-orange-50 
-                                     text-orange-700 font-bold px-2 py-1 rounded-md"
-                        >
-                          -{desconto}%
-                        </span>
-                        <span className="text-gray-400 line-through">{formatarPreco(produto.preco)}</span>
+                      <div className="absolute -top-2 -left-2 z-10">
+                        <div className="relative">
+                          <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1 animate-pulse">
+                            <Tag className="w-3 h-3" />
+                            <span>-{desconto}%</span>
+                          </div>
+                          <div className="absolute inset-0 bg-red-400 rounded-full blur-md opacity-50 animate-ping"></div>
+                        </div>
                       </div>
                     )}
 
-                    {/* Preço atual + botão adicionar */}
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-green-700 font-bold text-lg">
-                        {emPromocao ? formatarPreco(produto.promocao!.preco_promocional) : formatarPreco(produto.preco)}
-                      </p>
-                      <Botao 
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          console.log('Adicionar ao carrinho:', produto.id)
-                        }}
-                        className="h-8 w-8 rounded-full p-0 text-white font-bold 
-                                   bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] 
-                                   hover:from-[#FF8C00] hover:to-[#F9A01B] 
-                                   shadow-md hover:shadow-lg transition-all hover:scale-110"
-                      >
-                        +
-                      </Botao>
+                    {/* Botão Favorito Modernizado */}
+                    <button 
+                      onClick={(e) => handleFavoritar(produto, e)}
+                      onMouseEnter={() => setFavoritoHover(produto.id)}
+                      onMouseLeave={() => setFavoritoHover(null)}
+                      className={`absolute top-3 right-3 z-10 transition-all duration-300 ${
+                        isFavorite(produto.id) ? 'text-red-500 scale-110' : 'text-gray-300'
+                      }`}
+                      title={isFavorite(produto.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+                    >
+                      <Heart 
+                        className={`w-6 h-6 transition-all ${
+                          isFavorite(produto.id)
+                            ? 'fill-red-500'
+                            : favoritoHover === produto.id ? 'text-red-500 scale-125' : 'hover:text-red-400'
+                        }`}
+                      />
+                    </button>
+
+                    {/* Imagem do Produto com Hover Effect */}
+                    <div 
+                      className="flex items-center justify-center py-6 bg-gradient-to-br from-gray-50 to-gray-100/50
+                                 rounded-2xl mb-4 group-hover:from-orange-50 group-hover:to-orange-100/50 transition-all duration-300"
+                    >
+                      <img 
+                        src={produto.imagem || iconJarra} 
+                        alt={produto.nome} 
+                        className="w-28 h-28 object-contain drop-shadow-lg group-hover:scale-110 transition-transform duration-300" 
+                      />
                     </div>
 
-                    {/* Descrição */}
-                    <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
+                    {/* Nome do Produto */}
+                    <h3 className="text-sm font-bold text-gray-800 mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-[#FFA726] transition-colors">
                       {produto.nome}
-                    </p>
-                    
-                    {/* Categoria */}
-                    <p className="text-xs text-gray-400 mt-1">
-                      {produto.categoria?.nome}
-                    </p>
+                    </h3>
+
+                    {/* Preço antigo se em promoção */}
+                    {emPromocao && (
+                      <div className="flex items-center justify-between text-xs mb-2">
+                        <span className="text-gray-400 line-through">
+                          De: {formatarPreco(produto.preco)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Seção de Preço e Ação */}
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Por apenas</p>
+                        <p className="text-green-700 font-black text-xl leading-none">
+                          {emPromocao ? formatarPreco(produto.promocao!.preco_promocional) : formatarPreco(produto.preco)}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={(e) => handleAdicionarCarrinho(produto, e)}
+                        disabled={produtoAdicionando === produto.id}
+                        className={`w-10 h-10 rounded-full bg-gradient-to-br from-[#FFA726] to-[#FF8C00] 
+                                   flex items-center justify-center shadow-lg transition-all 
+                                   hover:scale-110 active:scale-95 group/btn
+                                   ${produtoAdicionando === produto.id ? 'animate-pulse scale-95' : ''}`}
+                        title="Adicionar ao carrinho"
+                      >
+                        {produtoAdicionando === produto.id ? (
+                          <ShoppingBag className="w-5 h-5 text-white animate-bounce" />
+                        ) : (
+                          <Plus className="w-5 h-5 text-white group-hover/btn:rotate-90 transition-transform" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Tooltip no Hover */}
+                    {produtoHover === produto.id && (
+                      <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap z-20">
+                        Clique para ver detalhes
+                        <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                      </div>
+                    )}
                   </article>
                 )
               })
             )}
           </div>
 
-          {/* Pontinhos de navegação */}
-          <div className="flex items-center justify-center gap-2.5 mt-8">
-            <span 
-              className="w-3 h-3 rounded-full bg-[#F9A01B] shadow-md 
-                         transition-all hover:scale-125 cursor-pointer" 
-            />
-            <span 
-              className="w-3 h-3 rounded-full bg-[#F9A01B]/60 shadow-sm 
-                         transition-all hover:scale-125 cursor-pointer" 
-            />
-            <span 
-              className="w-3 h-3 rounded-full bg-[#F9A01B]/40 shadow-sm 
-                         transition-all hover:scale-125 cursor-pointer" 
-            />
-            <span 
-              className="w-3 h-3 rounded-full bg-[#F9A01B]/20 shadow-sm 
-                         transition-all hover:scale-125 cursor-pointer" 
-            />
-          </div>
+          {/* Botão Ver Todas as Promoções */}
+          {!loading && produtos.length > 0 && (
+            <div className="flex justify-center mt-10">
+              <button
+                onClick={() => navigate('/promocoes')}
+                className="group px-8 py-4 bg-gradient-to-r from-[#FFA726] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#FFA726] text-white rounded-2xl font-bold transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-2"
+              >
+                <TrendingUp className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                Ver Todas as Promoções
+              </button>
+            </div>
+          )}
         </section>
     </SidebarLayout>
   )

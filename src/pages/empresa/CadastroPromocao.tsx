@@ -1,14 +1,35 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Upload, Package, DollarSign, Hash, FileText, ShoppingCart, TrendingDown, Percent, Calendar, Store, Image, CheckCircle, Sparkles, Gift, Zap, AlertCircle, Tag, ChevronDown } from 'lucide-react'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { useUser } from "../../contexts/UserContext"
 import { cadastrarProduto, cadastrarEstabelecimento, cadastrarEnderecoEstabelecimento, listarCategorias } from "../../services/apiServicesFixed"
 import type { produtoRequest } from "../../services/types"
 
+// CSS para animação
+const styles = document.createElement('style')
+styles.textContent = `
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out forwards;
+  }
+`
+if (!document.head.querySelector('style[data-cadastro-promocao-animations]')) {
+  styles.setAttribute('data-cadastro-promocao-animations', 'true')
+  document.head.appendChild(styles)
+}
+
 export default function CadastroPromocao() {
   const { user } = useUser()
-  const navigate = useNavigate()
   
   const [formData, setFormData] = useState({
     name: '',
@@ -51,6 +72,7 @@ export default function CadastroPromocao() {
       // Verifica se o estabelecimento no localStorage pertence ao usuário atual
       const estabelecimentoId = localStorage.getItem('estabelecimentoId')
       const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
+      const estabelecimentoCNPJ = localStorage.getItem('estabelecimentoCNPJ')
       const estabelecimentoUserId = localStorage.getItem('estabelecimentoUserId')
 
       // Se existe estabelecimento mas é de outro usuário, limpa o localStorage
@@ -58,6 +80,7 @@ export default function CadastroPromocao() {
         console.log('🧹 Limpando estabelecimento de outro usuário:', estabelecimentoUserId, '!==', user.id)
         localStorage.removeItem('estabelecimentoId')
         localStorage.removeItem('estabelecimentoNome')
+        localStorage.removeItem('estabelecimentoCNPJ')
         localStorage.removeItem('estabelecimentoUserId')
       }
       // Se tem estabelecimento do usuário atual, usa ele
@@ -65,7 +88,8 @@ export default function CadastroPromocao() {
         console.log('✅ Usando estabelecimento existente do usuário:', user.id)
         setEstabelecimento({
           id: parseInt(estabelecimentoId),
-          nome: estabelecimentoNome
+          nome: estabelecimentoNome,
+          cnpj: estabelecimentoCNPJ || gerarCNPJUnico(user.id)
         })
         setTemEstabelecimento(true)
         setVerificandoEstabelecimento(false)
@@ -90,11 +114,13 @@ export default function CadastroPromocao() {
           // Salva no localStorage com ID do usuário para validação
           localStorage.setItem('estabelecimentoId', response.id.toString())
           localStorage.setItem('estabelecimentoNome', novoEstabelecimento.nome)
+          localStorage.setItem('estabelecimentoCNPJ', cnpjUnico)
           localStorage.setItem('estabelecimentoUserId', user.id.toString())
           
           setEstabelecimento({
             id: response.id,
-            nome: novoEstabelecimento.nome
+            nome: novoEstabelecimento.nome,
+            cnpj: cnpjUnico
           })
           setTemEstabelecimento(true)
           
@@ -194,24 +220,8 @@ export default function CadastroPromocao() {
     carregarCategorias()
   }, [])
 
-  // Fechar dropdown ao clicar fora (TEMPORARIAMENTE DESABILITADO PARA DEBUG)
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // Temporariamente desabilitado para debug
-      console.log('🖱️ Click outside detectado, mas ignorado para debug')
-      // if (showCategoriaDropdown) {
-      //   setShowCategoriaDropdown(false)
-      // }
-    }
-
-    if (showCategoriaDropdown) {
-      document.addEventListener('click', handleClickOutside)
-    }
-
-    return () => {
-      document.removeEventListener('click', handleClickOutside)
-    }
-  }, [showCategoriaDropdown])
+  // Fechar dropdown ao clicar fora - REMOVIDO para evitar conflitos
+  // O dropdown agora fecha apenas ao selecionar uma opção
 
   // Função para cadastrar produto
   const handleSubmit = async (e: React.FormEvent) => {
@@ -306,10 +316,15 @@ export default function CadastroPromocao() {
       console.log('✅ Resposta do cadastro:', response)
       
       if (response.status) {
-        const produtoId = response.id
-        console.log('✅ ID do produto cadastrado:', produtoId)
+        console.log('✅ Produto cadastrado com sucesso!')
+        console.log('📋 Resposta completa da API:', response)
         
-        setMessage({ type: 'success', text: `Produto cadastrado com sucesso! ID: ${produtoId}` })
+        // Garante que a mensagem seja sempre uma string
+        const mensagemSucesso = typeof response.message === 'string' 
+          ? response.message 
+          : 'Produto cadastrado com sucesso!'
+        
+        setMessage({ type: 'success', text: mensagemSucesso })
         
         // Limpar formulário após 2 segundos
         setTimeout(() => {
@@ -384,33 +399,47 @@ export default function CadastroPromocao() {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-orange-100 p-8">
         <div className="max-w-7xl mx-auto">
           
-          {/* Info do Estabelecimento */}
+          {/* Info do Estabelecimento - Premium */}
           {estabelecimento && (
-            <div className="mb-6 p-4 bg-white rounded-xl shadow-sm border border-orange-200">
-              <div className="flex items-center gap-3">
-                <Store className="w-5 h-5 text-orange-600" />
+            <div className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl shadow-lg border-2 border-blue-200 p-6 animate-fade-in">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center shadow-lg">
+                  <Store className="w-7 h-7 text-white" />
+                </div>
                 <div>
-                  <h3 className="font-semibold text-gray-800">{estabelecimento.nome}</h3>
-                  <p className="text-sm text-gray-600">CNPJ: {estabelecimento.cnpj}</p>
+                  <h3 className="text-lg font-bold text-gray-800">{estabelecimento.nome}</h3>
+                  <p className="text-sm text-gray-600 font-medium flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    CNPJ: <span className="font-mono font-semibold text-blue-700">{estabelecimento.cnpj || 'Carregando...'}</span>
+                  </p>
                 </div>
               </div>
             </div>
           )}
           
-          {/* Mensagem de Feedback */}
+          {/* Mensagem de Feedback Premium */}
           {message && (
-            <div className={`mb-6 p-4 rounded-xl ${
+            <div className={`mb-6 p-5 rounded-3xl animate-fade-in shadow-lg ${
               message.type === 'success' 
-                ? 'bg-green-50 border border-green-200 text-green-800' 
-                : 'bg-red-50 border border-red-200 text-red-800'
+                ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 text-green-800' 
+                : 'bg-gradient-to-r from-red-50 to-pink-50 border-2 border-red-300 text-red-800'
             }`}>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {message.type === 'success' ? (
-                  <CheckCircle className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center shadow-lg">
+                    <CheckCircle className="w-6 h-6 text-white" />
+                  </div>
                 ) : (
-                  <AlertCircle className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center shadow-lg">
+                    <AlertCircle className="w-6 h-6 text-white" />
+                  </div>
                 )}
-                <span className="font-medium">{message.text}</span>
+                <span className="font-bold text-base">
+                  {typeof message.text === 'string' 
+                    ? message.text 
+                    : JSON.stringify(message.text)
+                  }
+                </span>
               </div>
             </div>
           )}
@@ -419,25 +448,25 @@ export default function CadastroPromocao() {
             <div className="flex gap-6 w-full">
               {/* Formulário Principal */}
               <div className="flex-1 space-y-6">
-              {/* Header com gradiente */}
-              <div className="bg-gradient-to-r from-[#F9A01B] via-[#FF8C00] to-[#F9A01B] rounded-3xl shadow-2xl p-8 text-white">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-                    <Gift className="w-8 h-8" />
+              {/* Header com gradiente modernizado */}
+              <div className="bg-gradient-to-r from-[#F7931E] via-[#FF8C00] to-[#F7931E] rounded-3xl shadow-2xl p-8 text-white animate-fade-in">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-16 h-16 rounded-2xl bg-white/30 backdrop-blur-md flex items-center justify-center shadow-xl">
+                    <Gift className="w-9 h-9 drop-shadow-lg" />
                   </div>
                   <div>
-                    <h1 className="text-3xl font-bold">Cadastrar Promoção</h1>
-                    <p className="text-orange-100 text-sm">Adicione ofertas imperdíveis para seus clientes</p>
+                    <h1 className="text-4xl font-black mb-1" style={{textShadow: '3px 3px 10px rgba(0,0,0,0.3)'}}>Cadastrar Promoção</h1>
+                    <p className="text-white text-base font-bold" style={{textShadow: '2px 2px 6px rgba(0,0,0,0.3)'}}>Adicione ofertas imperdíveis para seus clientes</p>
                   </div>
                 </div>
-                <div className="flex gap-4 mt-6">
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2 flex items-center gap-2">
+                <div className="flex gap-3 mt-6">
+                  <div className="bg-white/20 backdrop-blur-md rounded-2xl px-5 py-3 flex items-center gap-2 shadow-lg hover:bg-white/30 transition-all">
                     <TrendingDown className="w-5 h-5" />
-                    <span className="font-semibold">Economia Garantida</span>
+                    <span className="font-bold">Economia Garantida</span>
                   </div>
-                  <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2 flex items-center gap-2">
+                  <div className="bg-white/20 backdrop-blur-md rounded-2xl px-5 py-3 flex items-center gap-2 shadow-lg hover:bg-white/30 transition-all">
                     <Sparkles className="w-5 h-5" />
-                    <span className="font-semibold">Ofertas Diárias</span>
+                    <span className="font-bold">Ofertas Diárias</span>
                   </div>
                 </div>
               </div>
@@ -445,10 +474,10 @@ export default function CadastroPromocao() {
               {/* Card de Informações do Produto */}
               <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100">
                 <div className="flex items-center gap-2 mb-6 pb-4 border-b-2 border-[#F9A01B]/20">
-                  <div className="bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] p-3 rounded-xl">
-                    <Package className="w-6 h-6 text-white" />
+                  <div className="bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] p-2 rounded-lg">
+                    <Package className="w-5 h-5 text-white" />
                   </div>
-                  <h2 className="text-xl font-bold text-gray-800">Informações do Produto</h2>
+                  <h2 className="text-lg font-bold text-gray-800">Informações do Produto</h2>
                 </div>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -498,88 +527,16 @@ export default function CadastroPromocao() {
                     <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
                       <Tag className="w-4 h-4 text-purple-500" />
                       Categoria do Produto
-                      <span className="text-xs text-gray-500 font-normal">(Opcional)</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          console.log('🔧 DEBUG: Forçando toggle do dropdown')
-                          console.log('🔧 Estado atual:', showCategoriaDropdown)
-                          console.log('🔧 Categorias:', categorias.length)
-                          setShowCategoriaDropdown(prev => {
-                            console.log('🔧 Mudando de', prev, 'para', !prev)
-                            return !prev
-                          })
-                        }}
-                        className="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
-                      >
-                        🔧 Toggle
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          console.log('🔄 FORÇANDO carregamento manual de categorias')
-                          try {
-                            setLoadingCategorias(true)
-                            const response = await listarCategorias()
-                            console.log('📋 Resposta manual:', response)
-                            
-                            if (response.status && response.data) {
-                              setCategorias(response.data)
-                              console.log('✅ Categorias definidas manualmente:', response.data.length)
-                              alert(`✅ Sucesso! ${response.data.length} categorias carregadas`)
-                            } else {
-                              console.log('⚠️ Resposta manual inválida')
-                              alert('❌ Resposta inválida da API')
-                            }
-                          } catch (error) {
-                            console.error('❌ Erro manual:', error)
-                            alert('❌ Erro ao carregar categorias')
-                          } finally {
-                            setLoadingCategorias(false)
-                          }
-                        }}
-                        className="ml-1 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-600"
-                      >
-                        🔄 Carregar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          console.log('🧹 LIMPANDO localStorage do estabelecimento')
-                          localStorage.removeItem('estabelecimentoId')
-                          localStorage.removeItem('estabelecimentoNome')
-                          localStorage.removeItem('estabelecimentoUserId')
-                          alert('🧹 localStorage limpo! Recarregue a página para criar novo estabelecimento.')
-                        }}
-                        className="ml-1 px-2 py-1 text-xs bg-orange-500 text-white rounded hover:bg-orange-600"
-                      >
-                        🧹 Limpar
-                      </button>
+                      <span className="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-0.5 rounded-full">(Opcional)</span>
                     </label>
                     <div className="relative">
-                      {/* Indicador de estado para debug */}
-                      <div className="mb-2 text-xs">
-                        <span className={`px-2 py-1 rounded ${showCategoriaDropdown ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                          Dropdown: {showCategoriaDropdown ? 'ABERTO' : 'FECHADO'}
-                        </span>
-                        <span className="ml-2 px-2 py-1 rounded bg-blue-100 text-blue-800">
-                          Categorias: {categorias.length}
-                        </span>
-                        <span className="ml-2 px-2 py-1 rounded bg-yellow-100 text-yellow-800">
-                          Loading: {loadingCategorias ? 'SIM' : 'NÃO'}
-                        </span>
-                      </div>
-                      
                       <button
                         type="button"
-                        onClick={() => {
-                          console.log('🖱️ Clique no dropdown - Estado atual:', showCategoriaDropdown)
-                          console.log('🖱️ Categorias disponíveis:', categorias.length)
-                          console.log('🖱️ Loading:', loadingCategorias)
+                        onClick={(e) => {
+                          e.stopPropagation()
                           setShowCategoriaDropdown(!showCategoriaDropdown)
-                          console.log('🖱️ Novo estado será:', !showCategoriaDropdown)
                         }}
-                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-400 focus:outline-none transition-all text-left flex items-center justify-between bg-white hover:bg-gray-50"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-purple-400 focus:outline-none transition-all text-left flex items-center justify-between bg-white hover:bg-purple-50"
                       >
                         <span className={formData.categoriaNome ? 'text-gray-800' : 'text-gray-500'}>
                           {formData.categoriaNome || 'Selecione uma categoria (opcional)'}
@@ -605,7 +562,8 @@ export default function CadastroPromocao() {
                             <>
                               <button
                                 type="button"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation()
                                   setFormData(prev => ({ ...prev, categoriaId: null, categoriaNome: '' }))
                                   setShowCategoriaDropdown(false)
                                 }}
@@ -617,7 +575,9 @@ export default function CadastroPromocao() {
                                 <button
                                   key={categoria.id}
                                   type="button"
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    console.log('✅ Categoria selecionada:', categoria.nome)
                                     setFormData(prev => ({ 
                                       ...prev, 
                                       categoriaId: categoria.id, 
@@ -650,13 +610,13 @@ export default function CadastroPromocao() {
                 </div>
               </div>
 
-              {/* Card de Preços e Descontos */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
-                <div className="flex items-center gap-2 mb-5 pb-4 border-b-2 border-green-100">
-                  <div className="bg-gradient-to-br from-green-400 to-green-500 p-2 rounded-lg">
-                    <Percent className="w-5 h-5 text-white" />
+              {/* Card de Preços e Descontos Premium */}
+              <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 animate-fade-in" style={{animationDelay: '0.1s'}}>
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-green-100">
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
+                    <Percent className="w-6 h-6 text-white" />
                   </div>
-                  <h2 className="text-lg font-bold text-gray-800">Preços e Desconto</h2>
+                  <h2 className="text-xl font-bold text-gray-800">Preços e Desconto</h2>
                 </div>
                 <div className="grid grid-cols-4 gap-4">
                   <div className="col-span-1">
@@ -728,13 +688,13 @@ export default function CadastroPromocao() {
                 </div>
               </div>
 
-              {/* Upload de Imagem */}
-              <div className="bg-white rounded-2xl shadow-lg p-6">
-                <div className="flex items-center gap-2 mb-5 pb-4 border-b-2 border-orange-100">
-                  <div className="bg-gradient-to-br from-orange-400 to-orange-500 p-2 rounded-lg">
-                    <Image className="w-5 h-5 text-white" />
+              {/* Upload de Imagem Premium */}
+              <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 animate-fade-in" style={{animationDelay: '0.2s'}}>
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-orange-100">
+                  <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center shadow-lg">
+                    <Image className="w-6 h-6 text-white" />
                   </div>
-                  <h2 className="text-lg font-bold text-gray-800">Imagem do Produto</h2>
+                  <h2 className="text-xl font-bold text-gray-800">Imagem do Produto</h2>
                 </div>
                 <div className="border-3 border-dashed border-orange-300 rounded-2xl p-12 text-center hover:border-orange-500 hover:bg-orange-50 transition-all cursor-pointer bg-gradient-to-br from-orange-50 to-yellow-50">
                   <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 shadow-lg">
@@ -746,11 +706,11 @@ export default function CadastroPromocao() {
                 </div>
               </div>
 
-              {/* Botão de Cadastrar */}
+              {/* Botão de Cadastrar Premium */}
               <button 
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#F9A01B] text-white font-bold py-5 rounded-2xl hover:shadow-2xl transform hover:scale-[1.02] transition-all text-lg flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-[#F7931E] via-[#FF8C00] to-[#F7931E] hover:from-[#FF8C00] hover:via-[#F7931E] hover:to-[#FF8C00] text-white font-black py-6 rounded-3xl hover:shadow-2xl transform hover:scale-[1.02] transition-all text-xl flex items-center justify-center gap-3 shadow-xl disabled:opacity-50 disabled:cursor-not-allowed animate-fade-in" style={{animationDelay: '0.4s'}}
               >
                 {loading ? (
                   <>
@@ -767,9 +727,9 @@ export default function CadastroPromocao() {
               </button>
             </div>
 
-            {/* Preview Card */}
+            {/* Preview Card Premium */}
             <div className="w-96 space-y-4">
-              <div className="bg-white rounded-2xl shadow-xl p-6 sticky top-4">
+              <div className="bg-white rounded-3xl shadow-2xl p-8 border-2 border-gray-100 sticky top-4 animate-fade-in" style={{animationDelay: '0.3s'}}>
                 <div className="flex items-center gap-2 mb-4 pb-3 border-b-2 border-orange-100">
                   <ShoppingCart className="w-5 h-5 text-orange-500" />
                   <h2 className="text-lg font-bold text-gray-800">Pré-visualização</h2>
