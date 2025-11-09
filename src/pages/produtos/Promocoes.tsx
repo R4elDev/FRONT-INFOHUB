@@ -93,6 +93,7 @@ function Promocoes() {
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'aviso' | 'erro' | null, mensagem: string }>({ tipo: null, mensagem: '' })
   const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [produtoHover, setProdutoHover] = useState<number | null>(null)
+  const [produtoAdicionando, setProdutoAdicionando] = useState<number | null>(null)
   const filtrosRef = useRef<HTMLDivElement>(null)
   
   // Contextos de favoritos e carrinho
@@ -326,30 +327,55 @@ function Promocoes() {
 
   const handleAdicionarCarrinho = async (produto: any, e: React.MouseEvent) => {
     e.stopPropagation()
-    const produtoConvertido = converterParaProduct(produto)
-    await addToCart(produtoConvertido, 1)
+    
+    // Define produto que está sendo adicionado
+    setProdutoAdicionando(produto.id)
+    
+    try {
+      const produtoConvertido = converterParaProduct(produto)
+      await addToCart(produtoConvertido, 1)
+      
+      // Feedback de sucesso
+      setFeedback({ 
+        tipo: 'sucesso', 
+        mensagem: `✅ "${produto.nome}" adicionado ao carrinho com sucesso!` 
+      })
+      
+      // Limpa o feedback após 3 segundos
+      setTimeout(() => {
+        setFeedback({ tipo: null, mensagem: '' })
+      }, 3000)
+      
+      console.log('✅ Produto adicionado ao carrinho:', produto.nome)
+    } catch (error) {
+      console.error('❌ Erro ao adicionar ao carrinho:', error)
+      setFeedback({ 
+        tipo: 'erro', 
+        mensagem: '❌ Erro ao adicionar produto. Tente novamente.' 
+      })
+    } finally {
+      // Remove estado de loading
+      setTimeout(() => {
+        setProdutoAdicionando(null)
+      }, 500)
+    }
   }
 
   return (
     <SidebarLayout>
       {/* Header com Gradiente */}
       <section className="mt-8 mb-6">
-        <div className="relative bg-gradient-to-r from-[#FFA500] via-[#FF8C00] to-[#FFA500] rounded-3xl p-8 shadow-2xl overflow-hidden">
-          {/* Partículas decorativas */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-          
-          <div className="relative z-10 flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg">
-              <Tag className="w-9 h-9 text-white animate-bounce-slow" />
+        <div className="bg-gradient-to-r from-[#FFA500] via-[#FF8C00] to-[#FFA500] rounded-3xl p-8 shadow-2xl">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-white/30 backdrop-blur-md flex items-center justify-center shadow-xl">
+              <Tag className="w-9 h-9 text-white animate-bounce-slow drop-shadow-lg" />
             </div>
             <div>
-              <h1 className="text-white text-3xl sm:text-4xl font-black mb-1 drop-shadow-lg">
+              <h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-black mb-1" style={{ textShadow: '3px 3px 10px rgba(0,0,0,0.8), 0px 0px 20px rgba(0,0,0,0.6)' }}>
                 Promoções Especiais
               </h1>
-              <p className="text-white/90 text-sm sm:text-base font-medium flex items-center gap-2">
-                <Sparkles className="w-4 h-4 animate-pulse" />
+              <p className="text-white text-sm sm:text-base font-bold flex items-center gap-2" style={{ textShadow: '2px 2px 6px rgba(0,0,0,0.8), 0px 0px 10px rgba(0,0,0,0.5)' }}>
+                <Sparkles className="w-4 h-4 animate-pulse drop-shadow-lg" />
                 Encontre as melhores ofertas e economize!
               </p>
             </div>
@@ -701,29 +727,35 @@ function Promocoes() {
                   </div>
                   <Button 
                     onClick={(e) => handleAdicionarCarrinho(produto, e)}
-                    className="h-10 w-10 sm:h-11 sm:w-11 rounded-full p-0 text-white font-bold 
+                    disabled={produtoAdicionando === produto.id}
+                    className={`h-10 w-10 sm:h-11 sm:w-11 rounded-full p-0 text-white font-bold 
                                bg-gradient-to-r from-[#FFA500] to-[#FF8C00] 
                                hover:from-[#FF8C00] hover:to-[#FFA500] 
                                shadow-lg hover:shadow-xl transition-all hover:scale-110 active:scale-95
-                               flex items-center justify-center group/btn"
+                               flex items-center justify-center group/btn
+                               ${produtoAdicionando === produto.id ? 'animate-pulse scale-95' : ''}`}
                     title="Adicionar ao carrinho"
                   >
-                    <Plus className="w-5 h-5 group-hover/btn:rotate-90 transition-transform" />
+                    {produtoAdicionando === produto.id ? (
+                      <ShoppingBag className="w-5 h-5 animate-bounce" />
+                    ) : (
+                      <Plus className="w-5 h-5 group-hover/btn:rotate-90 transition-transform" />
+                    )}
                   </Button>
                 </div>
 
-                {/* Tooltip ao Hover */}
-                {produtoHover === produto.id && (
-                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 translate-y-full bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap z-20 animate-fade-in">
-                    Clique para ver detalhes
-                    <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
-                  </div>
-                )}
-              </article>
-            )
-          })}
-          </div>
-        )}
+              {/* Tooltip ao Hover */}
+              {produtoHover === produto.id && (
+                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 translate-y-full bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-xl whitespace-nowrap z-20 animate-fade-in">
+                  Clique para ver detalhes
+                  <div className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45"></div>
+                </div>
+              )}
+            </article>
+          )
+        })}
+        </div>
+      )}
 
         {/* Paginação Moderna com Setas */}
         {!loading && produtos.length > 0 && (

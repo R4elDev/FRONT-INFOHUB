@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { TrendingUp, Package, Settings, Loader2, LogOut, FileText, ShoppingBag } from "lucide-react"
+import { TrendingUp, Package, Settings, Loader2, LogOut, FileText, ShoppingBag, User } from "lucide-react"
 import { buscarDadosEstabelecimentoAtualizado } from "../../services/apiServicesFixed"
 
 type TabType = 'promocoes' | 'pedidos' | 'relatorio' | 'sistema'
@@ -30,7 +30,23 @@ function DashboardEmpresa() {
           setNomeEmpresa(dados.razao_social || dados.nome || "Empresa")
           setEmailEmpresa(dados.email || "email@empresa.com")
           
-          // Extrai cidade e estado do endereço
+          // PRIORIDADE 1: Carregar endereço do localStorage (mais atualizado)
+          const enderecoSalvo = localStorage.getItem('endereco_empresa')
+          if (enderecoSalvo) {
+            try {
+              const enderecoData = JSON.parse(enderecoSalvo)
+              if (enderecoData.cidade && enderecoData.estado) {
+                setLocalizacao(`${enderecoData.cidade}, ${enderecoData.estado}`)
+                console.log('📍 [Dashboard] Localização do localStorage:', `${enderecoData.cidade}, ${enderecoData.estado}`)
+                setLoading(false)
+                return
+              }
+            } catch (e) {
+              console.error('Erro ao carregar endereço do localStorage:', e)
+            }
+          }
+          
+          // PRIORIDADE 2: Extrai cidade e estado do endereço da API
           console.log('📍 [Dashboard] Verificando endereço:', dados.endereco)
           console.log('📍 [Dashboard] Tipo do endereço:', typeof dados.endereco)
           
@@ -108,6 +124,14 @@ function DashboardEmpresa() {
                 className="bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#F9A01B] text-white px-4 py-2 rounded-xl font-semibold transition-all hover:scale-105 shadow-lg flex items-center gap-2 text-sm"
               >
                 ➕ Nova Promoção
+              </button>
+              <button 
+                type="button"
+                onClick={() => navigate('/perfil-empresa')}
+                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                title="Editar Perfil"
+              >
+                <User size={20} />
               </button>
               <button 
                 type="button"

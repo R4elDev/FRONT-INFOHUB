@@ -1,7 +1,7 @@
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { useNavigate } from "react-router-dom"
-import { ChevronLeft, CreditCard, Smartphone, Banknote, MapPin, User, Phone, Mail, Check, ShoppingCart, Truck, Package } from "lucide-react"
+import { ChevronLeft, CreditCard, Smartphone, Banknote, MapPin, User, Phone, Mail, Check, ShoppingCart, Truck, Package, Loader2, AlertCircle } from "lucide-react"
 import { useState } from "react"
 import iconJarra from "../../assets/icon de jara.png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
@@ -68,6 +68,10 @@ function Checkout() {
   const [bairro, setBairro] = useState('')
   const [cidade, setCidade] = useState('')
   const [estado, setEstado] = useState('')
+  
+  // Estados para busca de CEP
+  const [loadingCep, setLoadingCep] = useState(false)
+  const [erroCep, setErroCep] = useState('')
 
   // Dados do carrinho (virão do contexto/estado global depois)
   const itensCarrinho = [
@@ -81,6 +85,74 @@ function Checkout() {
 
   const handleVoltar = () => {
     navigate('/carrinho')
+  }
+  
+  // Função para buscar CEP na API ViaCEP
+  const buscarCEP = async (cepValue: string) => {
+    // Remove caracteres não numéricos
+    const cepLimpo = cepValue.replace(/\D/g, '')
+    
+    // Valida se tem 8 dígitos
+    if (cepLimpo.length !== 8) {
+      setErroCep('')
+      return
+    }
+    
+    setLoadingCep(true)
+    setErroCep('')
+    
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+      const data = await response.json()
+      
+      if (data.erro) {
+        setErroCep('CEP não encontrado')
+        setEndereco('')
+        setBairro('')
+        setCidade('')
+        setEstado('')
+      } else {
+        // Preenche os campos automaticamente
+        setEndereco(data.logradouro || '')
+        setBairro(data.bairro || '')
+        setCidade(data.localidade || '')
+        setEstado(data.uf || '')
+        setComplemento(data.complemento || '')
+        setErroCep('')
+        
+        // Foca no campo de número após preencher
+        setTimeout(() => {
+          document.getElementById('numero-input')?.focus()
+        }, 100)
+      }
+    } catch (error) {
+      setErroCep('Erro ao buscar CEP. Tente novamente.')
+      console.error('Erro ao buscar CEP:', error)
+    } finally {
+      setLoadingCep(false)
+    }
+  }
+  
+  // Função para formatar CEP enquanto digita
+  const handleCepChange = (value: string) => {
+    // Remove tudo que não é número
+    const apenasNumeros = value.replace(/\D/g, '')
+    
+    // Limita a 8 dígitos
+    const limitado = apenasNumeros.slice(0, 8)
+    
+    // Formata: 00000-000
+    let formatado = limitado
+    if (limitado.length > 5) {
+      formatado = `${limitado.slice(0, 5)}-${limitado.slice(5)}`
+    }
+    
+    setCep(formatado)
+    
+    // Busca automaticamente quando completar 8 dígitos
+    if (apenasNumeros.length === 8) {
+      buscarCEP(apenasNumeros)
+    }
   }
 
   const handleFinalizarPedido = () => {
@@ -209,14 +281,35 @@ function Checkout() {
               <h2 className="text-2xl font-bold text-gray-800">Endereço de Entrega</h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">CEP *</label>
-                <Input
-                  value={cep}
-                  onChange={(e) => setCep(e.target.value)}
-                  placeholder="00000-000"
-                  className="h-12"
-                />
+                <div className="relative">
+                  <Input
+                    value={cep}
+                    onChange={(e) => handleCepChange(e.target.value)}
+                    placeholder="00000-000"
+                    maxLength={9}
+                    className={`h-12 pr-10 ${erroCep ? 'border-red-500' : ''}`}
+                  />
+                  {loadingCep && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#FFA726] animate-spin" />
+                  )}
+                  {erroCep && (
+                    <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-red-500" />
+                  )}
+                </div>
+                {erroCep && (
+                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    {erroCep}
+                  </p>
+                )}
+                {!erroCep && !loadingCep && cep.replace(/\D/g, '').length === 8 && (
+                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                    <Check className="w-3 h-3" />
+                    CEP encontrado! Endereço preenchido automaticamente
+                  </p>
+                )}
               </div>
               <div className="sm:col-span-2">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Endereço *</label>
@@ -225,11 +318,13 @@ function Checkout() {
                   onChange={(e) => setEndereco(e.target.value)}
                   placeholder="Rua, Avenida, etc"
                   className="h-12"
+                  disabled={loadingCep}
                 />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Número *</label>
                 <Input
+                  id="numero-input"
                   value={numero}
                   onChange={(e) => setNumero(e.target.value)}
                   placeholder="123"
@@ -252,6 +347,7 @@ function Checkout() {
                   onChange={(e) => setBairro(e.target.value)}
                   placeholder="Seu bairro"
                   className="h-12"
+                  disabled={loadingCep}
                 />
               </div>
               <div>
@@ -261,6 +357,7 @@ function Checkout() {
                   onChange={(e) => setCidade(e.target.value)}
                   placeholder="Sua cidade"
                   className="h-12"
+                  disabled={loadingCep}
                 />
               </div>
               <div>
@@ -271,6 +368,7 @@ function Checkout() {
                   placeholder="UF"
                   maxLength={2}
                   className="h-12"
+                  disabled={loadingCep}
                 />
               </div>
             </div>

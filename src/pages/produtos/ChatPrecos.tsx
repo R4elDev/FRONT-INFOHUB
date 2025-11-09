@@ -358,24 +358,17 @@ function ChatPrecos() {
     <SidebarLayout>
       {/* Header Moderno com Gradiente */}
       <section className="mt-8 mb-6">
-        <div className="relative bg-gradient-to-r from-[#F7931E] via-[#FF8C00] to-[#F7931E] rounded-3xl p-8 shadow-2xl overflow-hidden">
-          {/* Efeito de brilho animado */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-          
-          {/* Partículas decorativas */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-40 h-40 bg-white/5 rounded-full blur-3xl" />
-          
-          <div className="relative z-10 flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg animate-bounce-slow">
-              <Bot className="w-9 h-9 text-white" />
+        <div className="bg-gradient-to-r from-[#F7931E] via-[#FF8C00] to-[#F7931E] rounded-3xl p-8 shadow-2xl">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-white/30 backdrop-blur-md flex items-center justify-center shadow-xl animate-bounce-slow">
+              <Bot className="w-9 h-9 text-white drop-shadow-lg" />
             </div>
             <div>
-              <h1 className="text-white text-3xl sm:text-4xl font-black mb-1 drop-shadow-lg">
+              <h1 className="text-white text-3xl sm:text-4xl font-black mb-1" style={{ textShadow: '3px 3px 10px rgba(0,0,0,0.8), 0px 0px 20px rgba(0,0,0,0.6)' }}>
                 Chat de Preços IA
               </h1>
-              <p className="text-white/90 text-sm sm:text-base font-medium flex items-center gap-2">
-                <Sparkles className="w-4 h-4 animate-pulse" />
+              <p className="text-white text-sm sm:text-base font-bold flex items-center gap-2" style={{ textShadow: '2px 2px 6px rgba(0,0,0,0.8), 0px 0px 10px rgba(0,0,0,0.5)' }}>
+                <Sparkles className="w-4 h-4 animate-pulse drop-shadow-lg" />
                 Compare preços instantaneamente com inteligência artificial
               </p>
             </div>
@@ -474,23 +467,18 @@ function ChatPrecos() {
             <div className="w-full mt-6 animate-fade-in" style={{ animationDelay: '0.5s' }}>
               <div className="max-w-4xl">
                 {/* Card de Boas-vindas Moderno */}
-                <div className="relative bg-gradient-to-br from-[#F7931E] via-[#FF8C00] to-[#FFA726] rounded-3xl shadow-2xl overflow-hidden">
-                  {/* Efeitos de fundo */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer" />
-                  <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
-                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full blur-2xl" />
-                  
-                  <div className="relative z-10 p-6 sm:p-8">
+                <div className="bg-gradient-to-br from-[#F7931E] via-[#FF8C00] to-[#FFA726] rounded-3xl shadow-2xl">
+                  <div className="p-6 sm:p-8">
                     {/* Header com ícone */}
                     <div className="flex items-start gap-4 mb-4">
-                      <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-lg animate-bounce-slow">
-                        <Sparkles className="w-7 h-7 text-white" />
+                      <div className="w-14 h-14 rounded-2xl bg-white/30 backdrop-blur-md flex items-center justify-center shadow-xl animate-bounce-slow">
+                        <Sparkles className="w-7 h-7 text-white drop-shadow-lg" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-white text-2xl font-black mb-1 drop-shadow-lg">
+                        <h3 className="text-white text-2xl font-black mb-1" style={{ textShadow: '3px 3px 10px rgba(0,0,0,0.8)' }}>
                           Olá! Seja bem-vindo! 👋
                         </h3>
-                        <p className="text-white/90 text-sm sm:text-base font-medium">
+                        <p className="text-white text-sm sm:text-base font-bold" style={{ textShadow: '2px 2px 6px rgba(0,0,0,0.8)' }}>
                           Estou aqui para ajudar você a encontrar os melhores preços!
                         </p>
                       </div>

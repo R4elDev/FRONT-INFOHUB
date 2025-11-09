@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Input as CampoTexto } from "../../components/ui/input"
 import { useNavigate } from "react-router-dom"
-import { Search, Heart, Plus, ChevronLeft, ChevronRight, Tag, Sparkles, TrendingUp } from 'lucide-react'
+import { Search, Heart, Plus, ChevronLeft, ChevronRight, Tag, Sparkles, TrendingUp, ShoppingBag } from 'lucide-react'
 import iconJarra from "../../assets/icon de jara.png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
+import { useFavoritos } from "../../contexts/FavoritosContext"
+import { useCarrinho } from "../../contexts/CarrinhoContext"
+import type { Product } from "../../types"
 
 // Animações CSS customizadas
 const styles = document.createElement('style')
@@ -95,13 +98,19 @@ const promocoesCarrossel = [
 
 function HomeInicial() {
   const navigate = useNavigate()
-  const [produtos, setProdutos] = useState<Array<any>>([]) 
-  const [loading, setLoading] = useState(true)
+  const [bannerAtual, setBannerAtual] = useState(0)
+  const [produtos, setProdutos] = useState<any[]>([])
   const [busca, setBusca] = useState('')
-  const [carrosselAtivo, setCarrosselAtivo] = useState(0)
-  const [isPaused, setIsPaused] = useState(false)
   const [produtoHover, setProdutoHover] = useState<number | null>(null)
   const [favoritoHover, setFavoritoHover] = useState<number | null>(null)
+  const [produtoAdicionando, setProdutoAdicionando] = useState<number | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [carrosselAtivo, setCarrosselAtivo] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  
+  // Contextos
+  const { addFavorite, removeFavorite, isFavorite } = useFavoritos()
+  const { addToCart } = useCarrinho()
 
   // Carrega produtos ao montar o componente
   useEffect(() => {
@@ -135,6 +144,50 @@ function HomeInicial() {
 
   const handleProdutoClick = (produtoId: number) => {
     navigate(`/produto/${produtoId}`)
+  }
+  
+  // Converter produto para tipo Product
+  const converterParaProduct = (produto: any): Product => {
+    const emPromocao = isProdutoEmPromocao(produto)
+    return {
+      id: produto.id,
+      nome: produto.nome,
+      preco: emPromocao ? produto.promocao.preco_promocional : produto.preco,
+      precoAntigo: emPromocao ? produto.preco : undefined,
+      imagem: produto.imagem || iconJarra,
+      categoria: produto.categoria?.nome,
+      descricao: produto.descricao
+    }
+  }
+  
+  // Adicionar ao carrinho
+  const handleAdicionarCarrinho = async (produto: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setProdutoAdicionando(produto.id)
+    
+    try {
+      const produtoConvertido = converterParaProduct(produto)
+      await addToCart(produtoConvertido, 1)
+      console.log('✅ Produto adicionado ao carrinho:', produto.nome)
+    } catch (error) {
+      console.error('❌ Erro ao adicionar ao carrinho:', error)
+    } finally {
+      setTimeout(() => {
+        setProdutoAdicionando(null)
+      }, 500)
+    }
+  }
+  
+  // Favoritar/Desfavoritar
+  const handleFavoritar = async (produto: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const produtoConvertido = converterParaProduct(produto)
+    
+    if (isFavorite(produto.id)) {
+      await removeFavorite(produto.id)
+    } else {
+      await addFavorite(produtoConvertido)
+    }
   }
 
   const handleBusca = () => {
@@ -353,20 +406,19 @@ function HomeInicial() {
 
                     {/* Botão Favorito Modernizado */}
                     <button 
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        console.log('Favorito clicado:', produto.id)
-                      }}
+                      onClick={(e) => handleFavoritar(produto, e)}
                       onMouseEnter={() => setFavoritoHover(produto.id)}
                       onMouseLeave={() => setFavoritoHover(null)}
-                      className="absolute top-3 right-3 z-10 transition-all duration-300"
-                      title={favoritoHover === produto.id ? "Adicionar aos favoritos" : ""}
+                      className={`absolute top-3 right-3 z-10 transition-all duration-300 ${
+                        isFavorite(produto.id) ? 'text-red-500 scale-110' : 'text-gray-300'
+                      }`}
+                      title={isFavorite(produto.id) ? "Remover dos favoritos" : "Adicionar aos favoritos"}
                     >
                       <Heart 
                         className={`w-6 h-6 transition-all ${
-                          favoritoHover === produto.id
-                            ? 'text-red-500 scale-125 fill-red-500'
-                            : 'text-gray-300 hover:text-red-400'
+                          isFavorite(produto.id)
+                            ? 'fill-red-500'
+                            : favoritoHover === produto.id ? 'text-red-500 scale-125' : 'hover:text-red-400'
                         }`}
                       />
                     </button>
@@ -406,16 +458,19 @@ function HomeInicial() {
                         </p>
                       </div>
                       <button 
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          console.log('Adicionar ao carrinho:', produto.id)
-                        }}
-                        className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FFA726] to-[#FF8C00] 
+                        onClick={(e) => handleAdicionarCarrinho(produto, e)}
+                        disabled={produtoAdicionando === produto.id}
+                        className={`w-10 h-10 rounded-full bg-gradient-to-br from-[#FFA726] to-[#FF8C00] 
                                    flex items-center justify-center shadow-lg transition-all 
-                                   hover:scale-110 hover:rotate-90 active:scale-95 group/btn"
+                                   hover:scale-110 active:scale-95 group/btn
+                                   ${produtoAdicionando === produto.id ? 'animate-pulse scale-95' : ''}`}
                         title="Adicionar ao carrinho"
                       >
-                        <Plus className="w-5 h-5 text-white group-hover/btn:rotate-90 transition-transform" />
+                        {produtoAdicionando === produto.id ? (
+                          <ShoppingBag className="w-5 h-5 text-white animate-bounce" />
+                        ) : (
+                          <Plus className="w-5 h-5 text-white group-hover/btn:rotate-90 transition-transform" />
+                        )}
                       </button>
                     </div>
 

@@ -632,88 +632,107 @@ export async function buscarNomeCategoria(id: number): Promise<string> {
 }
 
 export function isProdutoEmPromocao(produto: any): boolean {
-    console.log('🔍 [isProdutoEmPromocao] Verificando produto:', produto.nome)
-    console.log('🔍 [isProdutoEmPromocao] Estrutura completa do produto:', JSON.stringify(produto, null, 2))
+    console.log('🔍 [isProdutoEmPromocao] Verificando produto:', produto.nome || produto.id)
     
     // Verifica diferentes estruturas de promoção que podem vir da API
     let promocaoData = null
     
     // Tenta encontrar dados de promoção em diferentes campos
     // PRIORIDADE 1: Objeto promocao já mapeado
-    if (produto.promocao && produto.promocao !== null) {
+    if (produto.promocao && typeof produto.promocao === 'object') {
         promocaoData = produto.promocao
-        console.log('✅ [isProdutoEmPromocao] Promoção encontrada em produto.promocao:', promocaoData)
+        console.log('✅ [isProdutoEmPromocao] Promoção encontrada em produto.promocao')
     } 
     // PRIORIDADE 2: Campos diretos da API (preco_promocional, data_inicio, data_fim)
-    else if (produto.preco_promocional && produto.preco_promocional !== null) {
+    else if (produto.preco_promocional !== undefined && produto.preco_promocional !== null) {
         promocaoData = {
             preco_promocional: produto.preco_promocional,
             data_inicio: produto.data_inicio,
             data_fim: produto.data_fim
         }
-        console.log('✅ [isProdutoEmPromocao] Promoção encontrada como campos diretos:', promocaoData)
+        console.log('✅ [isProdutoEmPromocao] Promoção encontrada como campos diretos')
     } 
     // PRIORIDADE 3: Array de promocoes
-    else if (produto.promocoes && produto.promocoes.length > 0) {
+    else if (Array.isArray(produto.promocoes) && produto.promocoes.length > 0) {
         promocaoData = produto.promocoes[0]
-        console.log('✅ [isProdutoEmPromocao] Promoção encontrada em produto.promocoes[0]:', promocaoData)
+        console.log('✅ [isProdutoEmPromocao] Promoção encontrada em produto.promocoes[0]')
     } else {
         console.log('❌ [isProdutoEmPromocao] Nenhum dado de promoção encontrado')
+        return false
     }
     
     // Se não tem dados de promoção
     if (!promocaoData) {
-        console.log('❌ [isProdutoEmPromocao] Resultado: SEM PROMOÇÃO (promocaoData é null)')
         return false
     }
     
     // Verifica se tem preço promocional válido
-    const precoPromocional = promocaoData.preco_promocional
+    const precoPromocional = Number(promocaoData.preco_promocional)
+    const precoNormal = Number(produto.preco)
+    
     console.log('💰 [isProdutoEmPromocao] Preço promocional:', precoPromocional)
-    console.log('💰 [isProdutoEmPromocao] Preço normal:', produto.preco)
+    console.log('💰 [isProdutoEmPromocao] Preço normal:', precoNormal)
     
-    if (!precoPromocional || precoPromocional <= 0) {
-        console.log('❌ [isProdutoEmPromocao] Resultado: SEM PROMOÇÃO (preço promocional inválido)')
+    // CRITÉRIO PRINCIPAL: Preço promocional deve ser menor que o normal
+    if (isNaN(precoPromocional) || precoPromocional <= 0) {
+        console.log('❌ [isProdutoEmPromocao] Preço promocional inválido')
         return false
     }
     
-    // Verifica se o preço promocional é diferente do preço normal
-    if (precoPromocional >= produto.preco) {
-        console.log('❌ [isProdutoEmPromocao] Resultado: SEM PROMOÇÃO (preço promocional >= preço normal)')
+    if (isNaN(precoNormal) || precoNormal <= 0) {
+        console.log('❌ [isProdutoEmPromocao] Preço normal inválido')
         return false
     }
     
+    if (precoPromocional >= precoNormal) {
+        console.log('❌ [isProdutoEmPromocao] Preço promocional não é menor que o normal')
+        return false
+    }
+    
+    // VALIDAÇÃO DE DATAS (mais flexível)
     try {
-        // Se não tem datas definidas, considera como promoção ativa
-        if (!promocaoData.data_inicio || !promocaoData.data_fim) {
-            console.log('✅ [isProdutoEmPromocao] Resultado: COM PROMOÇÃO (sem datas definidas)')
+        const dataInicio = promocaoData.data_inicio
+        const dataFim = promocaoData.data_fim
+        
+        // Se não tem datas, ou são null/undefined, considera promoção ATIVA
+        if (!dataInicio && !dataFim) {
+            console.log('✅ [isProdutoEmPromocao] COM PROMOÇÃO (sem datas = sempre ativa)')
             return true
         }
         
         const hoje = new Date()
         hoje.setHours(0, 0, 0, 0)
         
-        const dataInicio = new Date(promocaoData.data_inicio)
-        const dataFim = new Date(promocaoData.data_fim)
-        dataInicio.setHours(0, 0, 0, 0)
-        dataFim.setHours(23, 59, 59, 999)
-        
-        console.log('📅 [isProdutoEmPromocao] Data de hoje:', hoje.toISOString())
-        console.log('📅 [isProdutoEmPromocao] Data início:', dataInicio.toISOString())
-        console.log('📅 [isProdutoEmPromocao] Data fim:', dataFim.toISOString())
-        
-        // Se datas são inválidas, considera ativo
-        if (isNaN(dataInicio.getTime()) || isNaN(dataFim.getTime())) {
-            console.log('✅ [isProdutoEmPromocao] Resultado: COM PROMOÇÃO (datas inválidas)')
-            return true
+        // Se tem data de início, valida
+        if (dataInicio) {
+            const inicio = new Date(dataInicio)
+            if (!isNaN(inicio.getTime())) {
+                inicio.setHours(0, 0, 0, 0)
+                if (hoje < inicio) {
+                    console.log('❌ [isProdutoEmPromocao] Promoção ainda não começou')
+                    return false
+                }
+            }
         }
         
-        // Verifica se está dentro do período
-        const dentroPeríodo = hoje >= dataInicio && hoje <= dataFim
-        console.log(`${dentroPeríodo ? '✅' : '❌'} [isProdutoEmPromocao] Resultado: ${dentroPeríodo ? 'COM PROMOÇÃO' : 'SEM PROMOÇÃO'} (verificação de datas)`)
-        return dentroPeríodo
+        // Se tem data de fim, valida
+        if (dataFim) {
+            const fim = new Date(dataFim)
+            if (!isNaN(fim.getTime())) {
+                fim.setHours(23, 59, 59, 999)
+                if (hoje > fim) {
+                    console.log('❌ [isProdutoEmPromocao] Promoção já expirou')
+                    return false
+                }
+            }
+        }
+        
+        console.log('✅ [isProdutoEmPromocao] COM PROMOÇÃO (dentro do período)')
+        return true
+        
     } catch (error) {
-        console.log('✅ [isProdutoEmPromocao] Resultado: COM PROMOÇÃO (erro na verificação, considerando ativo)')
+        // Em caso de erro na validação de datas, se tem preço promocional válido, considera ativo
+        console.log('✅ [isProdutoEmPromocao] COM PROMOÇÃO (erro nas datas, mas preço válido)')
         return true
     }
 }

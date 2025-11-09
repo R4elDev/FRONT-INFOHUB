@@ -145,13 +145,18 @@ function PagamentoSucesso() {
     const processingTimer = setTimeout(() => {
       setShowProcessing(false)
       setShowSuccess(true)
+      
+      // TOCAR SOM DE SUCESSO!
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjGJ1O+4aSEFL3vO8dqMNwcZabvs56BQEQ1Tq+fxuHAhBjiS2fHNfC8GJnjJ8OCXSQ4TYbXq7KxZFQxKotzvw4UqBjKM1++wbyAGL37V8N6VTRAUYrbq7bBXFQ1OqOTvw4QrBjKM1PC1ciQGMH7X8OeeURAVYrjq7LFYFg5PqOTvw4RBDjWR1vDHcyoHMoDU8N2cUhEWY7fr7LJaGBFRqOPuw4QyDDWR1O+6bCEFMH3S793KtioIMIDT8N6aTRAVYrfq7LFZGBBRp+Luw4RBDTaR1PC/dyoHMYDU8N+fVBIXZLjr67JaGBFSqOPvxY0oCS+M0+7Cfi4HMn/R8N+fURIXZLjs7LNbGRJTqePvxo0pCS+M0+69h0YRKHzP8N6gUhMYZrrr67RcGhNUqOPvxowqCjCM0u6+jFERKX3R8OCiUxQZZ7vs7LVdGxRVqOPvxowqCjGN0u/CkFYVKH3R8OGjVBQZZ7vs7bZeGxVWqeTvxowqCzGN0u/CkVkXKH7R8OGkVRUaaLvt7bdgHBZYqOTvxooqCzGN0u/BkFocKH7S8OOlVxYbabzu7rhgHRdZqeXvxo0qCzGN0u/BkV4dKX/T8OSmWhgcabzv7rkgHxlaqu/u++/vxo0qCzGN0u/BkWAdKX/T8OSnWhgcabzw77kgHxlaqu/u++/vxo8qCzCO0u/CkWAeKX/U8OSnWxkdab3w77sgIBpaq/Dv//Awxo8rDDCO0u/CkWAeKX/U8OSnWxkdab3w77sgIBpaq/Dv//Awxo8rDDCO0u/CkWAeKX/U8OSnWxkdab3w77sgIBpaq/Dv//Awxo8rDDGO0u/CkV8eKH7T8OOmWxgcabzw7rkeHxlavPDu++/vxo4rCzCO0u/BkV0cKH3S8OOlWRgbabzu7rkgHRdZqePuxo0qCzGN0u/BkFocKH7S8OGkVRUaaLvt7bdgHBZYqOTvxooqCzGN0u/CkFkXKH7R8OGkVRQZZ7vs7bZeGxVWqeTvxowqCzGN0u/BkFUUKH3R8OCiUxMYZbrs7LVdGxRVqOPvxowqCjGN0u/CkFIRKX3R8OCiUhMXZLnr67RcGhNUqOPvxo0pCS+M0u69iFAQJ3zP8N+gUhIXZLnr7LNbGRJTqePvxY0oCS+M0+68gi4GsH/R8N+fURMXZLjr67JaGBFSqOPvxIYmCSyKz+28Yh8FLHvP796fThEWY7fr7LFZGBBRp+Luw4M9CzOPzu67YhkEKHfO8N6cTRIVYrfp7LBYFg5PqOLuw4ItCy+JzO2xVxMFJ3PK79yaTBEVYbbp7a5XFQ1OqOTvxIMrCCyHyuy1UQ8EJnDI7tySRg8VYbXp7axYFA1MpuHuw4IqCCuFyOu/TQwEJm/I7t2URw8UXrPn66hUEAtJpN/tw4YnCCuEyOu9SwoEJW3F7tqNRgsUXbDm66RQEQ1Mqt/sw4QnCCt+xOu4SAgEJGzE7tmKRQoUXK7k66FNDgxJpt3rwY8kCCuAw+u6RwwEJGzE7tmJRgoUXK/k66NQEg9Lpt3sw48kByt/wuu4RwwEI2vD7tiLRgoTW67k66FQEg9KpdzswY8kByt9wuq3RgsDImrC7deFQwkSWavj6qBPEQ5Ipdrquokic2U=')
+      audio.volume = 0.3
+      audio.play().catch(e => console.log('Audio play failed:', e))
     }, 2000)
     
-    // Fase 2: Sucesso aparece (1 segundo)
+    // Fase 2: Sucesso aparece (2 segundos - aumentado)
     const successTimer = setTimeout(() => {
       setShowSuccess(false)
       setShowContent(true)
-    }, 3500)
+    }, 4000)
     
     return () => {
       clearTimeout(processingTimer)
@@ -197,9 +202,10 @@ function PagamentoSucesso() {
     <SidebarLayout>
       {/* MODAL DE PROCESSAMENTO E SUCESSO - ESTILO MERCADO PAGO */}
       {(showProcessing || showSuccess) && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in-scale">
-          <div className="bg-white rounded-3xl p-12 shadow-2xl max-w-md mx-4">
-            {showProcessing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in-scale">
+          {/* Loading com card branco */}
+          {showProcessing && (
+            <div className="bg-white rounded-3xl p-12 shadow-2xl max-w-md mx-4">
               <div className="text-center">
                 {/* Loading Spinner */}
                 <div className="relative mb-8">
@@ -214,44 +220,72 @@ function PagamentoSucesso() {
                   Aguarde enquanto confirmamos sua transação
                 </p>
               </div>
-            )}
+            </div>
+          )}
             
-            {showSuccess && (
-              <div className="text-center">
-                {/* Check Verde Animado - ESTILO MERCADO PAGO */}
-                <div className="relative mb-8 flex items-center justify-center">
-                  {/* Círculo de fundo com ripple */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-32 h-32 rounded-full bg-green-500/20 animate-ripple"></div>
-                  </div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-32 h-32 rounded-full bg-green-500/30 animate-ripple" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                  
-                  {/* Círculo principal */}
-                  <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center animate-circle-fill shadow-2xl">
-                    <CheckCircle className="w-20 h-20 text-white animate-check-appear" strokeWidth={3} />
-                  </div>
+          {/* Tela Verde FULLSCREEN sem card branco */}
+          {showSuccess && (
+            <>
+              {/* FUNDO VERDE FULLSCREEN */}
+              <div className="fixed inset-0 bg-gradient-to-br from-green-400 via-green-500 to-emerald-600 animate-fade-in-scale"></div>
+              
+              <div className="relative z-10 text-center px-4 w-full max-w-2xl">
+                
+                {/* Partículas brilhantes */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-white rounded-full animate-ping" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="absolute top-1/3 right-1/3 w-3 h-3 bg-yellow-300 rounded-full animate-ping" style={{ animationDelay: '0.3s' }}></div>
+                  <div className="absolute bottom-1/3 left-1/3 w-2 h-2 bg-white rounded-full animate-ping" style={{ animationDelay: '0.5s' }}></div>
+                  <div className="absolute top-1/2 right-1/4 w-3 h-3 bg-yellow-200 rounded-full animate-ping" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="absolute bottom-1/4 right-1/3 w-2 h-2 bg-white rounded-full animate-ping" style={{ animationDelay: '0.4s' }}></div>
                 </div>
                 
-                <h2 className="text-3xl font-black text-gray-800 mb-3 animate-fade-in-scale" style={{ animationDelay: '0.3s' }}>
-                  Pagamento Aprovado!
+                {/* Check Verde Animado GIGANTE - ESTILO MERCADO PAGO */}
+                <div className="relative mb-12 flex items-center justify-center">
+                  {/* Círculo de fundo com ripple MAIOR */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-64 h-64 rounded-full bg-white/30 animate-ripple"></div>
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-64 h-64 rounded-full bg-white/40 animate-ripple" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-64 h-64 rounded-full bg-white/20 animate-ripple" style={{ animationDelay: '0.4s' }}></div>
+                  </div>
+                  
+                  {/* Círculo principal GIGANTE */}
+                  <div className="relative w-48 h-48 rounded-full bg-white flex items-center justify-center animate-circle-fill shadow-[0_0_80px_rgba(255,255,255,0.8)]">
+                    <CheckCircle className="w-32 h-32 text-green-500 animate-check-appear" strokeWidth={4} />
+                  </div>
+                  
+                  {/* Estrelas ao redor */}
+                  <Sparkles className="absolute -top-8 -right-8 w-16 h-16 text-yellow-300 animate-bounce-celebrate" />
+                  <Sparkles className="absolute -bottom-8 -left-8 w-12 h-12 text-yellow-200 animate-bounce-celebrate" style={{ animationDelay: '0.3s' }} />
+                  <Sparkles className="absolute -top-8 -left-8 w-10 h-10 text-white animate-bounce-celebrate" style={{ animationDelay: '0.5s' }} />
+                  <Sparkles className="absolute -bottom-8 -right-8 w-14 h-14 text-yellow-400 animate-bounce-celebrate" style={{ animationDelay: '0.2s' }} />
+                </div>
+                
+                <h2 className="text-5xl md:text-6xl font-black text-white mb-4 animate-fade-in-scale drop-shadow-2xl" style={{ animationDelay: '0.3s' }}>
+                  🎉 Pagamento Aprovado!
                 </h2>
-                <p className="text-lg text-green-600 font-bold animate-fade-in-scale" style={{ animationDelay: '0.4s' }}>
+                <p className="text-2xl md:text-3xl text-white font-bold animate-fade-in-scale drop-shadow-xl" style={{ animationDelay: '0.4s' }}>
                   ✓ Transação realizada com sucesso
                 </p>
+                <p className="text-lg text-white/90 mt-4 animate-fade-in-scale" style={{ animationDelay: '0.6s' }}>
+                  Preparando seu pedido...
+                </p>
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       )}
       
       {/* CONTEÚDO PRINCIPAL */}
       {showContent && (
-      <div className="min-h-[80vh] flex items-center justify-center py-8 px-2 sm:px-4">
-        <div className="w-full max-w-3xl">
-          {/* Card Principal - LAYOUT PREMIUM */}
-          <div className="bg-white rounded-3xl border-2 border-gray-200 shadow-[0_20px_60px_rgba(0,0,0,0.15)] p-8 sm:p-12 text-center animate-slide-up overflow-hidden relative">
+        <div className="min-h-[80vh] flex items-center justify-center py-8 px-2 sm:px-4">
+          <div className="w-full max-w-3xl">
+            {/* Card Principal - LAYOUT PREMIUM */}
+            <div className="bg-white rounded-3xl border-2 border-gray-200 shadow-[0_20px_60px_rgba(0,0,0,0.15)] p-8 sm:p-12 text-center animate-slide-up overflow-hidden relative">
             {/* Gradiente de fundo sutil */}
             <div className="absolute inset-0 bg-gradient-to-br from-green-50/40 via-transparent to-blue-50/40 pointer-events-none"></div>
             
@@ -374,7 +408,6 @@ function PagamentoSucesso() {
                 Continuar Comprando
               </Button>
             </div>
-            </div>
           </div>
 
           {/* Informação Adicional */}
@@ -388,8 +421,8 @@ function PagamentoSucesso() {
               </p>
             </div>
           </div>
+          </div>
         </div>
-      </div>
       )}
     </SidebarLayout>
   )
