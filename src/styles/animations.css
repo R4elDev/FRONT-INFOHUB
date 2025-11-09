@@ -114,6 +114,16 @@
   }
 }
 
+/* Bounce Slow (Bounce Lento) */
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
 /* Float (Flutuação) - Otimizada */
 @keyframes float {
   0%, 100% {
@@ -218,6 +228,10 @@
 
 .animate-pulse {
   animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
 }
 
 .animate-float {
