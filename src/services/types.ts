@@ -50,8 +50,8 @@ export type atualizarUsuarioRequest = {
   email?: string;
   senha?: string;
   cpf?: string | null;
-  telefone?: string;
-  data_nascimento?: string;
+  telefone?: string | null;
+  data_nascimento?: string | null;
 }
 
 export type atualizarEmpresaRequest = {

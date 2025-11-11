@@ -929,6 +929,9 @@ export async function atualizarUsuario(payload: atualizarUsuarioRequest): Promis
         console.log('👤 Dados para atualização:', payload)
         console.log('👤 Endpoint:', `/usuario/${userId}`)
         console.log('👤 Método: PUT')
+        console.log('👤 Payload JSON:', JSON.stringify(payload, null, 2))
+        console.log('👤 Campos no payload:', Object.keys(payload))
+        console.log('👤 Tipos dos campos:', Object.keys(payload).map(key => `${key}: ${typeof payload[key as keyof typeof payload]}`))
         
         const { data } = await api.put<atualizarUsuarioResponse>(`/usuario/${userId}`, payload)
         

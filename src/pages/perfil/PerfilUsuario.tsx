@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { User, Mail, Phone, Calendar, Save, X, Loader2, Settings, ArrowLeft, LogOut } from "lucide-react"
+import { User, Mail, Phone, Calendar, Save, X, Loader2, Settings, ArrowLeft, LogOut, Lock } from "lucide-react"
 import { atualizarUsuario, obterDadosUsuario, buscarDadosUsuarioDireto } from "../../services/apiServicesFixed"
 import type { atualizarUsuarioRequest } from "../../services/types"
 
@@ -12,6 +12,7 @@ function PerfilUsuario() {
   const [cpf, setCpf] = useState<string>("")
   const [telefone, setTelefone] = useState<string>("")
   const [dataNascimento, setDataNascimento] = useState<string>("")
+  const [senha, setSenha] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string>("")
   const [messageType, setMessageType] = useState<'success' | 'error' | ''>('')
@@ -188,132 +189,106 @@ function PerfilUsuario() {
       // SOLUÇÃO: Backend exige TODOS os campos obrigatórios em cada PUT
       // Sempre envia dados completos do usuário (formulário OU dados atuais)
       
-      payload = {
-        nome: nome.trim(),
-        email: email.trim()
+      // CORREÇÃO FINAL: Segundo a documentação da API, NENHUM campo é obrigatório!
+      // Enviamos apenas os campos que foram alterados/preenchidos
+      
+      // Inicia payload vazio
+      payload = {}
+      
+      // Adiciona apenas campos que TÊM VALOR (atualização parcial)
+      if (nome && nome.trim() !== '') {
+        payload.nome = nome.trim()
       }
       
-      // CPF: só incluir no payload se existir e for válido (não enviar null)
+      if (email && email.trim() !== '') {
+        payload.email = email.trim()
+      }
+      
+      // Senha é OPCIONAL - só envia se foi preenchida
+      if (senha && senha.trim() !== '') {
+        if (senha.length > 100) {
+          showMessage("Senha não pode ter mais de 100 caracteres", "error")
+          setLoading(false)
+          return
+        }
+        payload.senha = senha.trim()
+      }
+      
       if (cpfLimpo && cpfLimpo.length === 11) {
         payload.cpf = cpfLimpo
-        console.log('✅ [PerfilUsuario] CPF adicionado ao payload:', payload.cpf)
-      } else if (dadosAtuais?.cpf) {
-        // Se não tem CPF no formulário, usa o CPF atual do usuário
-        const cpfAtual = dadosAtuais.cpf.replace(/\D/g, '')
-        if (cpfAtual && cpfAtual.length === 11) {
-          payload.cpf = cpfAtual
-          console.log('✅ [PerfilUsuario] CPF atual adicionado ao payload:', payload.cpf)
-        } else {
-          console.log('⚠️ [PerfilUsuario] CPF inválido, não será enviado:', dadosAtuais.cpf)
-        }
-      } else {
-        // Não incluir CPF no payload se não existir
-        console.log('⚠️ [PerfilUsuario] CPF não existe, não será enviado no payload')
       }
       
-      // Telefone: usa valor do formulário OU valor atual (SEMPRE envia se existir)
       if (telefoneLimpo && (telefoneLimpo.length === 10 || telefoneLimpo.length === 11)) {
         payload.telefone = telefoneLimpo
-        console.log('✅ [PerfilUsuario] Telefone do formulário adicionado ao payload:', payload.telefone)
-      } else if (dadosAtuais?.telefone) {
-        // Se não tem telefone válido no formulário, usa o telefone atual
-        const telefoneAtual = dadosAtuais.telefone.replace(/\D/g, '')
-        if (telefoneAtual && (telefoneAtual.length === 10 || telefoneAtual.length === 11)) {
-          payload.telefone = telefoneAtual
-          console.log('✅ [PerfilUsuario] Telefone atual adicionado ao payload:', payload.telefone)
-        }
-      } else {
-        console.log('⚠️ [PerfilUsuario] Telefone não disponível')
       }
       
-      // Data de nascimento: usa valor do formulário OU valor atual (SEMPRE envia se existir)
       if (dataParaEnviar && dataParaEnviar.trim() !== '') {
-        // Garante que a data está no formato correto (YYYY-MM-DD)
         const dataFormatada = dataParaEnviar.includes('T') ? dataParaEnviar.split('T')[0] : dataParaEnviar
         payload.data_nascimento = dataFormatada
-        console.log('✅ [PerfilUsuario] Data nascimento adicionada ao payload:', payload.data_nascimento)
-      } else if (dadosAtuais?.data_nascimento) {
-        // Se não tem data no formulário, usa a data atual do usuário
-        const dataAtual = dadosAtuais.data_nascimento.includes('T') 
-          ? dadosAtuais.data_nascimento.split('T')[0] 
-          : dadosAtuais.data_nascimento
-        payload.data_nascimento = dataAtual
-        console.log('✅ [PerfilUsuario] Data nascimento atual adicionada ao payload:', payload.data_nascimento)
-      } else {
-        console.log('⚠️ [PerfilUsuario] Data nascimento não disponível')
-      }
-
-      console.log('📤 [PerfilUsuario] Payload final:', payload)
-      console.log('🔍 [PerfilUsuario] Campos no payload:', Object.keys(payload))
-      console.log('🔍 [PerfilUsuario] Tem CPF no payload?', !!payload.cpf)
-      console.log('🔍 [PerfilUsuario] Tem telefone no payload?', !!payload.telefone)
-      console.log('🔍 [PerfilUsuario] Tem data_nascimento no payload?', !!payload.data_nascimento)
-      
-      // Validação adicional dos campos
-      console.log('🔍 [PerfilUsuario] Validação dos campos:')
-      console.log('  - Nome:', payload.nome, '(length:', payload.nome?.length, ')')
-      console.log('  - Email:', payload.email, '(length:', payload.email?.length, ')')
-      if (payload.cpf) console.log('  - CPF:', payload.cpf, '(length:', payload.cpf.length, ')')
-      if (payload.telefone) console.log('  - Telefone:', payload.telefone, '(length:', payload.telefone.length, ')')
-      if (payload.data_nascimento) console.log('  - Data:', payload.data_nascimento, '(format: YYYY-MM-DD)')
-      
-      // Verificações específicas de validação
-      const problemas = []
-      if (!payload.nome || payload.nome.length < 2) problemas.push('Nome muito curto')
-      if (!payload.email || !validarEmail(payload.email)) problemas.push('Email inválido')
-      if (payload.telefone && (payload.telefone.length < 10 || payload.telefone.length > 11)) problemas.push('Telefone inválido')
-      
-      if (problemas.length > 0) {
-        console.error('❌ [PerfilUsuario] Problemas encontrados:', problemas)
-      } else {
-        console.log('✅ [PerfilUsuario] Todos os campos parecem válidos')
-      }
-
-      // TESTE SISTEMÁTICO: Vamos testar diferentes combinações
-      console.log('🧪 [TESTE] Iniciando teste sistemático de campos...')
-      
-      // Teste 1: Payload mínimo (só nome + email)
-      const payloadMinimo = {
-        nome: nome.trim(),
-        email: email.trim()
-      }
-      console.log('🧪 [TESTE 1] Payload mínimo:', payloadMinimo)
-      
-      // Teste 2: Com CPF vazio (string)
-      const payloadComCpfVazio = {
-        ...payloadMinimo,
-        cpf: ""
-      }
-      console.log('🧪 [TESTE 2] Payload com CPF vazio:', payloadComCpfVazio)
-      
-      // Teste 3: Com telefone formatado vs sem formatação
-      const payloadComTelefoneFormatado = {
-        ...payloadMinimo,
-        telefone: telefone.trim() // Com formatação (11) 99999-9999
-      }
-      const payloadComTelefoneLimpo = {
-        ...payloadMinimo,
-        telefone: telefoneLimpo // Só números 11999999999
-      }
-      console.log('🧪 [TESTE 3a] Payload com telefone formatado:', payloadComTelefoneFormatado)
-      console.log('🧪 [TESTE 3b] Payload com telefone limpo:', payloadComTelefoneLimpo)
-      
-      // Teste 4: Payload atual completo
-      console.log('🧪 [TESTE 4] Payload atual completo:', payload)
-      
-      // RESULTADO: CPF vazio também falhou! Backend exige MAIS campos.
-      // TESTE FINAL: Vamos testar com TODOS os campos obrigatórios
-      const payloadCompleto = {
-        nome: nome.trim(),
-        email: email.trim(),
-        cpf: "", // CPF vazio (string)
-        telefone: telefoneLimpo || "", // Telefone limpo ou vazio
-        data_nascimento: dataParaEnviar || "" // Data ou vazio
       }
       
-      console.log('🚀 [TESTE FINAL] CPF vazio FALHOU! Testando com TODOS os campos...')
-      console.log('📋 [PAYLOAD COMPLETO]:', payloadCompleto)
-      const response = await atualizarUsuario(payloadCompleto)
+      // Valida se pelo menos 1 campo foi enviado
+      if (Object.keys(payload).length === 0) {
+        showMessage("Nenhum campo foi alterado", "error")
+        setLoading(false)
+        return
+      }
+      
+      console.log('✅ [CORREÇÃO] Enviando apenas campos alterados (atualização parcial):')
+      
+      // ALERTA: Verifica se o email foi alterado
+      if (dadosAtuais && email.trim() !== dadosAtuais.email) {
+        console.warn('⚠️ ATENÇÃO: Email está sendo alterado!')
+        console.warn('  Email original:', dadosAtuais.email)
+        console.warn('  Novo email:', email.trim())
+        console.warn('  Isso pode causar erro se o email já existir no banco!')
+        
+        // Confirma com o usuário
+        const confirmar = window.confirm(
+          `⚠️ ATENÇÃO!\n\n` +
+          `Você está alterando seu email de:\n` +
+          `${dadosAtuais.email}\n\n` +
+          `Para:\n` +
+          `${email.trim()}\n\n` +
+          `Se este email já existir no banco de dados, a atualização falhará.\n\n` +
+          `Deseja continuar?`
+        )
+        
+        if (!confirmar) {
+          setLoading(false)
+          return
+        }
+      }
+      
+      console.log('📤 [PerfilUsuario] Payload montado com TODOS os campos:')
+      console.log('  - Nome:', payload.nome, `(${payload.nome?.length} chars)`)
+      console.log('  - Email:', payload.email, `(${payload.email?.length} chars)`)
+      console.log('  - CPF:', payload.cpf === "" ? '""(string vazia)' : payload.cpf, payload.cpf && payload.cpf !== "" ? `(${payload.cpf.length} chars)` : '')
+      console.log('  - Telefone:', payload.telefone === "" ? '""(string vazia)' : payload.telefone, payload.telefone && payload.telefone !== "" ? `(${payload.telefone.length} chars)` : '')
+      console.log('  - Data Nascimento:', payload.data_nascimento === "" ? '""(string vazia)' : payload.data_nascimento)
+      
+      // Validação final de limites do backend (ignora strings vazias)
+      const validacoes = []
+      if (payload.nome && payload.nome.length > 255) validacoes.push('❌ Nome excede 255 caracteres')
+      if (payload.email && payload.email.length > 255) validacoes.push('❌ Email excede 255 caracteres')
+      if (payload.cpf && payload.cpf !== "" && payload.cpf.length !== 11) validacoes.push('❌ CPF deve ter exatamente 11 dígitos')
+      if (payload.telefone && payload.telefone !== "" && (payload.telefone.length < 10 || payload.telefone.length > 11)) {
+        validacoes.push('❌ Telefone deve ter 10 ou 11 dígitos')
+      }
+      
+      if (validacoes.length > 0) {
+        console.error('🚫 VALIDAÇÕES FALHARAM:', validacoes)
+        showMessage(validacoes.join(', '), 'error')
+        setLoading(false)
+        return
+      }
+      
+      console.log('✅ Todas as validações passaram!')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      console.log('🚀 [ENVIANDO] Atualizando perfil do usuário...')
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      
+      const response = await atualizarUsuario(payload)
       
       if (response.status) {
         showMessage("Perfil atualizado com sucesso!", "success")
@@ -334,7 +309,7 @@ function PerfilUsuario() {
         showMessage(response.message || "Erro ao atualizar perfil", "error")
       }
     } catch (error: any) {
-      console.error("Erro ao atualizar perfil:", error)
+      console.error("❌ Erro ao atualizar perfil:", error)
       
       if (error.response?.status === 401) {
         showMessage("Sessão expirada. Você será redirecionado para fazer login novamente.", "error")
@@ -350,12 +325,22 @@ function PerfilUsuario() {
         
         // Mensagem mais específica para o usuário
         if (errorMessage.includes("obrigatórios")) {
-          showMessage("Verifique se todos os campos obrigatórios estão preenchidos corretamente", "error")
+          showMessage("⚠️ Campos obrigatórios faltando. O backend pode exigir CPF mesmo que você não tenha cadastrado.", "error")
         } else if (errorMessage.includes("caracteres")) {
           showMessage("Alguns campos excedem o limite de caracteres permitido", "error")
+        } else if (errorMessage.toLowerCase().includes("email") || errorMessage.toLowerCase().includes("já existe")) {
+          showMessage("⚠️ Este email já está cadastrado no sistema. Use outro email.", "error")
         } else {
-          showMessage(errorMessage, "error")
+          showMessage(`❌ ${errorMessage}`, "error")
         }
+        
+        // Sugestão de solução
+        console.log('💡 POSSÍVEIS CAUSAS DO ERRO 400:')
+        console.log('1. Backend exige CPF como campo obrigatório (mesmo que seja null)')
+        console.log('2. Email já existe no banco de dados')
+        console.log('3. Algum campo excede o limite de caracteres')
+        console.log('4. Backend espera formato diferente de data')
+        console.log('5. Backend exige senha no PUT (mesmo sem alteração)')
       } else {
         showMessage(error.response?.data?.message || "Erro ao atualizar perfil", "error")
       }
@@ -512,6 +497,29 @@ function PerfilUsuario() {
                           ❌ Email deve ter um formato válido
                         </p>
                       )}
+                    </div>
+
+                    {/* Senha - OPCIONAL para alterar senha */}
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Nova Senha
+                        <span className="text-xs font-normal text-gray-500 ml-2">(opcional - deixe vazio para não alterar)</span>
+                      </label>
+                      <div className="relative group">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-orange-400 group-focus-within:text-orange-600 transition-colors" />
+                        <input
+                          type="password"
+                          placeholder="Digite apenas se quiser alterar a senha"
+                          value={senha}
+                          onChange={(e) => setSenha(e.target.value)}
+                          className="w-full pl-12 pr-4 py-3.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 transition-all bg-gray-50 focus:bg-white"
+                          maxLength={100}
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                        <span>💡</span>
+                        <span>Deixe em branco para manter sua senha atual</span>
+                      </p>
                     </div>
 
                     {/* CPF */}
