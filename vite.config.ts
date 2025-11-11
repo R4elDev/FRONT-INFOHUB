@@ -11,4 +11,24 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '/v1/infohub'),
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.log(' Erro no proxy:', err.message);
+          });
+          proxy.on('proxyReq', (_proxyReq, req, _res) => {
+            console.log(' Proxy Request:', req.method, req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            console.log(' Proxy Response:', proxyRes.statusCode, req.url);
+          });
+        },
+      },
+    },
+  },
 })

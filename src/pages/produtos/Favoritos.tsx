@@ -38,7 +38,6 @@ if (!document.head.querySelector('style[data-favoritos-animations]')) {
   document.head.appendChild(styles)
 }
 
-
 export default function Favoritos() {
   const navigate = useNavigate()
   const { favoritos, removeFavorite, clearFavorites, loading, count } = useFavoritos()
@@ -233,19 +232,13 @@ export default function Favoritos() {
                 <article
                   key={produto.id}
                   onClick={() => handleProdutoClick(produto.id)}
-                  onMouseEnter={() => {
-                    // Você pode adicionar hover state aqui se necessário
-                  }}
-                  onMouseLeave={() => {
-                    // Você pode adicionar hover state aqui se necessário
-                  }}
                   className="group relative rounded-3xl border-2 border-gray-200 bg-white p-4 cursor-pointer
                              shadow-[0_4px_16px_rgba(0,0,0,0.08)] transition-all duration-300
                              hover:shadow-[0_12px_32px_rgba(249,160,27,0.2)] hover:-translate-y-2 hover:border-[#FFA500]
                              animate-fade-in"
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
-                  {/* Badge de Oferta com Animação (Igual Promoções) */}
+                  {/* Badge de Oferta com Animação */}
                   {temDesconto && (
                     <div className="absolute -top-2 -left-2 z-10">
                       <div className="relative">
@@ -258,7 +251,7 @@ export default function Favoritos() {
                     </div>
                   )}
 
-                  {/* Botão Favorito (Igual Promoções) */}
+                  {/* Botão Favorito */}
                   <button 
                     onClick={(e) => removerFavorito(produto.id, e)}
                     className="absolute top-3 right-3 z-10 transition-all duration-300 text-red-500 scale-110"
@@ -267,7 +260,7 @@ export default function Favoritos() {
                     <Heart className="w-6 h-6 transition-all fill-red-500" />
                   </button>
 
-                  {/* Imagem do Produto com Hover Effect (Igual Promoções) */}
+                  {/* Imagem do Produto com Hover Effect */}
                   <div 
                     className="flex items-center justify-center py-6 bg-gradient-to-br from-gray-50 to-gray-100/50
                                rounded-2xl mb-4 group-hover:bg-gradient-to-br group-hover:from-orange-50 group-hover:to-orange-100/30 transition-all"
@@ -279,12 +272,12 @@ export default function Favoritos() {
                     />
                   </div>
 
-                  {/* Nome do Produto (Igual Promoções) */}
+                  {/* Nome do Produto */}
                   <h3 className="text-sm font-bold text-gray-800 mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-[#FFA500] transition-colors">
                     {produto.nome}
                   </h3>
 
-                  {/* Preço antigo (Igual Promoções) */}
+                  {/* Preço antigo */}
                   {temDesconto && (
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-xs text-gray-400 line-through">
@@ -293,7 +286,7 @@ export default function Favoritos() {
                     </div>
                   )}
 
-                  {/* Preço atual + Botão Adicionar (Igual Promoções) */}
+                  {/* Preço atual + Botão Adicionar */}
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                     <div>
                       <p className="text-xs text-gray-500 mb-0.5">Por apenas</p>

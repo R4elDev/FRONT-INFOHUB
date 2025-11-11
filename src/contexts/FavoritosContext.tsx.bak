@@ -11,7 +11,7 @@ import type { Product } from '../types'
 interface FavoritosContextType {
   favoritos: Product[]
   loading: boolean
-  addFavorite: (product: Product) => Promise<void>
+  addFavorite: (product: Product) => Promise<boolean | undefined>
   removeFavorite: (productId: number) => Promise<void>
   isFavorite: (productId: number) => boolean
   clearFavorites: () => Promise<void>
@@ -48,7 +48,8 @@ export const FavoritosProvider: React.FC<FavoritosProviderProps> = ({ children }
   const [favoritos, setFavoritos] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
 
-  // Converter dados da API para Product
+
+  // Converter FavoritoItem da API para Product
   const convertToProduct = (item: any): Product => {
     return {
       id: item.id_produto || item.id,
@@ -191,7 +192,8 @@ export const FavoritosProvider: React.FC<FavoritosProviderProps> = ({ children }
 
   // Adicionar aos favoritos (compatibilidade)
   const addFavorite = useCallback(async (product: Product) => {
-    await toggleFavorite(product)
+    const result = await toggleFavorite(product)
+    return result?.action === 'added'
   }, [toggleFavorite])
 
   // Remover dos favoritos (compatibilidade)
@@ -265,183 +267,84 @@ export const FavoritosProvider: React.FC<FavoritosProviderProps> = ({ children }
     } catch (error: any) {
       console.error('Erro ao limpar favoritos:', error)
       alert('Erro ao limpar favoritos')
-    } finally {
-      setLoading(false)
-    }
-  }, [isAuthenticated, user?.id, favoritos])
-
-  // Função para testar integração completa com backend
-  const testarBancoDados = useCallback(async () => {
-    if (!isAuthenticated || !user?.id) {
-      console.log('❌ Usuário não autenticado')
-      alert('❌ Você precisa estar logado para executar os testes')
-      return
-    }
-
-    console.log('🧪 === TESTE COMPLETO DE INTEGRAÇÃO COM BACKEND ===')
-    console.log(`👤 Usuário: ${user.id}`)
-    console.log(`🌐 Base URL: ${process.env.REACT_APP_API_URL || 'http://localhost:8080/v1/infohub'}`)
     
-    const resultados = {
-      buscarFavoritos: '❌',
-      adicionarFavorito: '❌',
-      alternarFavorito: '❌',
-      verificarFavorito: '❌',
-      removerFavorito: '❌',
-      contarFavoritos: '❌',
-      favoritosPromocao: '❌'
-    }
+  } catch (error: any) {
+    console.error('Erro ao alternar favorito:', error)
+    alert('Erro ao alterar favorito')
+  } finally {
+    setLoading(false)
+  }
+}, [isAuthenticated, user?.id, favoritos])
 
+// Adicionar aos favoritos (compatibilidade)
+const addFavorite = useCallback(async (product: Product) => {
+  const result = await toggleFavorite(product)
+  return result?.action === 'added'
+}, [toggleFavorite])
+
+// Remover dos favoritos (compatibilidade)
+const removeFavorite = useCallback(async (productId: number) => {
+  if (!isAuthenticated || !user?.id) {
+    return
+  }
+
+    
+    console.log(' Favoritos limpos')
+  } catch (error: any) {
+    console.error('Erro ao limpar favoritos:', error)
+    alert('Erro ao limpar favoritos')
+  } finally {
+    setLoading(false)
+  }
+}, [isAuthenticated, user?.id, favoritos])
+
+// Função para testar integração completa com backend
+const testarBancoDados = useCallback(async () => {
+  if (!isAuthenticated || !user?.id) {
+    console.log(' Usuário não autenticado')
+    alert(' Você precisa estar logado para executar os testes')
+    return
+  }
+
+  console.log(' === TESTE COMPLETO DE INTEGRAÇÃO COM BACKEND ===')
+  console.log(` Usuário: ${user.id}`)
+  console.log(` Base URL: ${process.env.REACT_APP_API_URL || 'http://localhost:8080/v1/infohub'}`)
+  
+  const resultados = {
+    buscarFavoritos: '❌',
+    adicionarFavorito: '❌',
+    alternarFavorito: '❌',
+    verificarFavorito: '❌',
+    removerFavorito: '❌',
+    contarFavoritos: '❌',
+    favoritosPromocao: '❌'
+  }
+
+  try {
+    // Teste 1: Buscar favoritos existentes
+    console.log('\n TESTE 1: Buscando favoritos existentes...')
     try {
-      // Teste 1: Buscar favoritos existentes
-      console.log('\n📋 TESTE 1: Buscando favoritos existentes...')
-      try {
-        const response = await favoritosService.buscarFavoritos(user.id)
-        console.log('✅ Buscar favoritos: SUCESSO')
-        console.log('📊 Dados recebidos:', response)
-        console.log(`📈 Total de favoritos: ${response.data?.total_favoritos || response.data?.favoritos?.length || 0}`)
-        resultados.buscarFavoritos = '✅'
-      } catch (error: any) {
-        console.log('❌ Buscar favoritos: FALHA')
-        console.log('🔍 Erro:', error.response?.data || error.message)
-      }
-
-      // Teste 2: Contar favoritos
-      console.log('\n🔢 TESTE 2: Contando favoritos...')
-      try {
-        const total = await favoritosService.contarFavoritos(user.id)
-        console.log('✅ Contar favoritos: SUCESSO')
-        console.log(`📊 Total: ${total}`)
-        resultados.contarFavoritos = '✅'
-      } catch (error: any) {
-        console.log('❌ Contar favoritos: FALHA')
-        console.log('🔍 Erro:', error.response?.data || error.message)
-      }
-
-      // Teste 3: Verificar se produto específico é favorito
-      console.log('\n🔍 TESTE 3: Verificando produto específico (ID: 1)...')
-      try {
-        const isFavorito = await favoritosService.verificarFavorito(user.id, 1)
-        console.log('✅ Verificar favorito: SUCESSO')
-        console.log(`❤️ Produto 1 é favorito: ${isFavorito}`)
-        resultados.verificarFavorito = '✅'
-      } catch (error: any) {
-        console.log('❌ Verificar favorito: FALHA')
-        console.log('🔍 Erro:', error.response?.data || error.message)
-      }
-
-      // Teste 4: Adicionar favorito (método tradicional)
-      console.log('\n➕ TESTE 4: Adicionando favorito (produto teste ID: 999)...')
-      try {
-        const response = await favoritosService.adicionarFavorito({
-          id_usuario: user.id,
-          id_produto: 999
-        })
-        console.log('✅ Adicionar favorito: SUCESSO')
-        console.log('📊 Resposta:', response)
-        resultados.adicionarFavorito = '✅'
-      } catch (error: any) {
-        console.log('❌ Adicionar favorito: FALHA')
-        console.log('🔍 Erro:', error.response?.data || error.message)
-        if (error.response?.status === 409) {
-          console.log('💡 Produto já está nos favoritos (esperado)')
-          resultados.adicionarFavorito = '⚠️'
-        }
-      }
-
-      // Teste 5: Alternar favorito (toggle)
-      console.log('\n🔄 TESTE 5: Alternando favorito (toggle - produto ID: 998)...')
-      try {
-        const response = await favoritosService.alternarFavorito({
-          id_usuario: user.id,
-          id_produto: 998
-        })
-        console.log('✅ Alternar favorito: SUCESSO')
-        console.log('📊 Ação realizada:', response.data?.action)
-        console.log('❤️ Status final:', response.data?.is_favorito)
-        resultados.alternarFavorito = '✅'
-      } catch (error: any) {
-        console.log('❌ Alternar favorito: FALHA')
-        console.log('🔍 Erro:', error.response?.data || error.message)
-      }
-
-      // Teste 6: Remover favorito
-      console.log('\n➖ TESTE 6: Removendo favorito (produto ID: 999)...')
-      try {
-        const response = await favoritosService.removerFavorito(user.id, 999)
-        console.log('✅ Remover favorito: SUCESSO')
-        console.log('📊 Resposta:', response)
-        resultados.removerFavorito = '✅'
-      } catch (error: any) {
-        console.log('❌ Remover favorito: FALHA')
-        console.log('🔍 Erro:', error.response?.data || error.message)
-        if (error.response?.status === 404) {
-          console.log('💡 Produto não estava nos favoritos (esperado)')
-          resultados.removerFavorito = '⚠️'
-        }
-      }
-
-      // Teste 7: Favoritos em promoção
-      console.log('\n🎁 TESTE 7: Buscando favoritos em promoção...')
-      try {
-        const response = await favoritosService.favoritosEmPromocao(user.id)
-        console.log('✅ Favoritos em promoção: SUCESSO')
-        console.log('📊 Promoções encontradas:', response.data?.total_promocoes || 0)
-        console.log('🎯 Dados:', response.data?.promocoes || [])
-        resultados.favoritosPromocao = '✅'
-      } catch (error: any) {
-        console.log('❌ Favoritos em promoção: FALHA')
-        console.log('🔍 Erro:', error.response?.data || error.message)
-      }
-
-      // Relatório final
-      console.log('\n📊 === RELATÓRIO FINAL DOS TESTES ===')
-      console.log('🔍 Buscar Favoritos:', resultados.buscarFavoritos)
-      console.log('➕ Adicionar Favorito:', resultados.adicionarFavorito)
-      console.log('🔄 Alternar Favorito:', resultados.alternarFavorito)
-      console.log('❓ Verificar Favorito:', resultados.verificarFavorito)
-      console.log('➖ Remover Favorito:', resultados.removerFavorito)
-      console.log('🔢 Contar Favoritos:', resultados.contarFavoritos)
-      console.log('🎁 Favoritos Promoção:', resultados.favoritosPromocao)
-
-      const sucessos = Object.values(resultados).filter(r => r === '✅').length
-      const avisos = Object.values(resultados).filter(r => r === '⚠️').length
-      const falhas = Object.values(resultados).filter(r => r === '❌').length
-
-      console.log(`\n🎯 RESUMO: ${sucessos} sucessos, ${avisos} avisos, ${falhas} falhas`)
-      
-      if (sucessos >= 5) {
-        console.log('🎉 BACKEND FUNCIONANDO CORRETAMENTE!')
-        alert('🎉 Backend funcionando! Verifique o console para detalhes.')
-      } else if (sucessos >= 3) {
-        console.log('⚠️ BACKEND PARCIALMENTE FUNCIONAL')
-        alert('⚠️ Backend parcialmente funcional. Verifique o console.')
-      } else {
-        console.log('❌ PROBLEMAS NO BACKEND')
-        alert('❌ Problemas detectados no backend. Verifique o console.')
-      }
-
-      // Atualizar lista de favoritos após os testes
-      console.log('\n🔄 Atualizando lista de favoritos...')
-      await refreshFavorites()
-      
+      const response = await favoritosService.buscarFavoritos(user.id)
+      console.log(' Buscar favoritos: SUCESSO')
+      console.log(' Dados recebidos:', response)
+      console.log(` Total de favoritos: ${response.data?.total_favoritos || response.data?.favoritos?.length || 0}`)
+      resultados.buscarFavoritos = '✅'
     } catch (error: any) {
-      console.error('💥 ERRO CRÍTICO NO TESTE:', error)
-      console.log('💡 Possíveis problemas:')
-      console.log('   - Backend não está rodando')
-      console.log('   - URL da API incorreta')
-      console.log('   - Token de autenticação inválido')
-      console.log('   - Problemas de CORS')
-      console.log('   - Endpoints não implementados')
-      alert('💥 Erro crítico nos testes. Verifique o console.')
+      console.log(' Buscar favoritos: FALHA')
+      console.log(' Erro:', error.response?.data || error.message)
     }
-  }, [isAuthenticated, user?.id, refreshFavorites])
 
-  const value: FavoritosContextType = {
-    favoritos,
-    loading,
-    addFavorite,
-    removeFavorite,
+    // Teste 2: Contar favoritos
+    console.log('\n TESTE 2: Contando favoritos...')
+    try {
+      const total = await favoritosService.contarFavoritos(user.id)
+      console.log(' Contar favoritos: SUCESSO')
+      console.log(` Total: ${total}`)
+      resultados.contarFavoritos = '✅'
+    } catch (error: any) {
+      console.log(' Contar favoritos: FALHA')
+      console.log(' Erro:', error.response?.data || error.message)
+    }
     isFavorite,
     clearFavorites,
     count: favoritos.length,
