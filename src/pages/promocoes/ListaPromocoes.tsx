@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Search, ShoppingCart, Tag, TrendingDown, Package, Store, RefreshCw } from 'lucide-react'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
+import BotaoFavorito from "../../components/favoritos/BotaoFavorito"
 import { listarProdutos, listarCategorias, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
 import type { filtrosProdutos } from "../../services/types"
 
@@ -507,18 +508,34 @@ export default function ListaPromocoes() {
                       onClick={() => navigate(`/produto/${produto.id}`)}
                       className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 cursor-pointer hover:scale-105"
                     >
-                      {/* Badge de promoção ou produto normal */}
-                      {emPromocao ? (
-                        <div className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 text-sm font-bold flex items-center justify-center">
-                          <TrendingDown className="w-4 h-4 mr-2" />
-                          PROMOÇÃO {desconto}% OFF
+                      {/* Header com Badge e Favorito */}
+                      <div className="relative">
+                        {/* Badge de promoção ou produto normal */}
+                        {emPromocao ? (
+                          <div className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 text-sm font-bold flex items-center justify-center">
+                            <TrendingDown className="w-4 h-4 mr-2" />
+                            PROMOÇÃO {desconto}% OFF
+                          </div>
+                        ) : (
+                          <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 text-sm font-bold flex items-center justify-center">
+                            <Package className="w-4 h-4 mr-2" />
+                            PRODUTO DISPONÍVEL
+                          </div>
+                        )}
+                        
+                        {/* Botão de Favorito */}
+                        <div 
+                          className="absolute top-2 right-2"
+                          onClick={(e) => e.stopPropagation()} // Evita que o clique acione o card
+                        >
+                          <BotaoFavorito
+                            idProduto={produto.id}
+                            idEstabelecimento={produto.estabelecimento.id}
+                            size="sm"
+                            className="bg-white/90 backdrop-blur-sm hover:bg-white shadow-md"
+                          />
                         </div>
-                      ) : (
-                        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 text-sm font-bold flex items-center justify-center">
-                          <Package className="w-4 h-4 mr-2" />
-                          PRODUTO DISPONÍVEL
-                        </div>
-                      )}
+                      </div>
                       
                       <div className="p-6">
                         {/* Nome do produto */}

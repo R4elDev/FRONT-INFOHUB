@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { MapPin } from 'lucide-react'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { useUser } from "../../contexts/UserContext"
-import { cadastrarEstabelecimento, cadastrarEnderecoEstabelecimento } from "../../services/apiServicesFixed"
+import { cadastrarEstabelecimento, cadastrarEnderecoEstabelecimento, verificarEstabelecimento } from "../../services/apiServicesFixed"
 import type { estabelecimentoRequest } from "../../services/types"
 
 // Componente Input personalizado
@@ -59,7 +59,7 @@ const ButtonComponent = ({ children, onClick, type = "button", variant = "primar
 
 export function CadastroEstabelecimento() {
   const navigate = useNavigate()
-  const { user } = useUser()
+  const { user, setUser } = useUser()
   const [loading, setLoading] = useState(false)
   const [verificandoEstabelecimento, setVerificandoEstabelecimento] = useState(true)
   const [jaTemEstabelecimento, setJaTemEstabelecimento] = useState(false)
@@ -83,44 +83,100 @@ export function CadastroEstabelecimento() {
 
   // Verificar se usuário já tem estabelecimento e pré-preencher CNPJ
   useEffect(() => {
-    // Verifica se o estabelecimento no localStorage pertence ao usuário atual
-    const estabelecimentoId = localStorage.getItem('estabelecimentoId')
-    const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
-    const estabelecimentoUserId = localStorage.getItem('estabelecimentoUserId')
-    
-    // Se existe estabelecimento mas é de outro usuário, limpa o localStorage
-    if (estabelecimentoUserId && user && parseInt(estabelecimentoUserId) !== user.id) {
-      console.log('🧹 CadastroEstabelecimento: Limpando estabelecimento de outro usuário:', estabelecimentoUserId, '!==', user.id)
-      localStorage.removeItem('estabelecimentoId')
-      localStorage.removeItem('estabelecimentoNome')
-      localStorage.removeItem('estabelecimentoUserId')
-      setJaTemEstabelecimento(false)
-      setEstabelecimentoExistente(null)
-    }
-    // Se tem estabelecimento do usuário atual, usa ele
-    else if (estabelecimentoId && estabelecimentoNome && estabelecimentoUserId && user?.perfil === 'estabelecimento' && parseInt(estabelecimentoUserId) === user.id) {
-      // Se tem ID E NOME salvos do usuário atual, marca como já tendo estabelecimento
-      setJaTemEstabelecimento(true)
-      setEstabelecimentoExistente({
-        id: parseInt(estabelecimentoId),
-        nome: estabelecimentoNome,
-        cnpj: user.cnpj || '',
-        telefone: user.telefone || ''
-      })
-    } else if (user?.cnpj && user.cnpj.replace(/\D/g, '').length === 14) {
-      // Pré-preenche o CNPJ do usuário no formulário (apenas se tiver 14 dígitos)
-      const cnpjFormatado = user.cnpj
-        .replace(/\D/g, '')
-        .replace(/^(\d{2})(\d)/, '$1.$2')
-        .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-        .replace(/\.(\d{3})(\d)/, '.$1/$2')
-        .replace(/(\d{4})(\d)/, '$1-$2')
-        .substring(0, 18)
+    const verificarEstabelecimentoCompleto = async () => {
+      if (!user) {
+        setVerificandoEstabelecimento(false)
+        return
+      }
+
+      console.log('🔍 CadastroEstabelecimento: Verificando estabelecimento para usuário:', user.id)
       
-      setFormData(prev => ({ ...prev, cnpj: cnpjFormatado }))
+      // Verifica se o estabelecimento no localStorage pertence ao usuário atual
+      const estabelecimentoId = localStorage.getItem('estabelecimentoId')
+      const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
+      const estabelecimentoUserId = localStorage.getItem('estabelecimentoUserId')
+      
+      // Se existe estabelecimento mas é de outro usuário, limpa o localStorage
+      if (estabelecimentoUserId && parseInt(estabelecimentoUserId) !== user.id) {
+        console.log('🧹 CadastroEstabelecimento: Limpando estabelecimento de outro usuário:', estabelecimentoUserId, '!==', user.id)
+        localStorage.removeItem('estabelecimentoId')
+        localStorage.removeItem('estabelecimentoNome')
+        localStorage.removeItem('estabelecimentoUserId')
+        localStorage.removeItem('estabelecimentoEndereco')
+        localStorage.removeItem('estabelecimentoEnderecoCompleto')
+        setJaTemEstabelecimento(false)
+        setEstabelecimentoExistente(null)
+      }
+      // Se tem estabelecimento do usuário atual no localStorage, usa ele
+      else if (estabelecimentoId && estabelecimentoNome && estabelecimentoUserId && user?.perfil === 'estabelecimento' && parseInt(estabelecimentoUserId) === user.id) {
+        console.log('✅ CadastroEstabelecimento: Estabelecimento encontrado no localStorage:', estabelecimentoNome)
+        setJaTemEstabelecimento(true)
+        setEstabelecimentoExistente({
+          id: parseInt(estabelecimentoId),
+          nome: estabelecimentoNome,
+          cnpj: user.cnpj || '',
+          telefone: user.telefone || ''
+        })
+        setVerificandoEstabelecimento(false)
+        return
+      }
+
+      // Se não tem no localStorage, busca no backend
+      console.log('🔍 CadastroEstabelecimento: Não encontrado no localStorage, buscando no backend...')
+      try {
+        const resultado = await verificarEstabelecimento()
+        console.log('📡 CadastroEstabelecimento: Resposta do backend:', resultado)
+        
+        if (resultado.possuiEstabelecimento && resultado.estabelecimento) {
+          const estabelecimento = resultado.estabelecimento
+          console.log('✅ CadastroEstabelecimento: Estabelecimento encontrado no backend:', estabelecimento.nome)
+          
+          // Salva no localStorage para próximas consultas
+          localStorage.setItem('estabelecimentoId', estabelecimento.id.toString())
+          localStorage.setItem('estabelecimentoNome', estabelecimento.nome)
+          localStorage.setItem('estabelecimentoUserId', user.id.toString())
+          
+          // Se tem endereço, salva também
+          if (estabelecimento.endereco) {
+            localStorage.setItem('estabelecimentoEndereco', estabelecimento.endereco)
+            localStorage.setItem('estabelecimentoEnderecoCompleto', estabelecimento.endereco_completo || estabelecimento.endereco)
+          }
+          
+          setJaTemEstabelecimento(true)
+          setEstabelecimentoExistente({
+            id: estabelecimento.id,
+            nome: estabelecimento.nome,
+            cnpj: estabelecimento.cnpj || user.cnpj || '',
+            telefone: estabelecimento.telefone || user.telefone || ''
+          })
+        } else {
+          console.log('ℹ️ CadastroEstabelecimento: Usuário não possui estabelecimento cadastrado')
+          setJaTemEstabelecimento(false)
+          setEstabelecimentoExistente(null)
+          
+          // Pré-preenche o CNPJ do usuário no formulário se disponível
+          if (user?.cnpj && user.cnpj.replace(/\D/g, '').length === 14) {
+            const cnpjFormatado = user.cnpj
+              .replace(/\D/g, '')
+              .replace(/^(\d{2})(\d)/, '$1.$2')
+              .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+              .replace(/\.(\d{3})(\d)/, '.$1/$2')
+              .replace(/(\d{4})(\d)/, '$1-$2')
+              .substring(0, 18)
+            
+            setFormData(prev => ({ ...prev, cnpj: cnpjFormatado }))
+          }
+        }
+      } catch (error) {
+        console.error('❌ CadastroEstabelecimento: Erro ao verificar estabelecimento no backend:', error)
+        setJaTemEstabelecimento(false)
+        setEstabelecimentoExistente(null)
+      }
+      
+      setVerificandoEstabelecimento(false)
     }
-    
-    setVerificandoEstabelecimento(false)
+
+    verificarEstabelecimentoCompleto()
   }, [user])
 
   // Busca CEP via ViaCEP
@@ -282,6 +338,27 @@ export function CadastroEstabelecimento() {
           localStorage.setItem('estabelecimentoNome', formData.nome)
           localStorage.setItem('estabelecimentoUserId', user.id.toString())
           console.log('✅ Estabelecimento salvo para usuário:', user.id)
+          
+          // ATUALIZA os dados do usuário no localStorage com CNPJ e telefone
+          const userData = localStorage.getItem('user_data')
+          if (userData) {
+            try {
+              const userDataParsed = JSON.parse(userData)
+              const userDataAtualizado = {
+                ...userDataParsed,
+                cnpj: formData.cnpj.replace(/\D/g, ''),
+                telefone: formData.telefone.replace(/\D/g, '')
+              }
+              localStorage.setItem('user_data', JSON.stringify(userDataAtualizado))
+              console.log('✅ Dados do usuário atualizados no localStorage:', userDataAtualizado)
+              
+              // ATUALIZA O CONTEXTO DO USUÁRIO TAMBÉM (para refletir mudanças imediatamente)
+              setUser(userDataAtualizado)
+              console.log('✅ Contexto do usuário atualizado com CNPJ e telefone')
+            } catch (error) {
+              console.error('❌ Erro ao atualizar user_data:', error)
+            }
+          }
         }
         
         // SEMPRE cria um endereço (mesmo que seja padrão)

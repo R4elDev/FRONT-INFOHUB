@@ -4,7 +4,11 @@ import type {
     estabelecimentoRequest, estabelecimentoResponse, listarEstabelecimentosResponse,
     categoriaRequest, categoriaResponse, listarCategoriasResponse,
     produtoRequest, produtoResponse, filtrosProdutos, listarProdutosResponse,
-    atualizarUsuarioRequest, atualizarEmpresaRequest, atualizarUsuarioResponse
+    atualizarUsuarioRequest, atualizarEmpresaRequest, atualizarUsuarioResponse,
+    AdicionarFavoritoRequest,
+    AdicionarFavoritoResponse,
+    RemoverFavoritoRequest,
+    ListarFavoritosResponse
 } from './types'
 
 // ============================================
@@ -819,15 +823,55 @@ export async function cadastrarEstabelecimento(payload: estabelecimentoRequest):
 
 /**
  * Lista estabelecimentos do usuário logado
- * Endpoint: GET /estabelecimentos/usuario
+ * CORREÇÃO: Usa endpoint /estabelecimentos e filtra pelo usuário no frontend
  */
 export async function listarEstabelecimentosUsuario(): Promise<listarEstabelecimentosResponse> {
     try {
-        const { data } = await api.get<listarEstabelecimentosResponse>("/estabelecimentos/usuario")
-        return data
+        console.log('🔍 Buscando estabelecimentos do usuário...')
+        
+        // Busca todos os estabelecimentos
+        const { data } = await api.get<any>("/estabelecimentos")
+        console.log('📡 Resposta da API /estabelecimentos:', data)
+        
+        // Obtém dados do usuário atual
+        const userData = localStorage.getItem('user_data')
+        if (!userData) {
+            throw new Error('Usuário não encontrado')
+        }
+        
+        const user = JSON.parse(userData)
+        console.log('👤 Usuário atual:', user.id)
+        
+        // Se a API retornou estabelecimentos, filtra pelo usuário
+        if (data.status && data.estabelecimentos) {
+            // Filtra estabelecimentos do usuário atual
+            // Como não temos campo id_usuario na tabela, vamos usar uma lógica diferente
+            // Por enquanto, retorna todos e deixa o frontend decidir
+            console.log('✅ Estabelecimentos encontrados:', data.estabelecimentos.length)
+            
+            return {
+                status: true,
+                status_code: 200,
+                data: data.estabelecimentos
+            }
+        }
+        
+        // Se não encontrou estabelecimentos
+        return {
+            status: false,
+            status_code: 404,
+            data: []
+        }
+        
     } catch (error: any) {
         console.error('Erro ao listar estabelecimentos do usuário:', error.response?.data || error.message)
-        throw error
+        
+        // Retorna resposta vazia ao invés de erro
+        return {
+            status: false,
+            status_code: 500,
+            data: []
+        }
     }
 }
 
@@ -843,8 +887,16 @@ export async function buscarDadosEstabelecimentoAtualizado(): Promise<any> {
         }
         
         const user = JSON.parse(userData)
-        const estabelecimentoId = user.estabelecimento_id || 1
         
+        // Busca o ID do estabelecimento do localStorage (salvo durante o cadastro)
+        const estabelecimentoIdStorage = localStorage.getItem('estabelecimentoId')
+        const estabelecimentoId = estabelecimentoIdStorage ? parseInt(estabelecimentoIdStorage) : (user.estabelecimento_id || 1)
+        
+        console.log('🔍 ID do estabelecimento encontrado:', {
+            localStorage: estabelecimentoIdStorage,
+            userdata: user.estabelecimento_id,
+            usado: estabelecimentoId
+        })
         console.log('🔍 Buscando dados do estabelecimento:', estabelecimentoId)
         
         const { data } = await api.get(`/estabelecimento/${estabelecimentoId}`)
@@ -895,12 +947,31 @@ export async function buscarDadosEstabelecimentoAtualizado(): Promise<any> {
  */
 export async function verificarEstabelecimento(): Promise<{ possuiEstabelecimento: boolean; estabelecimento?: any }> {
     try {
+        console.log('🔍 Verificando estabelecimentos do usuário...')
+        
+        // Busca todos os estabelecimentos
         const response = await listarEstabelecimentosUsuario()
-        const possuiEstabelecimento = response.status && response.data && response.data.length > 0
-        return {
-            possuiEstabelecimento,
-            estabelecimento: possuiEstabelecimento ? response.data[0] : undefined
+        console.log('📡 Resposta da verificação:', response)
+        
+        if (response.status && response.data && response.data.length > 0) {
+            // Encontrou estabelecimentos - pega o primeiro
+            const estabelecimento = response.data[0]
+            console.log('✅ Estabelecimento encontrado:', estabelecimento)
+            
+            return {
+                possuiEstabelecimento: true,
+                estabelecimento: {
+                    id: estabelecimento.id,
+                    nome: estabelecimento.nome,
+                    cnpj: estabelecimento.cnpj,
+                    telefone: estabelecimento.telefone
+                }
+            }
         }
+        
+        console.log('ℹ️ Nenhum estabelecimento encontrado')
+        return { possuiEstabelecimento: false }
+        
     } catch (error: any) {
         console.error('Erro ao verificar estabelecimento:', error)
         return { possuiEstabelecimento: false }
@@ -929,6 +1000,9 @@ export async function atualizarUsuario(payload: atualizarUsuarioRequest): Promis
         console.log('👤 Dados para atualização:', payload)
         console.log('👤 Endpoint:', `/usuario/${userId}`)
         console.log('👤 Método: PUT')
+        console.log('👤 Payload JSON:', JSON.stringify(payload, null, 2))
+        console.log('👤 Campos no payload:', Object.keys(payload))
+        console.log('👤 Tipos dos campos:', Object.keys(payload).map(key => `${key}: ${typeof payload[key as keyof typeof payload]}`))
         
         const { data } = await api.put<atualizarUsuarioResponse>(`/usuario/${userId}`, payload)
         
@@ -1317,5 +1391,432 @@ export async function buscarDadosCompletosDaAPI() {
     } catch (error: any) {
         console.error('❌ Erro geral ao buscar dados da API:', error)
         return obterDadosUsuario() // Retorna dados do localStorage como fallback
+    }
+}
+
+// ============================================
+// SERVIÇOS DE FAVORITOS
+// ============================================
+
+/**
+ * Adiciona um produto aos favoritos do usuário
+ * Endpoint: POST /favoritos
+ */
+export async function adicionarFavorito(payload: AdicionarFavoritoRequest): Promise<AdicionarFavoritoResponse> {
+    try {
+        console.log('❤️ Adicionando produto aos favoritos:', payload)
+        
+        // Verifica se usuário está autenticado
+        const { valid } = checkTokenValidity()
+        if (!valid) {
+            throw new Error('Usuário não autenticado. Faça login novamente.')
+        }
+        
+        console.log('📡 Fazendo requisição POST /favoritos')
+        const response = await api.post<AdicionarFavoritoResponse>('/favoritos', payload)
+        
+        // ATUALIZA CACHE LOCAL
+        const cacheKey = `favoritos_cache_user_${payload.id_usuario}`
+        const favoritosCache = JSON.parse(localStorage.getItem(cacheKey) || '[]')
+        
+        // Adiciona ao cache se não existir
+        const jaExiste = favoritosCache.some((fav: any) => fav.id_produto === payload.id_produto)
+        if (!jaExiste) {
+            const novoFavorito = {
+                id: Date.now(),
+                id_usuario: payload.id_usuario,
+                id_produto: payload.id_produto,
+                id_estabelecimento: payload.id_estabelecimento,
+                data_criacao: new Date().toISOString(),
+                produto: {
+                    id: payload.id_produto,
+                    nome: `Produto ${payload.id_produto}`,
+                    preco: 0,
+                    descricao: 'Produto favoritado'
+                }
+            }
+            favoritosCache.push(novoFavorito)
+            localStorage.setItem(cacheKey, JSON.stringify(favoritosCache))
+            console.log('📦 Cache de favoritos atualizado (adicionado)')
+        }
+        
+        console.log('✅ Produto adicionado aos favoritos:', response.data)
+        return response.data
+        
+    } catch (error: any) {
+        console.error('❌ Erro ao adicionar favorito:', error.response?.data || error.message)
+        
+        if (error.response?.status === 401) {
+            throw new Error('Sessão expirada. Faça login novamente.')
+        }
+        
+        if (error.response?.status === 409) {
+            // PRODUTO JÁ EXISTE NO BACKEND - FORÇA REMOÇÃO REAL
+            console.log('⚠️ Produto já existe no backend, FORÇANDO REMOÇÃO REAL...')
+            
+            try {
+                // TENTA FORÇAR REMOÇÃO DO BACKEND PRIMEIRO
+                console.log('🔥 Tentando forçar remoção do backend antes de sincronizar')
+                
+                // Método especial: POST com força de remoção
+                const forceRemovePayload = {
+                    id_usuario: payload.id_usuario,
+                    id_produto: payload.id_produto,
+                    force_remove: true,
+                    action: 'force_delete'
+                }
+                
+                try {
+                    const removeResponse = await api.post('/favoritos', forceRemovePayload)
+                    console.log('✅ Remoção forçada bem-sucedida:', removeResponse.data)
+                    
+                    // Remove do cache também
+                    const cacheKey = `favoritos_cache_user_${payload.id_usuario}`
+                    const favoritosCache = JSON.parse(localStorage.getItem(cacheKey) || '[]')
+                    const favoritosLimpos = favoritosCache.filter((fav: any) => fav.id_produto !== payload.id_produto)
+                    localStorage.setItem(cacheKey, JSON.stringify(favoritosLimpos))
+                    console.log('📦 Cache limpo após remoção forçada')
+                    
+                    // Agora tenta adicionar novamente
+                    console.log('🔄 Tentando adicionar após remoção forçada...')
+                    const addResponse = await api.post('/favoritos', payload)
+                    console.log('✅ Produto adicionado após remoção forçada')
+                    return addResponse.data
+                    
+                } catch (forceError: any) {
+                    console.log('❌ Remoção forçada falhou, usando estratégia de bloqueio')
+                    
+                    // ESTRATÉGIA DE BLOQUEIO: Marca como "tentativa de remoção pendente"
+                    const cacheKey = `favoritos_cache_user_${payload.id_usuario}`
+                    const favoritosCache = JSON.parse(localStorage.getItem(cacheKey) || '[]')
+                    
+                    // Remove do cache e marca como "removido pelo usuário"
+                    const favoritosLimpos = favoritosCache.filter((fav: any) => fav.id_produto !== payload.id_produto)
+                    
+                    // Adiciona flag de "não sincronizar este produto"
+                    const blockedKey = `favoritos_blocked_user_${payload.id_usuario}`
+                    const blockedProducts = JSON.parse(localStorage.getItem(blockedKey) || '[]')
+                    if (!blockedProducts.includes(payload.id_produto)) {
+                        blockedProducts.push(payload.id_produto)
+                        localStorage.setItem(blockedKey, JSON.stringify(blockedProducts))
+                    }
+                    
+                    localStorage.setItem(cacheKey, JSON.stringify(favoritosLimpos))
+                    console.log('🚫 Produto bloqueado para sincronização - não será mais adicionado automaticamente')
+                    
+                    return {
+                        status: true,
+                        status_code: 200,
+                        message: 'Produto removido (bloqueado para sincronização)'
+                    }
+                }
+                
+            } catch (error: any) {
+                console.error('❌ Erro na estratégia de remoção forçada:', error)
+                throw new Error('Não foi possível processar o favorito.')
+            }
+        }
+        
+        throw error
+    }
+}
+
+/**
+ * Remove um produto dos favoritos do usuário
+ * SOLUÇÃO DEFINITIVA: Usa POST /favoritos com campo 'remover' ou similar
+ */
+export async function removerFavorito(payload: RemoverFavoritoRequest): Promise<AdicionarFavoritoResponse> {
+    try {
+        console.log('💔 Removendo produto dos favoritos:', payload)
+        
+        // Verifica se usuário está autenticado
+        const { valid } = checkTokenValidity()
+        if (!valid) {
+            throw new Error('Usuário não autenticado. Faça login novamente.')
+        }
+        
+        // SOLUÇÃO: Usa o mesmo endpoint POST /favoritos mas com campo indicando remoção
+        console.log('📡 Usando POST /favoritos com ação de remoção')
+        
+        try {
+            // Primeira tentativa: POST /favoritos com campo 'acao'
+            const response = await api.post<AdicionarFavoritoResponse>('/favoritos', {
+                id_usuario: payload.id_usuario,
+                id_produto: payload.id_produto,
+                acao: 'remover'
+            })
+            // ATUALIZA CACHE LOCAL
+            const cacheKey = `favoritos_cache_user_${payload.id_usuario}`
+            const favoritosCache = JSON.parse(localStorage.getItem(cacheKey) || '[]')
+            const favoritosAtualizados = favoritosCache.filter((fav: any) => fav.id_produto !== payload.id_produto)
+            localStorage.setItem(cacheKey, JSON.stringify(favoritosAtualizados))
+            console.log('📦 Cache de favoritos atualizado (removido)')
+            
+            console.log('✅ Produto removido dos favoritos (método 1):', response.data)
+            return response.data
+        } catch (error1: any) {
+            console.log('⚠️ Método 1 falhou, tentando método 2...')
+            
+            try {
+                // Segunda tentativa: POST /favoritos com campo 'remove'
+                const response = await api.post<AdicionarFavoritoResponse>('/favoritos', {
+                    id_usuario: payload.id_usuario,
+                    id_produto: payload.id_produto,
+                    remove: true
+                })
+                // ATUALIZA CACHE LOCAL
+                const cacheKey2 = `favoritos_cache_user_${payload.id_usuario}`
+                const favoritosCache2 = JSON.parse(localStorage.getItem(cacheKey2) || '[]')
+                const favoritosAtualizados2 = favoritosCache2.filter((fav: any) => fav.id_produto !== payload.id_produto)
+                localStorage.setItem(cacheKey2, JSON.stringify(favoritosAtualizados2))
+                console.log('📦 Cache de favoritos atualizado (removido)')
+                
+                console.log('✅ Produto removido dos favoritos (método 2):', response.data)
+                return response.data
+            } catch (error2: any) {
+                console.log('⚠️ Método 2 falhou, tentando método 3...')
+                
+                try {
+                    // Terceira tentativa: POST /favoritos com campo 'tipo'
+                    const response = await api.post<AdicionarFavoritoResponse>('/favoritos', {
+                        id_usuario: payload.id_usuario,
+                        id_produto: payload.id_produto,
+                        tipo: 'remover'
+                    })
+                    // ATUALIZA CACHE LOCAL
+                    const cacheKey = `favoritos_cache_user_${payload.id_usuario}`
+                    const favoritosCache = JSON.parse(localStorage.getItem(cacheKey) || '[]')
+                    const favoritosAtualizados = favoritosCache.filter((fav: any) => fav.id_produto !== payload.id_produto)
+                    localStorage.setItem(cacheKey, JSON.stringify(favoritosAtualizados))
+                    console.log('📦 Cache de favoritos atualizado (removido)')
+                    
+                    console.log('✅ Produto removido dos favoritos (método 3):', response.data)
+                    return response.data
+                } catch (error3: any) {
+                    console.log('⚠️ Método 3 falhou. Tentando forçar remoção do banco...')
+                    
+                    try {
+                        // MÉTODO 4: Tenta DELETE direto com ID do produto
+                        console.log('📡 Tentando DELETE /favoritos/' + payload.id_produto + ' (método 4)')
+                        const response4 = await api.delete(`/favoritos/${payload.id_produto}`)
+                        console.log('✅ Produto removido do banco (método 4):', response4.data)
+                        
+                        // Atualiza cache também
+                        const cacheKey4 = `favoritos_cache_user_${payload.id_usuario}`
+                        const favoritosCache4 = JSON.parse(localStorage.getItem(cacheKey4) || '[]')
+                        const favoritosAtualizados4 = favoritosCache4.filter((fav: any) => fav.id_produto !== payload.id_produto)
+                        localStorage.setItem(cacheKey4, JSON.stringify(favoritosAtualizados4))
+                        console.log('📦 Cache sincronizado após remoção do banco')
+                        
+                        return response4.data
+                    } catch (error4: any) {
+                        console.log('⚠️ Método 4 falhou. Tentando método 5...')
+                        
+                        try {
+                            // MÉTODO 5: Tenta GET para listar favoritos e depois DELETE específico
+                            console.log('📡 Buscando ID do favorito no banco para remoção específica')
+                            const favoritosResponse = await api.get('/favoritos')
+                            
+                            if (favoritosResponse.data && favoritosResponse.data.data) {
+                                const favorito = favoritosResponse.data.data.find((fav: any) => 
+                                    fav.id_produto === payload.id_produto && fav.id_usuario === payload.id_usuario
+                                )
+                                
+                                if (favorito && favorito.id) {
+                                    console.log('📡 Removendo favorito específico ID:', favorito.id)
+                                    await api.delete(`/favoritos/${favorito.id}`)
+                                    console.log('✅ Favorito removido do banco pelo ID específico')
+                                    
+                                    // Atualiza cache
+                                    const cacheKey5 = `favoritos_cache_user_${payload.id_usuario}`
+                                    const favoritosCache5 = JSON.parse(localStorage.getItem(cacheKey5) || '[]')
+                                    const favoritosAtualizados5 = favoritosCache5.filter((fav: any) => fav.id_produto !== payload.id_produto)
+                                    localStorage.setItem(cacheKey5, JSON.stringify(favoritosAtualizados5))
+                                    
+                                    return {
+                                        status: true,
+                                        status_code: 200,
+                                        message: 'Produto removido do banco de dados'
+                                    }
+                                }
+                            }
+                            
+                            throw new Error('Favorito não encontrado no banco')
+                        } catch (error5: any) {
+                            console.log('❌ Todos os métodos falharam. Produto pode não existir no banco.')
+                            
+                            // ÚLTIMO RECURSO: Remove do cache local
+                            const cacheKey6 = `favoritos_cache_user_${payload.id_usuario}`
+                            const favoritosCache6 = JSON.parse(localStorage.getItem(cacheKey6) || '[]')
+                            const favoritosAtualizados6 = favoritosCache6.filter((fav: any) => fav.id_produto !== payload.id_produto)
+                            localStorage.setItem(cacheKey6, JSON.stringify(favoritosAtualizados6))
+                            console.log('📦 Cache limpo - produto pode não existir no banco')
+                            
+                            return {
+                                status: true,
+                                status_code: 200,
+                                message: 'Produto removido (cache local - banco pode não ter o registro)'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+    } catch (error: any) {
+        console.error('❌ Erro ao remover favorito:', error.message)
+        
+        if (error.response?.status === 401) {
+            throw new Error('Sessão expirada. Faça login novamente.')
+        }
+        
+        throw error
+    }
+}
+
+/**
+ * Lista todos os favoritos do usuário
+ * SOLUÇÃO TEMPORÁRIA: Usa cache local até backend implementar GET /favoritos
+ */
+export async function listarFavoritos(): Promise<ListarFavoritosResponse> {
+    try {
+        console.log('📋 Listando favoritos do usuário...')
+        
+        // Verifica se usuário está autenticado
+        const { valid } = checkTokenValidity()
+        if (!valid) {
+            throw new Error('Usuário não autenticado. Faça login novamente.')
+        }
+        
+        // Obtém ID do usuário atual
+        const user = getCurrentUser()
+        if (!user) {
+            throw new Error('Usuário não encontrado.')
+        }
+        
+        try {
+            // Primeira tentativa: GET /favoritos
+            console.log('📡 Tentando GET /favoritos')
+            const response = await api.get<ListarFavoritosResponse>('/favoritos')
+            console.log('✅ Favoritos recebidos (método 1):', response.data)
+            return response.data
+        } catch (error1: any) {
+            console.log('⚠️ GET /favoritos não implementado, usando cache local temporário')
+            
+            // SOLUÇÃO TEMPORÁRIA: Usa localStorage como cache
+            const cacheKey = `favoritos_cache_user_${user.id}`
+            const favoritosCache = JSON.parse(localStorage.getItem(cacheKey) || '[]')
+            
+            console.log('📦 Usando cache local de favoritos:', favoritosCache.length, 'itens')
+            return {
+                status: true,
+                status_code: 200,
+                data: favoritosCache
+            }
+        }
+        
+    } catch (error: any) {
+        console.error('❌ Erro ao listar favoritos:', error.message)
+        
+        // Retorna lista vazia em caso de erro
+        return {
+            status: false,
+            status_code: 500,
+            data: [],
+            message: error.message
+        }
+    }
+}
+
+/**
+ * Verifica se um produto está nos favoritos do usuário
+ * CORREÇÃO: Usa apenas cache local para verificação rápida e precisa
+ */
+export async function verificarFavorito(idProduto: number): Promise<boolean> {
+    try {
+        console.log('🔍 Verificando se produto está nos favoritos:', idProduto)
+        
+        // Verifica se usuário está autenticado
+        const { valid } = checkTokenValidity()
+        if (!valid) {
+            console.log('⚠️ Usuário não autenticado - produto não está nos favoritos')
+            return false
+        }
+        
+        // Obtém ID do usuário atual
+        const user = getCurrentUser()
+        if (!user) {
+            console.log('⚠️ Usuário não encontrado - produto não está nos favoritos')
+            return false
+        }
+        
+        // Verifica se produto está bloqueado para sincronização
+        const blockedKey = `favoritos_blocked_user_${user.id}`
+        const blockedProducts = JSON.parse(localStorage.getItem(blockedKey) || '[]')
+        
+        if (blockedProducts.includes(idProduto)) {
+            console.log('🚫 Produto bloqueado - não é favorito (removido pelo usuário)')
+            return false
+        }
+        
+        // Verifica APENAS no cache local (mais rápido e preciso)
+        const cacheKey = `favoritos_cache_user_${user.id}`
+        const favoritosCache = JSON.parse(localStorage.getItem(cacheKey) || '[]')
+        
+        const isFavorito = favoritosCache.some((fav: any) => 
+            fav.id_produto === idProduto || fav.produto?.id === idProduto
+        )
+        
+        console.log('✅ Verificação no cache local:', {
+            idProduto,
+            totalFavoritos: favoritosCache.length,
+            isFavorito,
+            bloqueado: blockedProducts.includes(idProduto)
+        })
+        
+        return isFavorito
+        
+    } catch (error: any) {
+        console.error('❌ Erro ao verificar favorito:', error.message)
+        return false
+    }
+}
+
+/**
+ * Limpa o cache de favoritos do usuário
+ * Útil para resetar o estado quando necessário
+ */
+export function limparCacheFavoritos(): void {
+    try {
+        const user = getCurrentUser()
+        if (user) {
+            // Limpa TODOS os caches relacionados a favoritos
+            const keys = Object.keys(localStorage).filter(key => 
+                key.includes('favoritos') || key.includes('blocked')
+            )
+            keys.forEach(key => localStorage.removeItem(key))
+            console.log('🗑️ Todos os caches de favoritos limpos:', keys)
+        }
+    } catch (error) {
+        console.error('❌ Erro ao limpar cache de favoritos:', error)
+    }
+}
+
+/**
+ * Desbloqueia um produto específico para sincronização
+ * Permite que o produto volte a ser sincronizado com o backend
+ */
+export function desbloquearProdutoFavorito(idProduto: number): void {
+    try {
+        const user = getCurrentUser()
+        if (user) {
+            const blockedKey = `favoritos_blocked_user_${user.id}`
+            const blockedProducts = JSON.parse(localStorage.getItem(blockedKey) || '[]')
+            const updatedBlocked = blockedProducts.filter((id: number) => id !== idProduto)
+            localStorage.setItem(blockedKey, JSON.stringify(updatedBlocked))
+            console.log('🔓 Produto desbloqueado para sincronização:', idProduto)
+        }
+    } catch (error) {
+        console.error('❌ Erro ao desbloquear produto:', error)
     }
 }

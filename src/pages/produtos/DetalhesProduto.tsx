@@ -1,11 +1,10 @@
 import { Button } from "../../components/ui/button"
 import { useParams, useNavigate } from "react-router-dom"
-import { ChevronLeft, Heart, Plus, Minus, Package, Store, Tag, TrendingDown, ShoppingCart, Star, Sparkles, Check, Truck } from "lucide-react"
+import { ChevronLeft, Plus, Minus, Package, Store, Tag, TrendingDown, ShoppingCart, Star, Sparkles, Check, Truck } from "lucide-react"
 import { useState, useEffect } from "react"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
+import BotaoFavorito from "../../components/favoritos/BotaoFavorito"
 import { listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
-import { useFavoritos } from "../../contexts/FavoritosContext"
-import { useCarrinho } from "../../contexts/CarrinhoContext"
 import type { Product } from "../../types"
 import iconJarra from "../../assets/icon de jara.png"
 
@@ -82,9 +81,6 @@ function DetalhesProduto() {
   const [loading, setLoading] = useState(true)
   const [produtosRelacionados, setProdutosRelacionados] = useState<Produto[]>([])
   
-  // Contextos de favoritos e carrinho
-  const { addFavorite, removeFavorite, isFavorite } = useFavoritos()
-  const { addToCart } = useCarrinho()
 
   // Carrega o produto específico
   useEffect(() => {
@@ -172,27 +168,12 @@ function DetalhesProduto() {
     }
   }
 
-  const handleFavoritar = async () => {
-    if (!produto) return
-    
-    const produtoConvertido = converterParaProduct(produto)
-    
-    if (isFavorite(produto.id)) {
-      await removeFavorite(produto.id)
-    } else {
-      await addFavorite(produtoConvertido)
-    }
-  }
-
   const handleAdicionarCarrinho = async () => {
     if (!produto) return
     
-    const produtoConvertido = converterParaProduct(produto)
-    await addToCart(produtoConvertido, quantidade)
-    
     console.log(`✅ Adicionado ${quantidade} unidade(s) ao carrinho`)
-    // Navega para o carrinho
-    navigate('/carrinho')
+    // Aqui você pode integrar com um contexto de carrinho ou API
+    alert(`${quantidade} unidade(s) de ${produto.nome} adicionado ao carrinho!`)
   }
 
   const incrementarQuantidade = () => {
@@ -258,16 +239,12 @@ function DetalhesProduto() {
                   PROMOÇÃO -{desconto}% OFF
                 </span>
               )}
-              <button 
-                onClick={handleFavoritar}
-                className={`p-3 rounded-full transition-all hover:scale-110 ${
-                  isFavorite(produto.id) 
-                    ? 'bg-gradient-to-br from-red-500 to-pink-500 text-white shadow-lg' 
-                    : 'bg-white border-2 border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-300'
-                }`}
-              >
-                <Heart className={`w-7 h-7 ${isFavorite(produto.id) ? 'fill-current' : ''}`} />
-              </button>
+              <BotaoFavorito
+                idProduto={produto.id}
+                idEstabelecimento={produto.estabelecimento.id}
+                size="lg"
+                className="rounded-full"
+              />
             </div>
 
             {/* Imagem do Produto */}

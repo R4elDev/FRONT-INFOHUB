@@ -50,8 +50,8 @@ export type atualizarUsuarioRequest = {
   email?: string;
   senha?: string;
   cpf?: string | null;
-  telefone?: string;
-  data_nascimento?: string;
+  telefone?: string | null;
+  data_nascimento?: string | null;
 }
 
 export type atualizarEmpresaRequest = {
@@ -378,4 +378,53 @@ export interface filtrosProdutos {
   preco_max?: number;
   promocao?: boolean;
   busca?: string;
+}
+
+// ============================================
+// TIPOS PARA FAVORITOS
+// ============================================
+
+export interface AdicionarFavoritoRequest {
+  id_usuario: number;
+  id_produto: number;
+  id_estabelecimento: number;
+}
+
+export interface AdicionarFavoritoResponse {
+  status: boolean;
+  status_code: number;
+  message: string;
+  id?: number;
+}
+
+export interface RemoverFavoritoRequest {
+  id_usuario: number;
+  id_produto: number;
+}
+
+export interface FavoritoItem {
+  id: number;
+  id_usuario: number;
+  id_produto: number;
+  id_estabelecimento: number;
+  data_criacao: string;
+  produto?: {
+    id: number;
+    nome: string;
+    preco: number;
+    preco_promocional?: number;
+    imagem?: string;
+    descricao?: string;
+  };
+  estabelecimento?: {
+    id: number;
+    nome: string;
+  };
+}
+
+export interface ListarFavoritosResponse {
+  status: boolean;
+  status_code: number;
+  data: FavoritoItem[];
+  message?: string;
 }
