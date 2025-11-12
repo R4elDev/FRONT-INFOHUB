@@ -2,111 +2,36 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
-import { Send, List, Loader2, Trash2, HelpCircle, X, Sparkles, Bot, User, ArrowUp } from 'lucide-react'
+import { Send, List, Loader2, Trash2, HelpCircle, X, Sparkles, Bot, User, ArrowUp, TrendingUp } from 'lucide-react'
 import SidebarLayout from '../../components/layouts/SidebarLayout'
-import { interagirComIA } from '../../services/requests'
-import type { chatMessage } from '../../services/types'
+import { ChatProvider } from '../../contexts/ChatContext'
+import { useChatIA } from '../../hooks/useChatIA'
+import { PERGUNTAS_EXEMPLO } from '../../services/chatService'
+import '../../styles/chat.css'
 
-// Animações CSS customizadas
-const styles = document.createElement('style')
-styles.textContent = `
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  @keyframes shimmer {
-    0% {
-      transform: translateX(-100%);
-    }
-    100% {
-      transform: translateX(100%);
-    }
-  }
-  
-  @keyframes bounce-slow {
-    0%, 100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
-  }
-  
-  @keyframes pulse-slow {
-    0%, 100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
-    }
-  }
-  
-  .animate-fade-in {
-    animation: fade-in 0.4s ease-out forwards;
-  }
-  
-  .animate-shimmer {
-    animation: shimmer 3s infinite linear;
-  }
-  
-  .animate-bounce-slow {
-    animation: bounce-slow 2s ease-in-out infinite;
-  }
-  
-  .animate-pulse-slow {
-    animation: pulse-slow 2s ease-in-out infinite;
-  }
-  
-  /* Custom scrollbar */
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: #FED7AA;
-    border-radius: 3px;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: #FDBA74;
-  }
-`
-if (!document.head.querySelector('style[data-chat-animations]')) {
-  styles.setAttribute('data-chat-animations', 'true')
-  document.head.appendChild(styles)
-}
-
-/**
- * CONSTANTES PARA LOCALSTORAGE
- * Usadas para salvar e recuperar o histórico do chat
- */
-const CHAT_STORAGE_KEY = 'infohub_chat_messages'
-const MOCK_USER_ID = 1 // ID mockado do usuário (em produção viria do contexto de autenticação)
-
-function ChatPrecos() {
+// Componente interno que usa o novo sistema de ChatIA
+function ChatPrecosContent() {
   const navigate = useNavigate()
-  const [message, setMessage] = useState<string>('')
-  const [messages, setMessages] = useState<chatMessage[]>([])
-  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [inputMessage, setInputMessage] = useState<string>('')
   const [showOptionsMenu, setShowOptionsMenu] = useState<boolean>(false)
   const [showScrollTop, setShowScrollTop] = useState<boolean>(false)
+  const [showQuickSuggestions, setShowQuickSuggestions] = useState<boolean>(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+  
+  // Usando o novo sistema de ChatIA
+  const { 
+    messages, 
+    loading: isLoading, 
+    sendMessage, 
+    clearMessages 
+  } = useChatIA({ 
+    persistMessages: true, 
+    maxMessages: 50 
+  })
 
   /**
-   * EFEITO 1: Verificação de autenticação
-   * Redireciona para login se não houver token
+   * Verificação de autenticação
    */
   useEffect(() => {
     const token = localStorage.getItem('auth_token')
@@ -116,57 +41,14 @@ function ChatPrecos() {
   }, [navigate])
 
   /**
-   * EFEITO 2: Carregamento do histórico do localStorage
-   * 
-   * COMO FUNCIONA:
-   * 1. Ao montar o componente, tenta recuperar mensagens salvas
-   * 2. Se houver mensagens salvas, carrega elas
-   * 3. Se não houver, cria a mensagem de boas-vindas inicial
-   * 4. As mensagens são salvas automaticamente a cada mudança (ver EFEITO 3)
-   */
-  useEffect(() => {
-    const savedMessages = localStorage.getItem(CHAT_STORAGE_KEY)
-    
-    if (savedMessages) {
-      try {
-        const parsedMessages = JSON.parse(savedMessages) as chatMessage[]
-        setMessages(parsedMessages)
-        console.log('💾 Histórico de chat carregado:', parsedMessages.length, 'mensagens')
-      } catch (error) {
-        console.error('❌ Erro ao carregar histórico:', error)
-        initializeChat()
-      }
-    } else {
-      initializeChat()
-    }
-  }, [])
-
-  /**
-   * EFEITO 3: Salvar mensagens no localStorage
-   * 
-   * COMO FUNCIONA:
-   * - Sempre que o array de mensagens mudar, salva automaticamente no localStorage
-   * - Isso garante que o histórico seja persistido mesmo se o usuário recarregar a página
-   * - Ignora a primeira renderização (quando messages está vazio)
-   */
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages))
-      console.log('💾 Histórico salvo:', messages.length, 'mensagens')
-    }
-  }, [messages])
-
-  /**
-   * EFEITO 4: Scroll automático para última mensagem
-   * Sempre que novas mensagens chegam, rola para o final
+   * Scroll automático para última mensagem
    */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   /**
-   * EFEITO 6: Controle do botão "Voltar ao topo"
-   * Monitora o scroll para mostrar/esconder botão
+   * Controle do botão "Voltar ao topo"
    */
   useEffect(() => {
     const chatContainer = chatContainerRef.current
@@ -182,132 +64,22 @@ function ChatPrecos() {
   }, [])
 
   /**
-   * EFEITO 5: Limpeza ao sair da página
-   * 
-   * COMO FUNCIONA:
-   * - Quando o componente é desmontado (usuário sai da página), limpa o localStorage
-   * - Isso garante que ao voltar, o chat comece do zero
-   * - Usa beforeunload para capturar também quando o usuário fecha a aba/navegador
-   */
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      localStorage.removeItem(CHAT_STORAGE_KEY)
-      console.log('🗑️ Histórico de chat limpo ao sair da página')
-    }
-
-    // Adiciona listener para quando usuário sair/recarregar a página
-    window.addEventListener('beforeunload', handleBeforeUnload)
-
-    // Cleanup: remove listener e limpa storage quando componente desmontar
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
-      localStorage.removeItem(CHAT_STORAGE_KEY)
-      console.log('🗑️ Histórico de chat limpo')
-    }
-  }, [])
-
-  /**
-   * Função auxiliar para inicializar o chat com mensagem de boas-vindas
-   */
-  const initializeChat = () => {
-    const now = new Date()
-    const timeString = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`
-    
-    const welcomeMessage: chatMessage = {
-      text: 'Olá! Sou sua assistente de compras inteligente. Posso ajudar você a encontrar os melhores preços de qualquer produto. Digite o nome do produto que você procura!',
-      time: timeString,
-      isBot: true,
-      confidence: 1.0
-    }
-    
-    setMessages([welcomeMessage])
-  }
-
-  /**
-   * Função para enviar mensagem e obter resposta da IA
-   * 
-   * COMO FUNCIONA:
-   * 1. Valida se a mensagem não está vazia
-   * 2. Adiciona a mensagem do usuário ao chat
-   * 3. Limpa o input
-   * 4. Chama a API mockada (interagirComIA)
-   * 5. Adiciona a resposta da IA ao chat
-   * 6. Trata erros caso a API falhe
-   * 
-   * INTEGRAÇÃO COM A API:
-   * - Usa a função interagirComIA do services/requests.ts
-   * - Envia: { mensagem: string, idUsuario: number }
-   * - Recebe: { status, status_code, data: { reply, confidence, response_time_ms } }
-   * - A API é mockada, mas a estrutura é idêntica à API real
+   * Função para enviar mensagem usando o novo sistema
    */
   const handleSendMessage = async (): Promise<void> => {
-    const trimmedMessage = message.trim()
+    const trimmedMessage = inputMessage.trim()
     if (!trimmedMessage || isLoading) return
     
-    const now = new Date()
-    const timeString = `${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}`
-    
-    // Adiciona mensagem do usuário
-    const userMessage: chatMessage = {
-      text: trimmedMessage,
-      time: timeString,
-      isBot: false
-    }
-    
-    setMessages(prev => [...prev, userMessage])
-    setMessage('') // Limpa o input imediatamente
-    setIsLoading(true)
-    
     try {
-      // Chama a API mockada da IA
-      const response = await interagirComIA({
-        mensagem: trimmedMessage,
-        idUsuario: MOCK_USER_ID
-      })
-      
-      // Verifica se a resposta foi bem sucedida
-      if (response.status && response.data) {
-        const botMessage: chatMessage = {
-          text: response.data.reply,
-          time: `${new Date().getHours()}:${new Date().getMinutes().toString().padStart(2, '0')}`,
-          isBot: true,
-          confidence: response.data.confidence
-        }
-        
-        setMessages(prev => [...prev, botMessage])
-        console.log(`✅ Resposta recebida (confiança: ${(response.data.confidence * 100).toFixed(0)}%, tempo: ${response.data.response_time_ms}ms)`)
-      } else {
-        // Resposta de erro da API
-        const errorMessage: chatMessage = {
-          text: response.message || 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.',
-          time: `${new Date().getHours()}:${new Date().getMinutes().toString().padStart(2, '0')}`,
-          isBot: true,
-          confidence: 0
-        }
-        
-        setMessages(prev => [...prev, errorMessage])
-        console.error('❌ Erro na resposta da IA:', response.message)
-      }
+      await sendMessage(trimmedMessage)
+      setInputMessage('') // Limpa o input após enviar
     } catch (error) {
-      // Erro na chamada da API
-      console.error('❌ Erro ao chamar API:', error)
-      
-      const errorMessage: chatMessage = {
-        text: 'Desculpe, não consegui processar sua mensagem no momento. Por favor, tente novamente.',
-        time: `${new Date().getHours()}:${new Date().getMinutes().toString().padStart(2, '0')}`,
-        isBot: true,
-        confidence: 0
-      }
-      
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
+      console.error('Erro ao enviar mensagem:', error)
     }
   }
 
   /**
-   * Handler para tecla Enter no input
-   * Permite enviar mensagem pressionando Enter
+   * Handler para tecla Enter
    */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter' && !isLoading) {
@@ -318,7 +90,6 @@ function ChatPrecos() {
 
   /**
    * Handler para botão de opções
-   * Abre/fecha o menu de opções
    */
   const handleOptionsClick = (): void => {
     setShowOptionsMenu(!showOptionsMenu)
@@ -328,10 +99,8 @@ function ChatPrecos() {
    * Limpa o histórico do chat
    */
   const handleClearHistory = (): void => {
-    localStorage.removeItem(CHAT_STORAGE_KEY)
-    initializeChat()
+    clearMessages()
     setShowOptionsMenu(false)
-    console.log('🗑️ Histórico limpo manualmente')
   }
 
   /**
@@ -339,7 +108,7 @@ function ChatPrecos() {
    */
   const handleShowExamples = async (): Promise<void> => {
     setShowOptionsMenu(false)
-    setMessage('como funciona?')
+    setInputMessage('Como funciona o sistema de preços?')
     // Simula envio automático
     setTimeout(() => {
       handleSendMessage()
@@ -351,7 +120,14 @@ function ChatPrecos() {
    */
   const handleSuggestion = (suggestion: string): void => {
     setShowOptionsMenu(false)
-    setMessage(suggestion)
+    setInputMessage(suggestion)
+  }
+
+  /**
+   * Formatar timestamp para exibição
+   */
+  const formatTime = (timestamp: Date): string => {
+    return `${timestamp.getHours()}:${timestamp.getMinutes().toString().padStart(2, '0')}`
   }
 
   return (
@@ -387,14 +163,54 @@ function ChatPrecos() {
           ref={chatContainerRef}
           className="flex-1 overflow-y-auto mb-6 space-y-4 pr-2 scrollbar-thin scrollbar-thumb-orange-200 scrollbar-track-transparent"
         >
+          {/* Tela de boas-vindas quando não há mensagens */}
+          {messages.length === 0 && (
+            <div className="text-center py-12 animate-fade-in">
+              <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-gradient-to-r from-orange-400 to-orange-600 flex items-center justify-center shadow-lg animate-bounce-slow">
+                <Bot className="w-10 h-10 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Bem-vindo ao Chat de Preços IA!</h3>
+              <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                Faça perguntas sobre produtos, preços e promoções. Nossa IA está aqui para ajudar você a encontrar as melhores ofertas!
+              </p>
+              
+              {/* Sugestões iniciais */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
+                {PERGUNTAS_EXEMPLO.slice(0, 4).map((pergunta, index) => {
+                  const sugestaoConfig = [
+                    { emoji: '🛍️', cor: 'from-purple-400 to-purple-600' },
+                    { emoji: '🥛', cor: 'from-blue-400 to-blue-600' },
+                    { emoji: '👥', cor: 'from-green-400 to-green-600' },
+                    { emoji: '🏪', cor: 'from-orange-400 to-orange-600' }
+                  ][index];
+
+                  return (
+                    <button
+                      key={index}
+                      onClick={() => handleSuggestion(pergunta)}
+                      className="p-4 bg-white rounded-2xl border-2 border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-all duration-200 text-left hover:shadow-md hover:scale-[1.02]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl bg-gradient-to-r ${sugestaoConfig.cor} flex items-center justify-center text-xl shadow-md`}>
+                          {sugestaoConfig.emoji}
+                        </div>
+                        <span className="text-sm font-medium text-gray-700">{pergunta}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {messages.map((msg, index) => (
             <div 
               key={index} 
-              className={`flex gap-3 sm:gap-4 animate-fade-in ${msg.isBot ? 'justify-start' : 'justify-end'}`}
+              className={`flex gap-3 sm:gap-4 animate-fade-in ${msg.tipo === 'ia' ? 'justify-start' : 'justify-end'}`}
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               {/* Mensagem da IA */}
-              {msg.isBot && (
+              {msg.tipo === 'ia' && (
                 <>
                   {/* Avatar do Bot */}
                   <div className="flex-shrink-0 relative group">
@@ -412,21 +228,21 @@ function ChatPrecos() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold text-gray-500">IA InfoHub</span>
-                          <span className="text-xs text-gray-400">{msg.time}</span>
+                          <span className="text-xs text-gray-400">{formatTime(msg.timestamp)}</span>
                         </div>
-                        {/* Badge de Confiança */}
-                        {msg.confidence !== undefined && msg.confidence > 0 && (
+                        {/* Badge da fonte */}
+                        {msg.fonte && (
                           <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-full">
-                            <Sparkles className="w-3 h-3 text-green-600" />
+                            <TrendingUp className="w-3 h-3 text-green-600" />
                             <span className="text-xs font-semibold text-green-600">
-                              {(msg.confidence * 100).toFixed(0)}%
+                              {msg.fonte}
                             </span>
                           </div>
                         )}
                       </div>
                       {/* Texto */}
                       <div className="text-gray-700 text-sm sm:text-base leading-relaxed whitespace-pre-line">
-                        {msg.text}
+                        {msg.texto}
                       </div>
                     </div>
                   </div>
@@ -434,19 +250,19 @@ function ChatPrecos() {
               )}
 
               {/* Mensagem do Usuário */}
-              {!msg.isBot && (
+              {msg.tipo === 'usuario' && (
                 <>
                   {/* Card da Mensagem Usuário */}
                   <div className="flex-1 max-w-2xl flex justify-end">
                     <div className="bg-gradient-to-br from-[#25992E] to-[#1f7a24] rounded-2xl rounded-tr-none p-4 shadow-lg hover:shadow-xl transition-all">
                       {/* Header */}
                       <div className="flex items-center justify-end gap-2 mb-2">
-                        <span className="text-xs text-white/70">{msg.time}</span>
+                        <span className="text-xs text-white/70">{formatTime(msg.timestamp)}</span>
                         <span className="text-xs font-bold text-white/90">Você</span>
                       </div>
                       {/* Texto */}
                       <div className="text-white text-sm sm:text-base leading-relaxed whitespace-pre-line text-right">
-                        {msg.text}
+                        {msg.texto}
                       </div>
                     </div>
                   </div>
@@ -463,7 +279,7 @@ function ChatPrecos() {
           ))}
           
           {/* Welcome Box Premium - apenas se for a primeira mensagem */}
-          {messages.length > 0 && messages[0].isBot && (
+          {messages.length > 0 && messages[0].tipo === 'ia' && (
             <div className="w-full mt-6 animate-fade-in" style={{ animationDelay: '0.5s' }}>
               <div className="max-w-4xl">
                 {/* Card de Boas-vindas Moderno */}
@@ -535,34 +351,28 @@ function ChatPrecos() {
                             <h4 className="text-gray-700 text-sm font-bold">Sugestões Rápidas</h4>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <button
-                              onClick={() => handleSuggestion('quero carne moída perto de mim')}
-                              className="group text-left p-3 bg-gradient-to-br from-red-50 to-orange-50 hover:from-red-100 hover:to-orange-100 border border-red-200 rounded-xl transition-all hover:shadow-md hover:scale-[1.02]"
-                            >
-                              <div className="text-2xl mb-1">🥩</div>
-                              <p className="text-xs font-semibold text-gray-700">Carne moída</p>
-                            </button>
-                            <button
-                              onClick={() => handleSuggestion('leite mais barato')}
-                              className="group text-left p-3 bg-gradient-to-br from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 border border-blue-200 rounded-xl transition-all hover:shadow-md hover:scale-[1.02]"
-                            >
-                              <div className="text-2xl mb-1">🥛</div>
-                              <p className="text-xs font-semibold text-gray-700">Leite barato</p>
-                            </button>
-                            <button
-                              onClick={() => handleSuggestion('quais as promoções?')}
-                              className="group text-left p-3 bg-gradient-to-br from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 border border-purple-200 rounded-xl transition-all hover:shadow-md hover:scale-[1.02]"
-                            >
-                              <div className="text-2xl mb-1">🛍️</div>
-                              <p className="text-xs font-semibold text-gray-700">Promoções</p>
-                            </button>
-                            <button
-                              onClick={() => handleSuggestion('frango barato')}
-                              className="group text-left p-3 bg-gradient-to-br from-yellow-50 to-amber-50 hover:from-yellow-100 hover:to-amber-100 border border-yellow-200 rounded-xl transition-all hover:shadow-md hover:scale-[1.02]"
-                            >
-                              <div className="text-2xl mb-1">🍗</div>
-                              <p className="text-xs font-semibold text-gray-700">Frango barato</p>
-                            </button>
+                            {PERGUNTAS_EXEMPLO.map((pergunta, index) => {
+                              // Ícones e cores para cada pergunta
+                              const sugestaoConfig = [
+                                { emoji: '🛍️', cor: 'purple', texto: 'Promoções' },
+                                { emoji: '🥛', cor: 'blue', texto: 'Leite barato' },
+                                { emoji: '👥', cor: 'green', texto: 'Usuários' },
+                                { emoji: '🏪', cor: 'orange', texto: 'Estabelecimentos' },
+                                { emoji: '❓', cor: 'indigo', texto: 'Como funciona' },
+                                { emoji: '📊', cor: 'pink', texto: 'Resumo geral' }
+                              ][index] || { emoji: '💡', cor: 'gray', texto: 'Pergunta' };
+
+                              return (
+                                <button
+                                  key={index}
+                                  onClick={() => handleSuggestion(pergunta)}
+                                  className={`group text-left p-3 bg-gradient-to-br from-${sugestaoConfig.cor}-50 to-${sugestaoConfig.cor}-100 hover:from-${sugestaoConfig.cor}-100 hover:to-${sugestaoConfig.cor}-200 border border-${sugestaoConfig.cor}-200 rounded-xl transition-all hover:shadow-md hover:scale-[1.02]`}
+                                >
+                                  <div className="text-2xl mb-1">{sugestaoConfig.emoji}</div>
+                                  <p className="text-xs font-semibold text-gray-700">{sugestaoConfig.texto}</p>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                         
@@ -645,13 +455,68 @@ function ChatPrecos() {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Sugestões Rápidas - Sempre Visíveis */}
+        {showQuickSuggestions && (
+          <div className="mb-4 p-4 bg-gradient-to-r from-orange-50 to-yellow-50 rounded-2xl border border-orange-200 animate-fade-in">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-orange-600" />
+                <h4 className="text-sm font-bold text-orange-800">Sugestões Rápidas</h4>
+              </div>
+              <button
+                onClick={() => setShowQuickSuggestions(false)}
+                className="w-6 h-6 rounded-full bg-orange-200 hover:bg-orange-300 flex items-center justify-center transition-colors"
+              >
+                <X className="w-3 h-3 text-orange-700" />
+              </button>
+            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {PERGUNTAS_EXEMPLO.map((pergunta, index) => {
+              const sugestaoConfig = [
+                { emoji: '🛍️', cor: 'bg-purple-100 hover:bg-purple-200 text-purple-800' },
+                { emoji: '🥛', cor: 'bg-blue-100 hover:bg-blue-200 text-blue-800' },
+                { emoji: '👥', cor: 'bg-green-100 hover:bg-green-200 text-green-800' },
+                { emoji: '🏪', cor: 'bg-orange-100 hover:bg-orange-200 text-orange-800' },
+                { emoji: '❓', cor: 'bg-indigo-100 hover:bg-indigo-200 text-indigo-800' },
+                { emoji: '📊', cor: 'bg-pink-100 hover:bg-pink-200 text-pink-800' }
+              ][index] || { emoji: '💡', cor: 'bg-gray-100 hover:bg-gray-200 text-gray-800' };
+
+              return (
+                <button
+                  key={index}
+                  onClick={() => handleSuggestion(pergunta)}
+                  className={`flex items-center gap-2 p-2 rounded-xl transition-all hover:scale-105 ${sugestaoConfig.cor}`}
+                  disabled={isLoading}
+                >
+                  <span className="text-lg">{sugestaoConfig.emoji}</span>
+                  <span className="text-xs font-medium truncate">{pergunta.split(' ').slice(0, 3).join(' ')}...</span>
+                </button>
+              );
+            })}
+          </div>
+          </div>
+        )}
+
+        {/* Botão para mostrar sugestões quando escondidas */}
+        {!showQuickSuggestions && (
+          <div className="mb-4 text-center">
+            <button
+              onClick={() => setShowQuickSuggestions(true)}
+              className="px-4 py-2 bg-orange-100 hover:bg-orange-200 text-orange-800 rounded-xl transition-all hover:scale-105 flex items-center gap-2 mx-auto"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span className="text-sm font-medium">Mostrar Sugestões</span>
+            </button>
+          </div>
+        )}
+
         {/* Input Container Estilo ChatGPT */}
         <div className="relative mb-2">
           <div className="flex gap-3 items-center bg-white p-2 rounded-3xl shadow-xl border-2 border-gray-100 hover:border-[#F7931E]/30 transition-all">
             <Input
               type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Digite o produto que você procura... (ex: leite, carne, frango)"
               disabled={isLoading}
@@ -661,7 +526,7 @@ function ChatPrecos() {
             />
             <Button 
               onClick={handleSendMessage}
-              disabled={!message.trim() || isLoading}
+              disabled={!inputMessage.trim() || isLoading}
               className="bg-gradient-to-r from-[#F7931E] to-[#FF8C00] hover:from-[#FF8C00] hover:to-[#F7931E] 
                          w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex-shrink-0 p-0 
                          hover:scale-105 active:scale-95 transition-all duration-300 
@@ -694,6 +559,15 @@ function ChatPrecos() {
         )}
       </section>
     </SidebarLayout>
+  )
+}
+
+// Componente principal com Provider
+function ChatPrecos() {
+  return (
+    <ChatProvider>
+      <ChatPrecosContent />
+    </ChatProvider>
   )
 }
 

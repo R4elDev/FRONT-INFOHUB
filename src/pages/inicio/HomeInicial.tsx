@@ -7,6 +7,7 @@ import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
 import { useFavoritos } from "../../contexts/FavoritosContext"
 import { useCarrinho } from "../../contexts/CarrinhoContext"
+import FloatingChat from "../../components/Chat/FloatingChat"
 import type { Product } from "../../types"
 
 // Animações CSS customizadas
@@ -500,6 +501,9 @@ function HomeInicial() {
             </div>
           )}
         </section>
+        
+        {/* Chat Flutuante */}
+        <FloatingChat />
     </SidebarLayout>
   )
 }
