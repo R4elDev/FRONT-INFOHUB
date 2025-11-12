@@ -69,6 +69,9 @@ import CadastroEndereco from './pages/perfil/CadastroEndereco'
 // Páginas de Teste
 import TesteProdutos from './pages/teste/TesteProdutos'
 
+// Páginas de Chat
+import ChatPage from './pages/chat/ChatPage'
+
 
 
 createRoot(document.getElementById('root')!).render(
@@ -180,6 +183,9 @@ createRoot(document.getElementById('root')!).render(
         
         {/* Rota de Teste - Verificação de Promoções */}
         <Route path="/teste-produtos" element={<TesteProdutos />} />
+        
+        {/* Rota do Chat IA */}
+        <Route path="/chat" element={<ChatPage />} />
               </Routes>
             </SessionManager>
           </BrowserRouter>
