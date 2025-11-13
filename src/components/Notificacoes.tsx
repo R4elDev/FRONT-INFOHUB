@@ -1,105 +1,55 @@
-import { X, Bell, Tag, Package, DollarSign, TrendingDown, CheckCircle } from "lucide-react"
+import { X, Bell, Tag, Package, DollarSign, CheckCircle, Trash2, AlertCircle } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { useState } from "react"
+import { useNotificacoes } from '../contexts/NotificacoesContext'
+import { getIconePorTipo, getCorPorTipo } from '../services/notificacaoService'
 
 interface NotificacoesProps {
   isOpen: boolean
   onClose: () => void
 }
 
-interface Notificacao {
-  id: number
-  tipo: 'promocao' | 'pedido' | 'cashback' | 'sistema'
-  titulo: string
-  mensagem: string
-  tempo: string
-  lida: boolean
-}
-
-const notificacoesData: Notificacao[] = [
-  {
-    id: 1,
-    tipo: 'promocao',
-    titulo: 'Nova Promoção!',
-    mensagem: 'Arroz integral com 30% de desconto hoje!',
-    tempo: 'há 5 min',
-    lida: false
-  },
-  {
-    id: 2,
-    tipo: 'pedido',
-    titulo: 'Pedido Confirmado',
-    mensagem: 'Seu pedido #1234 foi confirmado e está sendo preparado.',
-    tempo: 'há 1 hora',
-    lida: false
-  },
-  {
-    id: 3,
-    tipo: 'cashback',
-    titulo: 'Cashback Recebido!',
-    mensagem: 'Você ganhou R$ 5,00 em InfoCash na sua última compra.',
-    tempo: 'há 2 horas',
-    lida: false
-  },
-  {
-    id: 4,
-    tipo: 'promocao',
-    titulo: 'Ofertas Relâmpago',
-    mensagem: 'Produtos de limpeza com até 40% OFF por tempo limitado.',
-    tempo: 'há 3 horas',
-    lida: true
-  },
-  {
-    id: 5,
-    tipo: 'sistema',
-    titulo: 'Bem-vindo ao InfoHub!',
-    mensagem: 'Aproveite as melhores ofertas da sua região.',
-    tempo: 'há 1 dia',
-    lida: true
-  }
-]
-
 const getIconByType = (tipo: string) => {
   switch (tipo) {
     case 'promocao':
       return <Tag className="w-5 h-5" />
-    case 'pedido':
+    case 'compra':
       return <Package className="w-5 h-5" />
-    case 'cashback':
+    case 'social':
       return <DollarSign className="w-5 h-5" />
-    case 'sistema':
+    case 'alerta':
+      return <AlertCircle className="w-5 h-5" />
+    case 'carrinho':
       return <Bell className="w-5 h-5" />
     default:
       return <Bell className="w-5 h-5" />
-  }
-}
-
-const getColorByType = (tipo: string) => {
-  switch (tipo) {
-    case 'promocao':
-      return 'from-red-500 to-pink-500'
-    case 'pedido':
-      return 'from-green-500 to-emerald-500'
-    case 'cashback':
-      return 'from-yellow-500 to-orange-500'
-    case 'sistema':
-      return 'from-blue-500 to-indigo-500'
-    default:
-      return 'from-gray-500 to-gray-600'
   }
 }
 
 export default function Notificacoes({ isOpen, onClose }: NotificacoesProps) {
   const navigate = useNavigate()
-  const [notificacoes, setNotificacoes] = useState(notificacoesData)
-  const naoLidas = notificacoes.filter(n => !n.lida).length
+  const { 
+    notificacoes, 
+    naoLidas, 
+    loading, 
+    error,
+    marcarComoLida,
+    marcarTodasComoLidas,
+    deletarNotificacao,
+    limparError
+  } = useNotificacoes()
 
-  const handleMarcarTodasComoLidas = () => {
-    setNotificacoes(notificacoes.map(n => ({ ...n, lida: true })))
+  const handleMarcarTodasComoLidas = async () => {
+    await marcarTodasComoLidas()
   }
 
-  const handleLimpar = () => {
-    setNotificacoes([])
+  const handleMarcarComoLida = async (notificacaoId: number) => {
+    await marcarComoLida(notificacaoId)
+  }
+
+  const handleDeletarNotificacao = async (notificacaoId: number) => {
+    if (window.confirm('Deseja realmente deletar esta notificação?')) {
+      await deletarNotificacao(notificacaoId)
+    }
   }
 
   const handleVerTodas = () => {
@@ -150,25 +100,43 @@ export default function Notificacoes({ isOpen, onClose }: NotificacoesProps) {
 
         {/* Ações Rápidas */}
         <div className="p-4 border-b border-gray-200 bg-white">
+          {error && (
+            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-2 text-red-700 text-sm">
+                <AlertCircle className="w-4 h-4" />
+                <span>{error}</span>
+              </div>
+              <button 
+                onClick={limparError}
+                className="text-red-500 hover:text-red-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
           <div className="flex gap-2">
             <button 
               onClick={handleMarcarTodasComoLidas}
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#FFA726] to-[#FF8C00] text-white rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95"
+              disabled={loading || naoLidas === 0}
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-[#FFA726] to-[#FF8C00] text-white rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              Marcar todas como lidas
-            </button>
-            <button 
-              onClick={handleLimpar}
-              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm transition-all hover:scale-105 active:scale-95"
-            >
-              Limpar
+              {loading ? 'Carregando...' : 'Marcar todas como lidas'}
             </button>
           </div>
         </div>
 
         {/* Lista de Notificações */}
         <div className="overflow-y-auto h-[calc(100vh-220px)] scrollbar-hide">
-          {notificacoes.length === 0 ? (
+          {loading && notificacoes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center p-8">
+              <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4 animate-spin">
+                <Bell className="w-10 h-10 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-2">
+                Carregando notificações...
+              </h3>
+            </div>
+          ) : notificacoes.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
               <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4 animate-bounce-slow">
                 <Bell className="w-10 h-10 text-gray-400" />
@@ -184,8 +152,8 @@ export default function Notificacoes({ isOpen, onClose }: NotificacoesProps) {
             <div className="p-4 space-y-3">
               {notificacoes.map((notificacao, index) => (
                 <div
-                  key={notificacao.id}
-                  className={`group relative bg-white rounded-2xl border-2 p-4 transition-all hover:shadow-lg hover:-translate-y-1 cursor-pointer animate-fade-in ${
+                  key={notificacao.id_notificacao}
+                  className={`group relative bg-white rounded-2xl border-2 p-4 transition-all hover:shadow-lg hover:-translate-y-1 animate-fade-in ${
                     notificacao.lida 
                       ? 'border-gray-200 opacity-75' 
                       : 'border-[#FFA726] shadow-md'
@@ -199,31 +167,63 @@ export default function Notificacoes({ isOpen, onClose }: NotificacoesProps) {
 
                   <div className="flex gap-3">
                     {/* Ícone */}
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getColorByType(notificacao.tipo)} flex items-center justify-center text-white flex-shrink-0 shadow-lg`}>
+                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getCorPorTipo(notificacao.tipo)} flex items-center justify-center text-white flex-shrink-0 shadow-lg`}>
                       {getIconByType(notificacao.tipo)}
                     </div>
 
                     {/* Conteúdo */}
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-gray-800 mb-1 flex items-center gap-2">
-                        {notificacao.titulo}
-                        {notificacao.tipo === 'promocao' && (
-                          <TrendingDown className="w-4 h-4 text-red-500" />
-                        )}
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                        {notificacao.mensagem}
-                      </p>
+                      <div className="flex items-start justify-between mb-2">
+                        <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
+                          {notificacao.mensagem}
+                        </p>
+                        <div className="flex items-center gap-1 ml-2">
+                          {!notificacao.lida && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleMarcarComoLida(notificacao.id_notificacao)
+                              }}
+                              className="p-1 text-green-600 hover:text-green-700 hover:bg-green-50 rounded transition-all"
+                              title="Marcar como lida"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeletarNotificacao(notificacao.id_notificacao)
+                            }}
+                            className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-all"
+                            title="Deletar notificação"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                      
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-gray-500 font-medium">
-                          {notificacao.tempo}
+                          {notificacao.tempo_relativo}
                         </span>
-                        {notificacao.lida && (
-                          <span className="flex items-center gap-1 text-xs text-green-600 font-bold">
-                            <CheckCircle className="w-3 h-3" />
-                            Lida
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            notificacao.tipo === 'promocao' ? 'bg-red-100 text-red-700' :
+                            notificacao.tipo === 'compra' ? 'bg-green-100 text-green-700' :
+                            notificacao.tipo === 'social' ? 'bg-purple-100 text-purple-700' :
+                            notificacao.tipo === 'alerta' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-blue-100 text-blue-700'
+                          }`}>
+                            {getIconePorTipo(notificacao.tipo)} {notificacao.tipo}
                           </span>
-                        )}
+                          {notificacao.lida && (
+                            <span className="flex items-center gap-1 text-xs text-green-600 font-bold">
+                              <CheckCircle className="w-3 h-3" />
+                              Lida
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -163,7 +163,6 @@ function Promocoes() {
       try {
         setLoading(true)
         
-        console.log('🔄 [Promocoes] Carregando produtos...')
         
         // Monta filtros baseado no estado atual e parâmetros da URL
         const novosFiltros: filtrosProdutos = {
@@ -193,11 +192,9 @@ function Promocoes() {
           novosFiltros.promocao = true
         }
         
-        console.log('🔍 [Promocoes] Filtros aplicados:', novosFiltros)
         
         const produtosResponse = await listarProdutos(novosFiltros)
         
-        console.log('📦 [Promocoes] Produtos recebidos:', produtosResponse.data?.length || 0)
         
         if (produtosResponse.status && produtosResponse.data) {
           // VALIDAÇÃO: Filtra produtos no frontend para garantir categoria correta
@@ -224,7 +221,6 @@ function Promocoes() {
                      categoriaNome.includes(termoBusca)
             })
             
-            console.log(`🔍 Busca por "${novosFiltros.busca}": ${produtosFiltrados.length} produto(s) encontrado(s)`)
           }
           
           // Aplica filtro de promoção no frontend se necessário

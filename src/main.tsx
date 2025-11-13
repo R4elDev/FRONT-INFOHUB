@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 import { UserProvider } from './contexts/UserContext'
 import { FavoritosProvider } from './contexts/FavoritosContext'
 import { CarrinhoProvider } from './contexts/CarrinhoContext'
+import { NotificacoesProvider } from './contexts/NotificacoesContext'
 import SmartRoute from './components/common/SmartRoute'
 import ProtectedRoute from './components/common/ProtectedRoute'
 import SessionManager from './components/auth/SessionManager'
@@ -80,7 +81,8 @@ createRoot(document.getElementById('root')!).render(
     <UserProvider>
       <FavoritosProvider>
         <CarrinhoProvider>
-          <BrowserRouter>
+          <NotificacoesProvider>
+            <BrowserRouter>
             <SessionManager>
               <Toaster 
                 position="top-right"
@@ -188,7 +190,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/chat" element={<ChatPage />} />
               </Routes>
             </SessionManager>
-          </BrowserRouter>
+            </BrowserRouter>
+          </NotificacoesProvider>
         </CarrinhoProvider>
       </FavoritosProvider>
     </UserProvider>

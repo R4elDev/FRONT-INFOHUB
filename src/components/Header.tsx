@@ -5,12 +5,14 @@ import logoHome from "../assets/logo da home.png"
 import { Bell, Menu, ShoppingCart, Search } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useCarrinho } from "../contexts/CarrinhoContext"
+import { useNotificacoes } from "../contexts/NotificacoesContext"
 
 export default function Header() {
   const [open, setOpen] = useState(false)
   const [notificacoesOpen, setNotificacoesOpen] = useState(false)
   const navigate = useNavigate()
   const { items } = useCarrinho()
+  const { naoLidas } = useNotificacoes()
   
   const totalItens = items.reduce((acc, item) => acc + item.quantidade, 0)
 
@@ -54,9 +56,11 @@ export default function Header() {
             title="Notificações"
           >
             <Bell className="w-5 h-5 text-white group-hover:animate-pulse" />
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center shadow-lg animate-pulse">
-              3
-            </span>
+            {naoLidas > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center shadow-lg animate-pulse">
+                {naoLidas}
+              </span>
+            )}
           </button>
           
           {/* Botão Carrinho */}

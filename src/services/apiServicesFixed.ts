@@ -255,18 +255,10 @@ export async function cadastrarProduto(payload: produtoRequest): Promise<produto
             }
         }
         
-        console.log('📦 Enviando payload no formato exato:', produtoPayload)
         const { data } = await api.post<produtoResponse>("/produtos", produtoPayload)
-        console.log('✅ Produto cadastrado com sucesso:', data)
         return data
     } catch (error: any) {
         console.error('❌ Erro ao cadastrar produto:', error.response?.data || error.message)
-        console.error('🔍 Detalhes do erro:', {
-            status: error.response?.status,
-            statusText: error.response?.statusText,
-            data: error.response?.data,
-            payload: payload
-        })
         throw error
     }
 }
@@ -636,7 +628,6 @@ export async function buscarNomeCategoria(id: number): Promise<string> {
 }
 
 export function isProdutoEmPromocao(produto: any): boolean {
-    console.log('🔍 [isProdutoEmPromocao] Verificando produto:', produto.nome || produto.id)
     
     // Verifica diferentes estruturas de promoção que podem vir da API
     let promocaoData = null
@@ -645,7 +636,6 @@ export function isProdutoEmPromocao(produto: any): boolean {
     // PRIORIDADE 1: Objeto promocao já mapeado
     if (produto.promocao && typeof produto.promocao === 'object') {
         promocaoData = produto.promocao
-        console.log('✅ [isProdutoEmPromocao] Promoção encontrada em produto.promocao')
     } 
     // PRIORIDADE 2: Campos diretos da API (preco_promocional, data_inicio, data_fim)
     else if (produto.preco_promocional !== undefined && produto.preco_promocional !== null) {
@@ -654,14 +644,11 @@ export function isProdutoEmPromocao(produto: any): boolean {
             data_inicio: produto.data_inicio,
             data_fim: produto.data_fim
         }
-        console.log('✅ [isProdutoEmPromocao] Promoção encontrada como campos diretos')
     } 
     // PRIORIDADE 3: Array de promocoes
     else if (Array.isArray(produto.promocoes) && produto.promocoes.length > 0) {
         promocaoData = produto.promocoes[0]
-        console.log('✅ [isProdutoEmPromocao] Promoção encontrada em produto.promocoes[0]')
     } else {
-        console.log('❌ [isProdutoEmPromocao] Nenhum dado de promoção encontrado')
         return false
     }
     
@@ -674,22 +661,17 @@ export function isProdutoEmPromocao(produto: any): boolean {
     const precoPromocional = Number(promocaoData.preco_promocional)
     const precoNormal = Number(produto.preco)
     
-    console.log('💰 [isProdutoEmPromocao] Preço promocional:', precoPromocional)
-    console.log('💰 [isProdutoEmPromocao] Preço normal:', precoNormal)
     
     // CRITÉRIO PRINCIPAL: Preço promocional deve ser menor que o normal
     if (isNaN(precoPromocional) || precoPromocional <= 0) {
-        console.log('❌ [isProdutoEmPromocao] Preço promocional inválido')
         return false
     }
     
     if (isNaN(precoNormal) || precoNormal <= 0) {
-        console.log('❌ [isProdutoEmPromocao] Preço normal inválido')
         return false
     }
     
     if (precoPromocional >= precoNormal) {
-        console.log('❌ [isProdutoEmPromocao] Preço promocional não é menor que o normal')
         return false
     }
     
@@ -700,7 +682,6 @@ export function isProdutoEmPromocao(produto: any): boolean {
         
         // Se não tem datas, ou são null/undefined, considera promoção ATIVA
         if (!dataInicio && !dataFim) {
-            console.log('✅ [isProdutoEmPromocao] COM PROMOÇÃO (sem datas = sempre ativa)')
             return true
         }
         
@@ -713,7 +694,6 @@ export function isProdutoEmPromocao(produto: any): boolean {
             if (!isNaN(inicio.getTime())) {
                 inicio.setHours(0, 0, 0, 0)
                 if (hoje < inicio) {
-                    console.log('❌ [isProdutoEmPromocao] Promoção ainda não começou')
                     return false
                 }
             }
@@ -725,18 +705,15 @@ export function isProdutoEmPromocao(produto: any): boolean {
             if (!isNaN(fim.getTime())) {
                 fim.setHours(23, 59, 59, 999)
                 if (hoje > fim) {
-                    console.log('❌ [isProdutoEmPromocao] Promoção já expirou')
                     return false
                 }
             }
         }
         
-        console.log('✅ [isProdutoEmPromocao] COM PROMOÇÃO (dentro do período)')
         return true
         
     } catch (error) {
         // Em caso de erro na validação de datas, se tem preço promocional válido, considera ativo
-        console.log('✅ [isProdutoEmPromocao] COM PROMOÇÃO (erro nas datas, mas preço válido)')
         return true
     }
 }
@@ -751,68 +728,44 @@ export function isProdutoEmPromocao(produto: any): boolean {
  * Request body: { nome, cnpj, telefone }
  */
 export async function cadastrarEstabelecimento(payload: estabelecimentoRequest): Promise<estabelecimentoResponse> {
-    console.log('🏢 INICIANDO cadastro de estabelecimento com múltiplos testes')
     
     // TESTE 1: Payload original
     try {
-        console.log('🏢 TESTE 1 - Payload original')
-        console.log('🏢 Payload:', JSON.stringify(payload, null, 2))
-        
         const response = await api.post<estabelecimentoResponse>("/estabelecimento", payload)
-        console.log('✅ TESTE 1 SUCESSO - Estabelecimento cadastrado!')
-        console.log('✅ Resposta:', JSON.stringify(response.data, null, 2))
         return response.data
     } catch (error: any) {
-        console.log('❌ TESTE 1 FALHOU:', error.response?.status, error.response?.data?.message || error.message)
     }
     
     // TESTE 2: Payload sem telefone
     try {
-        console.log('🏢 TESTE 2 - Sem telefone')
         const payloadSemTelefone = {
             nome: payload.nome,
             cnpj: payload.cnpj
         }
-        console.log('🏢 Payload:', JSON.stringify(payloadSemTelefone, null, 2))
         
         const response = await api.post<estabelecimentoResponse>("/estabelecimento", payloadSemTelefone)
-        console.log('✅ TESTE 2 SUCESSO - Estabelecimento cadastrado sem telefone!')
-        console.log('✅ Resposta:', JSON.stringify(response.data, null, 2))
         return response.data
     } catch (error: any) {
-        console.log('❌ TESTE 2 FALHOU:', error.response?.status, error.response?.data?.message || error.message)
     }
     
     // TESTE 3: Payload mínimo (só nome)
     try {
-        console.log('🏢 TESTE 3 - Só nome')
         const payloadMinimo = {
             nome: payload.nome
         }
-        console.log('🏢 Payload:', JSON.stringify(payloadMinimo, null, 2))
         
         const response = await api.post<estabelecimentoResponse>("/estabelecimento", payloadMinimo)
-        console.log('✅ TESTE 3 SUCESSO - Estabelecimento cadastrado só com nome!')
-        console.log('✅ Resposta:', JSON.stringify(response.data, null, 2))
         return response.data
     } catch (error: any) {
-        console.log('❌ TESTE 3 FALHOU:', error.response?.status, error.response?.data?.message || error.message)
     }
     
     // TESTE 4: Endpoint alternativo
     try {
-        console.log('🏢 TESTE 4 - Endpoint alternativo /estabelecimentos')
-        console.log('🏢 Payload:', JSON.stringify(payload, null, 2))
-        
         const response = await api.post<estabelecimentoResponse>("/estabelecimentos", payload)
-        console.log('✅ TESTE 4 SUCESSO - Estabelecimento cadastrado com endpoint alternativo!')
-        console.log('✅ Resposta:', JSON.stringify(response.data, null, 2))
         return response.data
     } catch (error: any) {
-        console.log('❌ TESTE 4 FALHOU:', error.response?.status, error.response?.data?.message || error.message)
         
         // Se chegou até aqui, todos os testes falharam
-        console.error('❌ TODOS OS TESTES FALHARAM!')
         console.error('❌ Último erro completo:', error)
         console.error('❌ Response data:', error.response?.data)
         console.error('❌ Response status:', error.response?.status)
@@ -827,11 +780,9 @@ export async function cadastrarEstabelecimento(payload: estabelecimentoRequest):
  */
 export async function listarEstabelecimentosUsuario(): Promise<listarEstabelecimentosResponse> {
     try {
-        console.log('🔍 Buscando estabelecimentos do usuário...')
         
         // Busca todos os estabelecimentos
         const { data } = await api.get<any>("/estabelecimentos")
-        console.log('📡 Resposta da API /estabelecimentos:', data)
         
         // Obtém dados do usuário atual
         const userData = localStorage.getItem('user_data')
@@ -839,15 +790,11 @@ export async function listarEstabelecimentosUsuario(): Promise<listarEstabelecim
             throw new Error('Usuário não encontrado')
         }
         
-        const user = JSON.parse(userData)
-        console.log('👤 Usuário atual:', user.id)
-        
         // Se a API retornou estabelecimentos, filtra pelo usuário
         if (data.status && data.estabelecimentos) {
             // Filtra estabelecimentos do usuário atual
             // Como não temos campo id_usuario na tabela, vamos usar uma lógica diferente
             // Por enquanto, retorna todos e deixa o frontend decidir
-            console.log('✅ Estabelecimentos encontrados:', data.estabelecimentos.length)
             
             return {
                 status: true,

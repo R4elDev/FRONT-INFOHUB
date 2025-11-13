@@ -5,8 +5,6 @@ import { useState, useEffect } from "react"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import BotaoFavorito from "../../components/favoritos/BotaoFavorito"
 import { listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
-import type { Product } from "../../types"
-import iconJarra from "../../assets/icon de jara.png"
 
 // Animações CSS customizadas
 const styles = document.createElement('style')
@@ -88,16 +86,13 @@ function DetalhesProduto() {
       if (!id) return
       
       try {
-        console.log('🔍 Carregando produto com ID:', id)
         setLoading(true)
         
         // Busca todos os produtos e filtra pelo ID
         const response = await listarProdutos()
-        console.log('📦 Resposta da API:', response)
         
         if (response.status && response.data) {
           const produtoEncontrado = response.data.find(p => p.id.toString() === id)
-          console.log('🎯 Produto encontrado:', produtoEncontrado)
           
           if (produtoEncontrado) {
             setProduto(produtoEncontrado)
@@ -108,7 +103,6 @@ function DetalhesProduto() {
               .slice(0, 4)
             setProdutosRelacionados(relacionados)
           } else {
-            console.log('❌ Produto não encontrado')
           }
         }
       } catch (error) {
@@ -154,24 +148,10 @@ function DetalhesProduto() {
     navigate(-1)
   }
 
-  // Converter produto da API para o tipo Product
-  const converterParaProduct = (produto: Produto): Product => {
-    const emPromocao = isProdutoEmPromocao(produto)
-    return {
-      id: produto.id,
-      nome: produto.nome,
-      preco: emPromocao ? produto.promocao!.preco_promocional : produto.preco,
-      precoAntigo: emPromocao ? produto.preco : undefined,
-      imagem: iconJarra,
-      categoria: produto.categoria?.nome,
-      descricao: produto.descricao
-    }
-  }
 
   const handleAdicionarCarrinho = async () => {
     if (!produto) return
     
-    console.log(`✅ Adicionado ${quantidade} unidade(s) ao carrinho`)
     // Aqui você pode integrar com um contexto de carrinho ou API
     alert(`${quantidade} unidade(s) de ${produto.nome} adicionado ao carrinho!`)
   }

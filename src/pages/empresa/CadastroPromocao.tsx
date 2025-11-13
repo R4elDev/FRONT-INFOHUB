@@ -77,7 +77,6 @@ export default function CadastroPromocao() {
 
       // Se existe estabelecimento mas é de outro usuário, limpa o localStorage
       if (estabelecimentoUserId && parseInt(estabelecimentoUserId) !== user.id) {
-        console.log('🧹 Limpando estabelecimento de outro usuário:', estabelecimentoUserId, '!==', user.id)
         localStorage.removeItem('estabelecimentoId')
         localStorage.removeItem('estabelecimentoNome')
         localStorage.removeItem('estabelecimentoCNPJ')
@@ -85,7 +84,6 @@ export default function CadastroPromocao() {
       }
       // Se tem estabelecimento do usuário atual, usa ele
       else if (estabelecimentoId && estabelecimentoNome && estabelecimentoUserId && parseInt(estabelecimentoUserId) === user.id) {
-        console.log('✅ Usando estabelecimento existente do usuário:', user.id)
         setEstabelecimento({
           id: parseInt(estabelecimentoId),
           nome: estabelecimentoNome,
@@ -98,7 +96,6 @@ export default function CadastroPromocao() {
 
       // Se não tem estabelecimento, cria automaticamente
       try {
-        console.log('🏢 Usuário sem estabelecimento, criando automaticamente para usuário ID:', user.id)
         
         const cnpjUnico = gerarCNPJUnico(user.id)
         const novoEstabelecimento = {
@@ -107,7 +104,6 @@ export default function CadastroPromocao() {
           telefone: user.telefone || '(00) 0000-0000'
         }
 
-        console.log('🏢 Criando estabelecimento com CNPJ único:', cnpjUnico)
         const response = await cadastrarEstabelecimento(novoEstabelecimento)
         
         if (response.status && response.id) {
@@ -124,11 +120,9 @@ export default function CadastroPromocao() {
           })
           setTemEstabelecimento(true)
           
-          console.log('✅ Estabelecimento criado automaticamente:', response.id, 'para usuário:', user.id)
           
           // Agora cria um endereço padrão para o estabelecimento
           try {
-            console.log('📍 Criando endereço padrão para o estabelecimento automático...')
             const enderecoData = {
               id_usuario: user.id,
               cep: '00000000', // CEP sem hífen para API
@@ -140,13 +134,10 @@ export default function CadastroPromocao() {
               estado: 'Estado não informado'
             }
             
-            console.log('📍 Payload do endereço automático:', enderecoData)
             const enderecoResponse = await cadastrarEnderecoEstabelecimento(enderecoData)
             
             if (enderecoResponse && enderecoResponse.status) {
-              console.log('✅ Endereço padrão criado para o estabelecimento automático!')
             } else {
-              console.log('⚠️ Resposta inválida ao criar endereço padrão:', enderecoResponse)
             }
           } catch (enderecoError: any) {
             console.error('❌ Erro ao criar endereço padrão automático:', enderecoError)
@@ -184,25 +175,16 @@ export default function CadastroPromocao() {
 
   // Carregar categorias disponíveis
   useEffect(() => {
-    console.log('🚀 useEffect EXECUTADO - Iniciando carregamento de categorias')
     
     const carregarCategorias = async () => {
       try {
-        console.log('🔄 Definindo loading como true')
         setLoadingCategorias(true)
         
-        console.log('📞 Chamando listarCategorias()')
         const response = await listarCategorias()
-        console.log('📋 Resposta recebida:', response)
         
         if (response.status && response.data) {
-          console.log('✅ Definindo categorias no estado:', response.data)
           setCategorias(response.data)
-          console.log('✅ Categorias carregadas:', response.data.length, 'categorias')
         } else {
-          console.log('⚠️ Resposta inválida, definindo array vazio')
-          console.log('⚠️ Status:', response.status)
-          console.log('⚠️ Data:', response.data)
           setCategorias([])
         }
       } catch (error: any) {
@@ -212,7 +194,6 @@ export default function CadastroPromocao() {
         console.error('❌ Stack:', error.stack)
         setCategorias([])
       } finally {
-        console.log('🏁 Definindo loading como false')
         setLoadingCategorias(false)
       }
     }
@@ -283,7 +264,6 @@ export default function CadastroPromocao() {
       // Adiciona id_categoria se selecionado (opcional)
       if (formData.categoriaId) {
         produtoData.id_categoria = formData.categoriaId
-        console.log('📋 Categoria selecionada - ID:', formData.categoriaId, 'Nome:', formData.categoriaNome)
       }
       
       // Adiciona promoção apenas se tiver preço promocional
@@ -295,29 +275,12 @@ export default function CadastroPromocao() {
         }
       }
       
-      console.log('📦 Payload no formato exato solicitado:', produtoData)
-      console.log('🔍 Campos do payload:', {
-        nome: produtoData.nome,
-        nome_length: produtoData.nome.length,
-        descricao: produtoData.descricao,
-        descricao_length: produtoData.descricao.length,
-        id_categoria: produtoData.id_categoria,
-        id_estabelecimento: produtoData.id_estabelecimento,
-        preco: produtoData.preco,
-        tem_promocao: !!produtoData.promocao
-      })
       
-      if (produtoData.promocao) {
-        console.log('🎁 Dados da promoção:', produtoData.promocao)
-      }
 
       const response = await cadastrarProduto(produtoData)
       
-      console.log('✅ Resposta do cadastro:', response)
       
       if (response.status) {
-        console.log('✅ Produto cadastrado com sucesso!')
-        console.log('📋 Resposta completa da API:', response)
         
         // Garante que a mensagem seja sempre uma string
         const mensagemSucesso = typeof response.message === 'string' 
@@ -546,13 +509,6 @@ export default function CadastroPromocao() {
                       
                       {showCategoriaDropdown && (
                         <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                          {(() => {
-                            console.log('🎨 RENDERIZANDO DROPDOWN')
-                            console.log('🎨 Loading:', loadingCategorias)
-                            console.log('🎨 Categorias:', categorias)
-                            console.log('🎨 Quantidade:', categorias.length)
-                            return null
-                          })()}
                           {loadingCategorias ? (
                             <div className="p-4 text-center">
                               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto mb-2"></div>
@@ -577,7 +533,6 @@ export default function CadastroPromocao() {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    console.log('✅ Categoria selecionada:', categoria.nome)
                                     setFormData(prev => ({ 
                                       ...prev, 
                                       categoriaId: categoria.id, 
