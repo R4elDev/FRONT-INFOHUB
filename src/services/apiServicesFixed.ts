@@ -751,14 +751,29 @@ export function isProdutoEmPromocao(produto: any): boolean {
  * Request body: { nome, cnpj, telefone }
  */
 export async function cadastrarEstabelecimento(payload: estabelecimentoRequest): Promise<estabelecimentoResponse> {
-    console.log('🏢 INICIANDO cadastro de estabelecimento com múltiplos testes')
+    console.log('🏢 INICIANDO cadastro de estabelecimento')
     
-    // TESTE 1: Payload original
+    // Obtém o ID do usuário do localStorage
+    const userData = localStorage.getItem('user_data')
+    if (!userData) {
+        throw new Error('Usuário não autenticado')
+    }
+    
+    const user = JSON.parse(userData)
+    console.log('👤 Usuário atual:', user.id)
+    
+    // TESTE 1: Payload com id_usuario (OBRIGATÓRIO segundo a API)
     try {
-        console.log('🏢 TESTE 1 - Payload original')
-        console.log('🏢 Payload:', JSON.stringify(payload, null, 2))
+        console.log('🏢 TESTE 1 - Payload completo com id_usuario')
+        const payloadCompleto = {
+            id_usuario: user.id,
+            nome: payload.nome,
+            cnpj: payload.cnpj.replace(/\D/g, ''), // Remove formatação
+            telefone: payload.telefone
+        }
+        console.log('🏢 Payload:', JSON.stringify(payloadCompleto, null, 2))
         
-        const response = await api.post<estabelecimentoResponse>("/estabelecimento", payload)
+        const response = await api.post<estabelecimentoResponse>("/estabelecimento", payloadCompleto)
         console.log('✅ TESTE 1 SUCESSO - Estabelecimento cadastrado!')
         console.log('✅ Resposta:', JSON.stringify(response.data, null, 2))
         return response.data
@@ -766,12 +781,13 @@ export async function cadastrarEstabelecimento(payload: estabelecimentoRequest):
         console.log('❌ TESTE 1 FALHOU:', error.response?.status, error.response?.data?.message || error.message)
     }
     
-    // TESTE 2: Payload sem telefone
+    // TESTE 2: Payload sem telefone (mas com id_usuario)
     try {
         console.log('🏢 TESTE 2 - Sem telefone')
         const payloadSemTelefone = {
+            id_usuario: user.id,
             nome: payload.nome,
-            cnpj: payload.cnpj
+            cnpj: payload.cnpj.replace(/\D/g, '') // Remove formatação
         }
         console.log('🏢 Payload:', JSON.stringify(payloadSemTelefone, null, 2))
         
@@ -783,11 +799,13 @@ export async function cadastrarEstabelecimento(payload: estabelecimentoRequest):
         console.log('❌ TESTE 2 FALHOU:', error.response?.status, error.response?.data?.message || error.message)
     }
     
-    // TESTE 3: Payload mínimo (só nome)
+    // TESTE 3: Payload mínimo com campos obrigatórios
     try {
-        console.log('🏢 TESTE 3 - Só nome')
+        console.log('🏢 TESTE 3 - Campos obrigatórios mínimos')
         const payloadMinimo = {
-            nome: payload.nome
+            id_usuario: user.id,
+            nome: payload.nome,
+            cnpj: payload.cnpj.replace(/\D/g, '') // CNPJ também é obrigatório
         }
         console.log('🏢 Payload:', JSON.stringify(payloadMinimo, null, 2))
         
@@ -802,9 +820,15 @@ export async function cadastrarEstabelecimento(payload: estabelecimentoRequest):
     // TESTE 4: Endpoint alternativo
     try {
         console.log('🏢 TESTE 4 - Endpoint alternativo /estabelecimentos')
-        console.log('🏢 Payload:', JSON.stringify(payload, null, 2))
+        const payloadAlternativo = {
+            id_usuario: user.id,
+            nome: payload.nome,
+            cnpj: payload.cnpj.replace(/\D/g, ''),
+            telefone: payload.telefone
+        }
+        console.log('🏢 Payload:', JSON.stringify(payloadAlternativo, null, 2))
         
-        const response = await api.post<estabelecimentoResponse>("/estabelecimentos", payload)
+        const response = await api.post<estabelecimentoResponse>("/estabelecimentos", payloadAlternativo)
         console.log('✅ TESTE 4 SUCESSO - Estabelecimento cadastrado com endpoint alternativo!')
         console.log('✅ Resposta:', JSON.stringify(response.data, null, 2))
         return response.data

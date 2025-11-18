@@ -134,7 +134,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/perfil-usuario" element={<PerfilUsuario/>} />
         <Route path="/infocash" element={<InfoCash/>} />
         <Route path="/infocash/comentarios" element={<InfoCashComentarios/>} />
-        <Route path="/infocash/novo" element={<InfoCashNovoComentario/>} />
+        <Route path="/infocash/novo-comentario" element={<InfoCashNovoComentario/>} />
         <Route path="/favoritos" element={<Favoritos/>} />
         <Route path="/notificacoes" element={<NotificacoesTodas/>} />
         

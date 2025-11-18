@@ -1,7 +1,20 @@
-import { Link } from "react-router-dom"
-import { useState, useEffect } from "react"
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { 
+  Trophy, 
+  Coins, 
+  TrendingUp, 
+  Target,
+  Star,
+  ShoppingCart,
+  MessageCircle,
+  Plus,
+  ThumbsUp
+} from 'lucide-react';
+import infocashService from '../../services/infocashService';
+import comunidadeService, { type Comentario } from '../../services/comunidadeService';
+import { useUser } from '../../contexts/UserContext';
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { Coins, Trophy, ShoppingCart, Star, ThumbsUp, MessageCircle, TrendingUp, Target } from "lucide-react"
 import esferaAmarela from "../../assets/esferaAmarelaInfoCash.png"
 import esferaVermelha from "../../assets/esferaVermelhaInfoCah.png"
 import iconPerfilComentario from "../../assets/iconPerfilComentario.png"
@@ -9,24 +22,59 @@ import iconDePaginaComentario from "../../assets/iconDePaginaComentario.png"
 
 
 export default function InfoCash() {
-  const [hubCoins, setHubCoins] = useState(0)
-  const targetCoins = 1285
-  
-  // Animação de contagem de moedas
+  const navigate = useNavigate();
+  const { user } = useUser();
+  const [hubCoins, setHubCoins] = useState(0);
+  const [comentariosRecentes, setComentariosRecentes] = useState<Comentario[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [nivel, setNivel] = useState({ nivel: 'Bronze', cor: '#CD7F32', proximoNivel: 100 });
+
+  // Buscar dados do InfoCash e comentários
   useEffect(() => {
-    let current = 0
-    const increment = targetCoins / 50
-    const timer = setInterval(() => {
-      current += increment
-      if (current >= targetCoins) {
-        setHubCoins(targetCoins)
-        clearInterval(timer)
-      } else {
-        setHubCoins(Math.floor(current))
+    carregarDados();
+  }, [user]);
+
+  const carregarDados = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoading(true);
+      
+      // Buscar saldo do InfoCash
+      const saldoResponse = await infocashService.getSaldo(user.id);
+      if (saldoResponse.status && saldoResponse.data) {
+        
+        // Animação de contagem
+        let current = 0;
+        const targetCoins = saldoResponse.data.saldo || 0;
+        const increment = targetCoins / 50;
+        const timer = setInterval(() => {
+          current += increment;
+          if (current >= targetCoins) {
+            setHubCoins(targetCoins);
+            clearInterval(timer);
+          } else {
+            setHubCoins(Math.floor(current));
+          }
+        }, 20);
+        
+        // Calcular nível
+        const nivelInfo = infocashService.getNivelUsuario(targetCoins);
+        setNivel(nivelInfo);
       }
-    }, 20)
-    return () => clearInterval(timer)
-  }, [])
+      
+      // Buscar comentários recentes da comunidade
+      const comentariosResponse = await comunidadeService.listarComentarios(5, 0);
+      if (comentariosResponse.status && Array.isArray(comentariosResponse.data)) {
+        setComentariosRecentes(comentariosResponse.data);
+      }
+      
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <SidebarLayout>
@@ -98,7 +146,7 @@ export default function InfoCash() {
               <div className="mb-4">
                 <div className="flex items-baseline gap-2 mb-1">
                   <span className="text-5xl font-black text-white" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}>
-                    {hubCoins.toLocaleString()}
+                    {loading ? '...' : hubCoins.toLocaleString()}
                   </span>
                   <span className="text-2xl font-bold text-white/80">HC</span>
                 </div>
@@ -118,14 +166,16 @@ export default function InfoCash() {
               </div>
               
               <div className="flex items-center justify-between text-white/90 text-xs">
-                <span>Nível: Intermediário</span>
+                <span>Nível: {nivel.nivel}</span>
                 <div className="flex items-center gap-1">
                   <TrendingUp className="w-3 h-3" />
-                  <span>Próximo: 1.500 HC</span>
+                  <span>Próximo: {nivel.proximoNivel.toLocaleString()} HC</span>
                 </div>
               </div>
               
-              <button className="w-full mt-4 bg-white text-[#F9A01B] font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]">
+              <button 
+                onClick={() => navigate('/infocash/historico')}
+                className="w-full mt-4 bg-white text-[#F9A01B] font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]">
                 Ver Histórico
               </button>
             </div>
@@ -255,73 +305,99 @@ export default function InfoCash() {
               </button>
             </div>
 
-            {/* Comunidade - Comentário Destacado */}
+            {/* Comunidade - Comentários Dinâmicos */}
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <MessageCircle className="w-5 h-5 text-[#F9A01B]" />
-                  <h2 className="font-bold text-gray-800">Comunidade</h2>
+                  <h2 className="font-bold text-gray-800">Comunidade InfoHub</h2>
                 </div>
-                <span className="text-xs text-gray-500 font-medium">Recente</span>
+                <button 
+                  onClick={() => navigate('/infocash/novo-comentario')}
+                  className="px-3 py-1.5 bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] text-white text-xs rounded-full font-bold shadow-sm hover:shadow-md transition-all hover:scale-105 flex items-center gap-1">
+                  <Plus className="w-3 h-3" />
+                  Novo Comentário
+                </button>
               </div>
 
-              {/* Card do Comentário */}
-              <div className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-gray-50 to-white hover:shadow-md transition-all mb-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <img 
-                    src={iconPerfilComentario} 
-                    alt="perfil" 
-                    className="w-10 h-10 rounded-full border-2 border-orange-200 shadow-sm"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-gray-800 text-sm mb-0.5">Usuário Ativo</p>
-                    <p className="text-xs text-gray-500">Há 2 horas</p>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    {[1, 2, 3, 4].map((i) => (
-                      <Star key={i} className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
-                    ))}
-                    <Star className="w-3.5 h-3.5 text-gray-300" />
-                  </div>
+              {/* Cards de Comentários Dinâmicos */}
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#F9A01B] mx-auto mb-2"></div>
+                  <p className="text-sm text-gray-500">Carregando comentários...</p>
                 </div>
+              ) : comentariosRecentes.length > 0 ? (
+                comentariosRecentes.slice(0, 3).map((comentario) => (
+                  <div key={comentario.id_comentario} className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-gray-50 to-white hover:shadow-md transition-all mb-3">
+                    <div className="flex items-start gap-3 mb-3">
+                      <img 
+                        src={iconPerfilComentario} 
+                        alt="perfil" 
+                        className="w-10 h-10 rounded-full border-2 border-orange-200 shadow-sm"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-gray-800 text-sm mb-0.5">{comentario.nome_usuario}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(comentario.data_criacao).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <div className="bg-green-100 px-2 py-1 rounded-full">
+                        <p className="text-xs font-bold text-green-700">+{comentario.pontos_ganhos} HC</p>
+                      </div>
+                    </div>
 
-                <p className="text-sm font-semibold text-gray-700 mb-2">Ótimo atendimento e produtos de qualidade</p>
-                
-                <div className="bg-gradient-to-r from-orange-100 to-yellow-50 border border-orange-200 rounded-lg p-3 mb-3">
-                  <p className="text-xs text-gray-700 leading-relaxed line-clamp-2">
-                    Adorei fazer compras aqui! Tudo muito organizado e os funcionários são super atenciosos. Recomendo demais! 🛒✨
-                  </p>
+                    <p className="text-sm font-semibold text-gray-700 mb-2">{comentario.titulo}</p>
+                    
+                    <div className="bg-gradient-to-r from-orange-100 to-yellow-50 border border-orange-200 rounded-lg p-3">
+                      <p className="text-xs text-gray-700 leading-relaxed line-clamp-2">
+                        {comentario.conteudo}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
+                  <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500 mb-3">Nenhum comentário ainda</p>
+                  <button 
+                    onClick={() => navigate('/infocash/novo-comentario')}
+                    className="px-4 py-2 bg-[#F9A01B] text-white text-sm rounded-lg font-semibold hover:bg-[#FF8C00] transition-colors">
+                    Seja o primeiro!
+                  </button>
                 </div>
+              )}
 
-                <div className="flex items-center gap-4">
-                  <button className="flex items-center gap-1.5 text-gray-600 hover:text-[#F9A01B] transition-colors">
-                    <ThumbsUp className="w-4 h-4" />
-                    <span className="text-xs font-medium">12</span>
-                  </button>
-                  <button className="flex items-center gap-1.5 text-gray-600 hover:text-[#F9A01B] transition-colors">
-                    <MessageCircle className="w-4 h-4" />
-                    <span className="text-xs font-medium">3</span>
-                  </button>
-                </div>
+              {/* Botão de interações */}
+              <div className="flex items-center gap-4 mt-4 pt-3 border-t border-gray-100">
+                <button className="flex items-center gap-1.5 text-gray-600 hover:text-[#F9A01B] transition-colors">
+                  <ThumbsUp className="w-4 h-4" />
+                  <span className="text-xs font-medium">12</span>
+                </button>
+                <button 
+                  onClick={() => navigate('/infocash/comentarios')}
+                  className="flex items-center gap-1.5 text-gray-600 hover:text-[#F9A01B] transition-colors">
+                  <MessageCircle className="w-4 h-4" />
+                  <span className="text-xs font-medium">Ver todos</span>
+                </button>
               </div>
-
-              {/* Botão Ver Todos */}
-              <Link 
-                to="/infocash/comentarios" 
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-gray-50 to-orange-50 border border-gray-200 rounded-xl p-3.5 hover:shadow-md hover:border-orange-200 transition-all group"
-              >
-                <img src={iconDePaginaComentario} alt="comentários" className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-gray-700 font-bold text-sm group-hover:text-[#F9A01B] transition-colors">
-                  Ver Todos os Comentários
-                </span>
-                <svg className="w-4 h-4 text-gray-400 group-hover:text-[#F9A01B] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
             </div>
+
+            {/* Botão Ver Todos */}
+            <Link 
+              to="/infocash/comentarios" 
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-gray-50 to-orange-50 border border-gray-200 rounded-xl p-3.5 hover:shadow-md hover:border-orange-200 transition-all group"
+            >
+              <img src={iconDePaginaComentario} alt="comentários" className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <span className="text-gray-700 font-bold text-sm group-hover:text-[#F9A01B] transition-colors">
+                Ver Todos os Comentários
+              </span>
+              <svg className="w-4 h-4 text-gray-400 group-hover:text-[#F9A01B] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
           </div>
         </div>
       </div>
     </SidebarLayout>
-  )
+  );
 }

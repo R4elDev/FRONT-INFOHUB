@@ -1,15 +1,21 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { Camera, MapPin, Send, X, ArrowLeft, Star } from "lucide-react"
+import { Camera, MapPin, Send, X, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
 import iconPerfilComentario from "../../assets/iconPerfilComentario.png"
-
+// import comunidadeService from '../../services/comunidadeService'
+import comunidadeService from '../../services/mockComunidadeService' // Usando serviço mock para demonstração
+import { useUser } from '../../contexts/UserContext'
 
 export default function InfoCashNovoComentario() {
-  const [text, setText] = useState("")
-  const [img, setImg] = useState<string | null>(null)
-  const [rating, setRating] = useState(0)
+  const { user } = useUser()
   const navigate = useNavigate()
+  const [titulo, setTitulo] = useState("")
+  const [conteudo, setConteudo] = useState("")
+  const [img, setImg] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -19,10 +25,44 @@ export default function InfoCashNovoComentario() {
     reader.readAsDataURL(file)
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault()
-    // Simula envio e volta para lista
-    setTimeout(() => navigate("/infocash/comentarios"), 400)
+    
+    if (!user) {
+      setError('Você precisa estar logado para comentar')
+      return
+    }
+    
+    if (!titulo.trim() || !conteudo.trim()) {
+      setError('Por favor, preencha todos os campos')
+      return
+    }
+    
+    setLoading(true)
+    setError(null)
+    
+    try {
+      // Criando post no sistema mock para demonstração
+      const response = await comunidadeService.criarPost({
+        titulo: 'Nova publicação',
+        conteudo: conteudo.trim()
+      })
+      
+      if (response.status) {
+        setSuccess(true)
+        // Mostrar mensagem de sucesso e redirecionar
+        setTimeout(() => {
+          navigate("/infocash/comentarios")
+        }, 2000)
+      } else {
+        setError(response.message || 'Erro ao criar comentário')
+      }
+    } catch (err: any) {
+      console.error('Erro ao criar comentário:', err)
+      setError('Erro ao criar comentário. Tente novamente.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -60,43 +100,55 @@ export default function InfoCashNovoComentario() {
               </div>
             </div>
 
-            <form onSubmit={submit} className="space-y-5">
-              {/* Avaliação */}
-              <div>
-                <label className="text-sm font-bold text-gray-700 mb-2 block">Avaliação</label>
-                <div className="flex items-center gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setRating(star)}
-                      className="transition-transform hover:scale-125"
-                    >
-                      <Star 
-                        className={`w-8 h-8 ${
-                          star <= rating 
-                            ? 'fill-yellow-400 text-yellow-400' 
-                            : 'text-gray-300 hover:text-yellow-300'
-                        }`}
-                      />
-                    </button>
-                  ))}
-                  {rating > 0 && (
-                    <span className="ml-2 text-sm font-semibold text-gray-700">{rating}/5</span>
-                  )}
+            {/* Notificações */}
+            {success && (
+              <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-xl flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-green-800">Comentário publicado com sucesso!</p>
+                  <p className="text-xs text-green-600">Você ganhou +10 HubCoins! 🎉</p>
                 </div>
               </div>
+            )}
+            
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            )}
 
-              {/* Campo de Texto */}
+            <form onSubmit={submit} className="space-y-5">
+              {/* Título do Comentário */}
               <div>
-                <label className="text-sm font-bold text-gray-700 mb-2 block">Seu comentário</label>
-                <textarea
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Compartilhe sua experiência sobre este estabelecimento..."
-                  rows={4}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-[#F9A01B] focus:ring-2 focus:ring-[#F9A01B] focus:ring-opacity-20 outline-none transition-all resize-none text-sm"
+                <label className="text-sm font-bold text-gray-700 mb-2 block">
+                  Título do comentário <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={titulo}
+                  onChange={(e) => setTitulo(e.target.value)}
+                  placeholder="Ex: Ótima experiência de compra"
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-[#F9A01B] focus:ring-2 focus:ring-[#F9A01B] focus:ring-opacity-20 outline-none transition-all text-sm"
+                  maxLength={100}
                 />
+                <p className="text-xs text-gray-500 mt-1">{titulo.length}/100 caracteres</p>
+              </div>
+
+              {/* Campo de Conteúdo */}
+              <div>
+                <label className="text-sm font-bold text-gray-700 mb-2 block">
+                  Seu comentário <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={conteudo}
+                  onChange={(e) => setConteudo(e.target.value)}
+                  placeholder="Compartilhe sua experiência detalhada sobre este estabelecimento..."
+                  rows={5}
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-200 focus:border-[#F9A01B] focus:ring-2 focus:ring-[#F9A01B] focus:ring-opacity-20 outline-none transition-all resize-none text-sm"
+                  maxLength={500}
+                />
+                <p className="text-xs text-gray-500 mt-1">{conteudo.length}/500 caracteres</p>
               </div>
 
               {/* Preview da Imagem */}
@@ -135,11 +187,20 @@ export default function InfoCashNovoComentario() {
 
                 <button
                   type="submit"
-                  disabled={!text.trim() || rating === 0}
+                  disabled={!titulo.trim() || !conteudo.trim() || loading}
                   className="inline-flex items-center gap-2 bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 >
-                  <Send className="w-5 h-5" />
-                  <span>Publicar</span>
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Publicando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-5 h-5" />
+                      <span>Publicar Comentário</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
