@@ -838,8 +838,6 @@ export async function cadastrarEstabelecimento(payload: estabelecimentoRequest):
         // Se chegou até aqui, todos os testes falharam
         console.error('❌ TODOS OS TESTES FALHARAM!')
         console.error('❌ Último erro completo:', error)
-        console.error('❌ Response data:', error.response?.data)
-        console.error('❌ Response status:', error.response?.status)
         
         throw error
     }
@@ -851,11 +849,7 @@ export async function cadastrarEstabelecimento(payload: estabelecimentoRequest):
  */
 export async function listarEstabelecimentosUsuario(): Promise<listarEstabelecimentosResponse> {
     try {
-        console.log('🔍 Buscando estabelecimentos do usuário...')
-        
-        // Busca todos os estabelecimentos
-        const { data } = await api.get<any>("/estabelecimentos")
-        console.log('📡 Resposta da API /estabelecimentos:', data)
+        console.log(' Buscando estabelecimentos do usuário...')
         
         // Obtém dados do usuário atual
         const userData = localStorage.getItem('user_data')
@@ -864,23 +858,72 @@ export async function listarEstabelecimentosUsuario(): Promise<listarEstabelecim
         }
         
         const user = JSON.parse(userData)
-        console.log('👤 Usuário atual:', user.id)
+        console.log('👤 Usuário atual ID:', user.id)
         
-        // Se a API retornou estabelecimentos, filtra pelo usuário
-        if (data.status && data.estabelecimentos) {
-            // Filtra estabelecimentos do usuário atual
-            // Como não temos campo id_usuario na tabela, vamos usar uma lógica diferente
-            // Por enquanto, retorna todos e deixa o frontend decidir
-            console.log('✅ Estabelecimentos encontrados:', data.estabelecimentos.length)
+        // Tenta buscar estabelecimentos por usuário primeiro
+        // Usando endpoint específico por usuário se existir
+        try {
+            const { data } = await api.get<any>(`/estabelecimentos/usuario/${user.id}`)
+            console.log('📡 Resposta da API /estabelecimentos/usuario:', data)
             
-            return {
-                status: true,
-                status_code: 200,
-                data: data.estabelecimentos
+            if (data.status && data.estabelecimentos && data.estabelecimentos.length > 0) {
+                console.log('✅ Estabelecimentos do usuário encontrados:', data.estabelecimentos.length)
+                return {
+                    status: true,
+                    status_code: 200,
+                    data: data.estabelecimentos
+                }
             }
+        } catch (userError) {
+            console.log('⚠️ Endpoint por usuário não encontrado, tentando busca alternativa...')
+        }
+            
+        // Fallback: Busca todos os estabelecimentos e filtra pelo id_usuario
+        try {
+            const { data } = await api.get<any>("/estabelecimentos")
+            console.log('📡 Resposta da API /estabelecimentos (todos):', data)
+                
+            if (data.status && data.estabelecimentos) {
+                console.log('🔍 Debugando estabelecimentos:')
+                data.estabelecimentos.forEach((estab: any, index: number) => {
+                    console.log(`  [${index}] ID: ${estab.id_estabelecimento}, Usuario: ${estab.id_usuario}, Nome: ${estab.nome}`)
+                })
+                    
+                // IMPORTANTE: Filtra estabelecimentos pelo id_usuario
+                const estabelecimentosUsuario = data.estabelecimentos.filter((estab: any) => {
+                    // Verifica se o estabelecimento tem id_usuario e se é igual ao usuário atual
+                    const pertenceAoUsuario = estab.id_usuario === user.id || estab.usuario_id === user.id
+                    if (pertenceAoUsuario) {
+                        console.log(`✅ Estabelecimento ${estab.nome} pertence ao usuário ${user.id}`)
+                    }
+                    return pertenceAoUsuario
+                })
+                    
+                console.log(`📊 Total de estabelecimentos: ${data.estabelecimentos.length}`)
+                console.log(`👤 Estabelecimentos do usuário ${user.id}: ${estabelecimentosUsuario.length}`)
+                    
+                if (estabelecimentosUsuario.length > 0) {
+                    console.log('✅ Estabelecimento(s) do usuário encontrado(s):', estabelecimentosUsuario[0].nome)
+                    return {
+                        status: true,
+                        status_code: 200,
+                        data: estabelecimentosUsuario
+                    }
+                } else {
+                    console.log('ℹ️ Nenhum estabelecimento encontrado para o usuário', user.id)
+                    return {
+                        status: false,
+                        status_code: 404,
+                        data: []
+                    }
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Erro ao buscar estabelecimentos gerais')
         }
         
-        // Se não encontrou estabelecimentos
+        // Se nenhuma busca funcionou, retorna vazio
+        console.log('❌ Nenhum estabelecimento encontrado para o usuário')
         return {
             status: false,
             status_code: 404,
@@ -985,7 +1028,7 @@ export async function verificarEstabelecimento(): Promise<{ possuiEstabeleciment
             return {
                 possuiEstabelecimento: true,
                 estabelecimento: {
-                    id: estabelecimento.id,
+                    id: estabelecimento.id_estabelecimento || estabelecimento.id,
                     nome: estabelecimento.nome,
                     cnpj: estabelecimento.cnpj,
                     telefone: estabelecimento.telefone

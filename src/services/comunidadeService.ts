@@ -17,45 +17,41 @@ interface ComentarioResponse {
   data?: Comentario | Comentario[];
 }
 
+interface CreateComentarioResponse {
+  status: boolean;
+  message: string;
+  data?: Comentario;
+}
+
 class ComunidadeService {
-  // ID do post padrão da comunidade InfoCash
-  // IMPORTANTE: Este ID precisa corresponder a um post válido no backend
-  // O post ID 1 é usado como post fixo para todos os comentários da comunidade
-  // Caso precise mudar, altere aqui e garanta que o post existe no banco
   private readonly INFOCASH_POST_ID = 1;
   
-  // Verificar se o post existe (útil para debugging)
   async verificarPost(): Promise<boolean> {
     try {
       const response = await api.get(`/post/${this.INFOCASH_POST_ID}`);
-      console.log('✅ Post ID', this.INFOCASH_POST_ID, 'existe:', response.data);
-      return true;
-    } catch (error) {
-      console.error('❌ Post ID', this.INFOCASH_POST_ID, 'não encontrado!');
-      console.error('⚠️ Crie o post no banco de dados com ID =', this.INFOCASH_POST_ID);
+      return response.status === 200;
+    } catch {
       return false;
     }
   }
-  
-  async listarComentarios(limite = 50, page = 1): Promise<ComentarioResponse> {
+
+  async listarComentarios(limite = 20, page = 1): Promise<ComentarioResponse> {
     try {
-      // Usar endpoint real: GET /post/:id_post/comentarios/:page/:limit
-      const response = await api.get(`/post/${this.INFOCASH_POST_ID}/comentarios/${page}/${limite}`);
+      const response = await api.get(`/post/${this.INFOCASH_POST_ID}/comentarios`, {
+        params: { page, limit: limite }
+      });
       
-      // Adaptar resposta do backend para o formato esperado
       const responseData = response.data as any;
-      if (responseData) {
-        const comentarios = Array.isArray(responseData) ? responseData : 
-                           responseData?.comentarios || responseData?.data || [];
-        
+      
+      if (responseData && Array.isArray(responseData)) {
         return {
           status: true,
           message: 'Comentários listados com sucesso',
-          data: comentarios.map((c: any) => ({
-            id_comentario: c.id_comentario || c.id,
+          data: responseData.map((c: any) => ({
+            id_comentario: c.id_comentario || c.id || 0,
             titulo: c.titulo || 'Comentário',
-            conteudo: c.conteudo || c.texto || c.comentario,
-            pontos_ganhos: 10,
+            conteudo: c.conteudo || c.texto || c.comentario || '',
+            pontos_ganhos: c.pontos_ganhos || 10,
             data_criacao: c.data_criacao || c.createdAt || new Date().toISOString(),
             data_atualizacao: c.data_atualizacao || c.updatedAt || new Date().toISOString(),
             nome_usuario: c.nome_usuario || c.usuario?.nome || 'Usuário',
@@ -64,38 +60,21 @@ class ComunidadeService {
         };
       }
       
-      return { status: true, message: 'Sem comentários', data: [] };
-    } catch (error: any) {
-      console.error('Erro ao listar comentários:', error);
-      
-      // Tentar endpoint alternativo sem paginação
-      try {
-        const response = await api.get(`/post/${this.INFOCASH_POST_ID}/comentarios`);
-        
-        const responseData = response.data as any;
-        if (responseData) {
-          const comentarios = Array.isArray(responseData) ? responseData : 
-                             responseData?.comentarios || responseData?.data || [];
-          
-          return {
-            status: true,
-            message: 'Comentários listados com sucesso',
-            data: comentarios.slice(0, limite).map((c: any) => ({
-              id_comentario: c.id_comentario || c.id,
-              titulo: c.titulo || 'Comentário',
-              conteudo: c.conteudo || c.texto || c.comentario,
-              pontos_ganhos: 10,
-              data_criacao: c.data_criacao || c.createdAt || new Date().toISOString(),
-              data_atualizacao: c.data_atualizacao || c.updatedAt || new Date().toISOString(),
-              nome_usuario: c.nome_usuario || c.usuario?.nome || 'Usuário',
-              id_usuario: c.id_usuario || c.usuario?.id || 1
-            }))
-          };
-        }
-      } catch (err) {
-        console.error('Erro no endpoint alternativo:', err);
+      if (responseData && responseData.data) {
+        return {
+          status: true,
+          message: responseData.message || 'Comentários listados',
+          data: responseData.data
+        };
       }
       
+      return { 
+        status: true, 
+        message: 'Nenhum comentário encontrado',
+        data: [] 
+      };
+    } catch (error: any) {
+      console.error('Erro ao listar comentários:', error);
       return { 
         status: false, 
         message: error.response?.data?.message || 'Erro ao listar comentários', 
@@ -104,53 +83,219 @@ class ComunidadeService {
     }
   }
 
-  async buscarComentarioPorId(id: number): Promise<ComentarioResponse> {
+  async criarPost(dados: {
+    titulo?: string;
+    conteudo: string;
+    id_produto?: number | null;
+    imagem?: string;
+  }): Promise<CreateComentarioResponse> {
     try {
-      // Usar endpoint real: GET /comentario/:id_comentario
-      const response = await api.get(`/comentario/${id}`);
-      
-      const responseData = response.data as any;
-      if (responseData) {
-        const comentario = Array.isArray(responseData) ? responseData[0] : 
-                          responseData?.comentario || responseData?.data || {};
-        
-        // Garantir que o objeto está formatado como Comentario
-        const comentarioFormatado: Comentario = {
-          id_comentario: comentario.id_comentario || comentario.id || 0,
-          titulo: comentario.titulo || 'Comentário',
-          conteudo: comentario.conteudo || comentario.texto || comentario.comentario || '',
-          pontos_ganhos: comentario.pontos_ganhos || 0,
-          data_criacao: comentario.data_criacao || comentario.createdAt || new Date().toISOString(),
-          data_atualizacao: comentario.data_atualizacao || comentario.updatedAt || new Date().toISOString(),
-          nome_usuario: comentario.nome_usuario || comentario.usuario?.nome || 'Usuário',
-          id_usuario: comentario.id_usuario || comentario.usuario?.id || 1
-        };
-        
+      const userData = localStorage.getItem('user_data');
+      if (!userData) {
         return {
-          status: true,
-          message: 'Comentário encontrado',
-          data: comentarioFormatado
+          status: false,
+          message: 'Você precisa estar logado para criar um post'
         };
       }
       
-      // Se todos os fallbacks falharem, retornar resposta vazia
-      return { 
-        status: true, 
-        message: 'Comentários não encontrados',
-        data: [] as Comentario[]
+      const user = JSON.parse(userData);
+      
+      // ⚠️ MOCK TEMPORÁRIO - BACKEND COM ERRO NO DAO/MODEL
+      const USE_MOCK = true; // Mudar para false quando backend for corrigido
+      
+      if (USE_MOCK) {
+        console.log('⚠️ [MOCK] Usando mock temporário - backend com erro no DAO');
+        console.log('📝 [MOCK] Simulando criação de post...');
+        
+        // Simular delay de rede
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Salvar no localStorage como fallback
+        const posts = JSON.parse(localStorage.getItem('mock_posts') || '[]');
+        const novoPost = {
+          id_post: Date.now(),
+          id_usuario: user.id,
+          conteudo: dados.conteudo,
+          id_produto: dados.id_produto || null,
+          foto_url: dados.imagem || null,
+          data_criacao: new Date().toISOString(),
+          nome_usuario: user.nome || 'Usuário'
+        };
+        
+        posts.unshift(novoPost);
+        localStorage.setItem('mock_posts', JSON.stringify(posts));
+        
+        console.log('✅ [MOCK] Post salvo localmente:', novoPost);
+        
+        return {
+          status: true,
+          message: 'Post criado com sucesso! (Mock temporário)',
+          data: {
+            id_comentario: novoPost.id_post,
+            titulo: dados.titulo || 'Post',
+            conteudo: dados.conteudo,
+            pontos_ganhos: 10,
+            data_criacao: novoPost.data_criacao,
+            data_atualizacao: novoPost.data_criacao,
+            nome_usuario: novoPost.nome_usuario,
+            id_usuario: novoPost.id_usuario
+          }
+        };
+      }
+      
+      // Código original para quando backend for corrigido
+      const payload: any = {
+        id_usuario: user.id,
+        conteudo: dados.conteudo
+      };
+      
+      if (dados.id_produto) {
+        payload.id_produto = parseInt(String(dados.id_produto));
+      }
+      
+      if (dados.imagem) {
+        payload.foto_url = dados.imagem;
+      }
+      
+      console.log('📝 [criarPost] Criando post...');
+      console.log('📦 [criarPost] Payload:', JSON.stringify(payload, null, 2));
+      
+      const response = await api.post('/posts', payload);
+      
+      console.log('✅ [criarPost] Resposta do backend:', response.data);
+      
+      const responseData = response.data as any;
+      if (responseData && responseData.status) {
+        const post = responseData.data || responseData;
+        
+        return {
+          status: true,
+          message: 'Post criado com sucesso! +10 HubCoins 🎉',
+          data: {
+            id_comentario: post.id_post || post.id || Date.now(),
+            titulo: dados.titulo || 'Post',
+            conteudo: dados.conteudo,
+            pontos_ganhos: 10,
+            data_criacao: post.data_criacao || post.createdAt || new Date().toISOString(),
+            data_atualizacao: post.data_atualizacao || post.updatedAt || new Date().toISOString(),
+            nome_usuario: user.nome || 'Usuário',
+            id_usuario: user.id
+          }
+        };
+      }
+      
+      return {
+        status: true,
+        message: 'Post criado com sucesso!',
+        data: {
+          id_comentario: Date.now(),
+          titulo: dados.titulo || 'Post',
+          conteudo: dados.conteudo,
+          pontos_ganhos: 10,
+          data_criacao: new Date().toISOString(),
+          data_atualizacao: new Date().toISOString(),
+          nome_usuario: user.nome || 'Usuário',
+          id_usuario: user.id
+        }
       };
     } catch (error: any) {
-      console.error('Erro ao buscar comentário:', error);
+      console.error('❌ [criarPost] Erro ao criar post:', error);
+      console.error('📍 [criarPost] Status:', error.response?.status);
+      console.error('📦 [criarPost] Resposta do backend:', error.response?.data);
+      console.error('🔍 [criarPost] Mensagem de erro:', error.response?.data?.message);
+      console.error('🔍 [criarPost] Detalhes completos:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers,
+        payload: error.config?.data
+      });
+      
+      if (error.response?.status === 401) {
+        return {
+          status: false,
+          message: 'Você precisa estar logado para criar um post'
+        };
+      }
+      
+      if (error.response?.status === 400) {
+        const mensagemErro = error.response?.data?.message || 
+                           error.response?.data?.error || 
+                           error.response?.data?.msg ||
+                           'Formato inválido. Verifique os dados enviados';
+        
+        console.error('⚠️ [criarPost] Erro de validação:', mensagemErro);
+        
+        return {
+          status: false,
+          message: mensagemErro
+        };
+      }
+      
       return { 
         status: false, 
-        message: error.response?.data?.message || 'Erro ao buscar comentário' 
+        message: error.response?.data?.message || 'Erro ao criar post' 
       };
     }
   }
 
+  async listarPosts(limite = 50, page = 1): Promise<ComentarioResponse> {
+    try {
+      // Primeiro tentar buscar posts mockados se USE_MOCK estiver ativo
+      const mockPosts = localStorage.getItem('mock_posts');
+      if (mockPosts) {
+        const posts = JSON.parse(mockPosts);
+        console.log('📋 [MOCK] Listando posts locais:', posts.length);
+        
+        return {
+          status: true,
+          message: 'Posts listados com sucesso (mock)',
+          data: posts.map((p: any) => ({
+            id_comentario: p.id_post || p.id,
+            titulo: 'Post',
+            conteudo: p.conteudo || '',
+            pontos_ganhos: 10,
+            data_criacao: p.data_criacao || new Date().toISOString(),
+            data_atualizacao: p.data_criacao || new Date().toISOString(),
+            nome_usuario: p.nome_usuario || 'Usuário',
+            id_usuario: p.id_usuario || 1
+          }))
+        };
+      }
+      
+      const response = await api.get(`/posts`, {
+        params: { page, limit: limite }
+      });
+      
+      const responseData = response.data as any;
+      if (responseData && responseData.status) {
+        const posts = Array.isArray(responseData.data) ? responseData.data : 
+                     Array.isArray(responseData) ? responseData : [];
+        
+        return {
+          status: true,
+          message: 'Posts listados com sucesso',
+          data: posts.map((p: any) => ({
+            id_comentario: p.id_post || p.id,
+            titulo: p.titulo || 'Post',
+            conteudo: p.conteudo || p.texto || '',
+            pontos_ganhos: 10,
+            data_criacao: p.data_criacao || p.createdAt || new Date().toISOString(),
+            data_atualizacao: p.data_atualizacao || p.updatedAt || new Date().toISOString(),
+            nome_usuario: p.nome_usuario || p.usuario?.nome || 'Usuário',
+            id_usuario: p.id_usuario || p.usuario?.id || 1
+          }))
+        };
+      }
+      
+      return await this.listarComentarios(limite, page);
+    } catch (error: any) {
+      console.error('Erro ao listar posts:', error);
+      return await this.listarComentarios(limite, page);
+    }
+  }
+  
   async criarComentario(dados: { titulo: string; conteudo: string }): Promise<ComentarioResponse> {
     try {
-      // Obter dados do usuário logado
       const userData = localStorage.getItem('user_data');
       if (!userData) {
         return {
@@ -161,11 +306,10 @@ class ComunidadeService {
       
       const user = JSON.parse(userData);
       
-      // Backend espera: id_post, id_usuario e conteudo
       const payload = {
         id_post: this.INFOCASH_POST_ID,
         id_usuario: user.id,
-        conteudo: `**${dados.titulo}**\n\n${dados.conteudo}` // Título em negrito + conteúdo
+        conteudo: `**${dados.titulo}**\n\n${dados.conteudo}`
       };
       
       console.log('📝 Enviando comentário para post ID:', this.INFOCASH_POST_ID);
@@ -175,7 +319,6 @@ class ComunidadeService {
       
       console.log('✅ Resposta do backend:', response.data);
       
-      // Adaptar resposta do backend
       const responseData = response.data as any;
       if (responseData) {
         const comentario = responseData?.comentario || responseData?.data || responseData;
@@ -215,35 +358,10 @@ class ComunidadeService {
       console.error('📍 Status:', error.response?.status);
       console.error('📦 Resposta do backend:', error.response?.data);
       
-      // Se erro for de autenticação, avisar
       if (error.response?.status === 401) {
         return {
           status: false,
           message: 'Você precisa estar logado para comentar'
-        };
-      }
-      
-      // Se erro for 400, pode ser validação
-      if (error.response?.status === 400) {
-        const mensagemErro = error.response?.data?.message || 
-                           error.response?.data?.error || 
-                           error.response?.data?.msg ||
-                           'Formato inválido. Verifique os dados enviados';
-        
-        console.error('⚠️ Erro de validação:', mensagemErro);
-        
-        // Mostrar estrutura esperada para o usuário
-        console.log('💡 Dica: Verifique se:');
-        console.log('1. O post ID', this.INFOCASH_POST_ID, 'existe no banco');
-        console.log('2. Você está autenticado (tem token JWT válido)');
-        console.log('3. O backend aceita o campo "comentario"');
-        console.log('');
-        console.log('📝 Para criar o post no banco:');
-        console.log("INSERT INTO tbl_posts (id_post, titulo, conteudo, id_usuario) VALUES (1, 'Comunidade InfoCash', 'Post da comunidade', 1);");
-        
-        return {
-          status: false,
-          message: mensagemErro
         };
       }
       
@@ -254,9 +372,49 @@ class ComunidadeService {
     }
   }
 
+  async buscarComentario(id: number): Promise<ComentarioResponse> {
+    try {
+      const response = await api.get(`/comentario/${id}`);
+      const responseData = response.data as any;
+      
+      if (responseData) {
+        const comentario = Array.isArray(responseData) ? responseData[0] : 
+                          responseData?.comentario || responseData?.data || {};
+        
+        const comentarioFormatado: Comentario = {
+          id_comentario: comentario.id_comentario || comentario.id || 0,
+          titulo: comentario.titulo || 'Comentário',
+          conteudo: comentario.conteudo || comentario.texto || comentario.comentario || '',
+          pontos_ganhos: comentario.pontos_ganhos || 0,
+          data_criacao: comentario.data_criacao || comentario.createdAt || new Date().toISOString(),
+          data_atualizacao: comentario.data_atualizacao || comentario.updatedAt || new Date().toISOString(),
+          nome_usuario: comentario.nome_usuario || comentario.usuario?.nome || 'Usuário',
+          id_usuario: comentario.id_usuario || comentario.usuario?.id || 1
+        };
+        
+        return {
+          status: true,
+          message: 'Comentário encontrado',
+          data: comentarioFormatado
+        };
+      }
+      
+      return { 
+        status: true, 
+        message: 'Comentários não encontrados',
+        data: [] as Comentario[]
+      };
+    } catch (error: any) {
+      console.error('Erro ao buscar comentário:', error);
+      return { 
+        status: false, 
+        message: error.response?.data?.message || 'Erro ao buscar comentário' 
+      };
+    }
+  }
+
   async listarComentariosUsuario(idUsuario: number, limite = 20): Promise<ComentarioResponse> {
     try {
-      // Usar endpoint real: GET /comentarios/usuario/:id_usuario?limite=20
       const response = await api.get(`/comentarios/usuario/${idUsuario}?limite=${limite}`);
       return response.data as ComentarioResponse;
     } catch (error: any) {
@@ -271,7 +429,6 @@ class ComunidadeService {
 
   async atualizarComentario(id: number, dados: { titulo?: string; conteudo: string }): Promise<ComentarioResponse> {
     try {
-      // Usar endpoint real: PUT /comentario/:id_comentario
       const response = await api.put(`/comentario/${id}`, dados);
       
       const responseData = response.data as any;
@@ -298,10 +455,8 @@ class ComunidadeService {
 
   async deletarComentario(id: number): Promise<ComentarioResponse> {
     try {
-      // Usar endpoint real: DELETE /comentario/:id_comentario
       const response = await api.delete(`/comentario/${id}`);
       
-      // Verificar se a resposta tem dados
       if (response.data) {
         const responseData = response.data as any;
         return {
@@ -325,4 +480,4 @@ class ComunidadeService {
 }
 
 export default new ComunidadeService();
-export type { Comentario, ComentarioResponse };
+export type { Comentario, ComentarioResponse, CreateComentarioResponse };

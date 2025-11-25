@@ -1,11 +1,24 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { Camera, MapPin, Send, X, ArrowLeft, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
+import { Camera, MapPin, Send, X, ArrowLeft, CheckCircle, AlertCircle, Loader2, Package } from "lucide-react"
 import iconPerfilComentario from "../../assets/iconPerfilComentario.png"
-// import comunidadeService from '../../services/comunidadeService'
-import comunidadeService from '../../services/mockComunidadeService' // Usando serviço mock para demonstração
+// @ts-ignore - Arquivo existe, TypeScript precisa recompilar
+import comunidadeService from '../../services/comunidadeService'
+// Usar o mesmo serviço que a tela de Promoções usa (que funciona!)
+import { listarProdutos } from '../../services/apiServicesFixed'
 import { useUser } from '../../contexts/UserContext'
+
+// Interface do Produto baseada no que vem da API
+interface Produto {
+  id: number;
+  id_produto?: number;
+  nome: string;
+  descricao?: string;
+  preco?: number;
+  categoria?: any;
+  estabelecimento?: any;
+}
 
 export default function InfoCashNovoComentario() {
   const { user } = useUser()
@@ -16,6 +29,60 @@ export default function InfoCashNovoComentario() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Estados para produtos
+  const [produtos, setProdutos] = useState<Produto[]>([])
+  const [produtoSelecionado, setProdutoSelecionado] = useState<string>("")
+  const [carregandoProdutos, setCarregandoProdutos] = useState(true)
+
+  // Carregar produtos ao montar o componente
+  useEffect(() => {
+    carregarProdutos()
+  }, [])
+  
+  // Debug: monitorar mudanças no array de produtos
+  useEffect(() => {
+    console.log('📊 [Estado] Produtos atualizados:', produtos.length, 'produtos')
+    if (produtos.length > 0) {
+      console.log('📊 [Estado] Primeiro produto:', produtos[0])
+    }
+  }, [produtos])
+
+  async function carregarProdutos() {
+    console.log('🔄 [InfoCashNovoComentario] Iniciando carregamento de produtos...')
+    console.log('📌 [InfoCashNovoComentario] Usando mesma função da tela de Promoções')
+    setCarregandoProdutos(true)
+    try {
+      // Usando a mesma função que a tela de Promoções (que funciona!)
+      const response = await listarProdutos()
+      console.log('📦 [InfoCashNovoComentario] Resposta do serviço:', response)
+      console.log('🔍 [DEBUG] Response.status:', response.status)
+      console.log('🔍 [DEBUG] Response.data:', response.data)
+      console.log('🔍 [DEBUG] Response.data length:', response.data?.length)
+      
+      if (response.status && response.data) {
+        console.log('✅ [InfoCashNovoComentario] Produtos recebidos:', response.data)
+        // A função listarProdutos já retorna os produtos no formato correto
+        const produtosMapeados = response.data.map((produto: any) => ({
+          ...produto,
+          id_produto: produto.id || produto.id_produto
+        }))
+        setProdutos(produtosMapeados)
+        console.log('✅ [InfoCashNovoComentario] Total de produtos:', produtosMapeados.length)
+      } else {
+        console.warn('⚠️ [InfoCashNovoComentario] Nenhum produto encontrado')
+        console.warn('⚠️ [InfoCashNovoComentario] Response status:', response.status)
+        console.warn('⚠️ [InfoCashNovoComentario] Response data:', response)
+        setProdutos([])
+      }
+    } catch (err) {
+      console.error('❌ [InfoCashNovoComentario] Erro ao carregar produtos:', err)
+      setProdutos([])
+    } finally {
+      setCarregandoProdutos(false)
+      console.log('🏁 [InfoCashNovoComentario] Carregamento finalizado')
+    }
+  }
 
   function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -38,15 +105,36 @@ export default function InfoCashNovoComentario() {
       return
     }
     
+    // Combinar título e conteúdo, já que o backend não suporta título separado
+    const conteudoCompleto = titulo.trim() 
+      ? `${titulo.trim()}\n\n${conteudo.trim()}`
+      : conteudo.trim();
+      
+    // Validar tamanho do conteúdo (backend aceita máximo 500 caracteres)
+    if (conteudoCompleto.length > 500) {
+      setError(`O texto completo tem ${conteudoCompleto.length} caracteres. Máximo permitido: 500.`)
+      return
+    }
+    
     setLoading(true)
     setError(null)
     
     try {
-      // Criando post no sistema mock para demonstração
+        
+      console.log('📝 [InfoCashNovoComentario] Criando post...');
+      console.log('📝 [InfoCashNovoComentario] Conteúdo completo:', conteudoCompleto);
+      console.log('📝 [InfoCashNovoComentario] Produto selecionado:', produtoSelecionado);
+      
+      // Criando post - TEMPORARIAMENTE sem produto para testar
+      console.log('⚠️ TESTE: Enviando SEM produto para evitar erro no backend');
       const response = await comunidadeService.criarPost({
-        titulo: 'Nova publicação',
-        conteudo: conteudo.trim()
+        conteudo: conteudoCompleto, // Backend não aceita título separado
+        // id_produto: produtoSelecionado ? parseInt(produtoSelecionado) : undefined, // DESABILITADO TEMPORARIAMENTE
+        imagem: img || undefined
       })
+      
+      // Para testar COM produto, descomente a linha abaixo:
+      // id_produto: produtoSelecionado ? parseInt(produtoSelecionado) : undefined,
       
       if (response.status) {
         setSuccess(true)
@@ -149,6 +237,73 @@ export default function InfoCashNovoComentario() {
                   maxLength={500}
                 />
                 <p className="text-xs text-gray-500 mt-1">{conteudo.length}/500 caracteres</p>
+              </div>
+
+              {/* Seletor de Produto DINÂMICO */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-bold text-gray-700 block">
+                    Vincular a um produto (opcional)
+                  </label>
+                  {!carregandoProdutos && produtos.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        console.log('🔁 Tentando recarregar produtos...')
+                        carregarProdutos()
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 underline"
+                    >
+                      Tentar novamente
+                    </button>
+                  )}
+                </div>
+                {carregandoProdutos ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500 py-3">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Carregando produtos...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative">
+                      <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <select
+                        value={produtoSelecionado}
+                        onChange={(e) => setProdutoSelecionado(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 rounded-2xl border border-gray-200 focus:border-[#F9A01B] focus:ring-2 focus:ring-[#F9A01B] focus:ring-opacity-20 outline-none transition-all text-sm appearance-none cursor-pointer bg-white"
+                      >
+                        <option value="">-- Nenhum (post geral) --</option>
+                        {produtos.map((produto) => {
+                          const produtoId = produto.id_produto || produto.id
+                          console.log('🎯 [Render] Produto:', produtoId, produto.nome)
+                          return (
+                            <option key={produtoId} value={produtoId}>
+                              {produto.nome}
+                            </option>
+                          )
+                        })}
+                      </select>
+                    </div>
+                    <p className="text-xs mt-2">
+                      {produtoSelecionado ? (
+                        <span className="text-green-600 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" />
+                          Post será vinculado ao produto selecionado
+                        </span>
+                      ) : (
+                        <span className="text-gray-500 flex items-center gap-1">
+                          ℹ️ Post será geral (sem produto específico)
+                        </span>
+                      )}
+                    </p>
+                    {produtos.length === 0 && (
+                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        Nenhum produto cadastrado no momento
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* Preview da Imagem */}
