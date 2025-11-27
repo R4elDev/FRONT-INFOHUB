@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
-import { Upload, Package, DollarSign, Hash, FileText, ShoppingCart, TrendingDown, Percent, Calendar, Store, Image, CheckCircle, Sparkles, Gift, Zap, AlertCircle, Tag, ChevronDown } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Upload, Package, DollarSign, Hash, FileText, ShoppingCart, TrendingDown, Percent, Calendar, Store, Image, CheckCircle, Sparkles, Gift, Zap, AlertCircle, Tag, ChevronDown, X, Loader2 } from 'lucide-react'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { useUser } from "../../contexts/UserContext"
 import { cadastrarProduto, cadastrarEstabelecimento, cadastrarEnderecoEstabelecimento, listarCategorias } from "../../services/apiServicesFixed"
+import { uploadImageToAzure, validateImageFile } from "../../services/azureBlobService"
 import type { produtoRequest } from "../../services/types"
 
 // CSS para animação
@@ -40,10 +41,15 @@ export default function CadastroPromocao() {
     quantity: '',
     market: '',
     validUntil: '',
-    image: null,
+    image: null as File | null,
+    imageUrl: '',
     categoriaId: null as number | null,
     categoriaNome: ''
   })
+  
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   const [loading, setLoading] = useState(false)
   const [verificandoEstabelecimento, setVerificandoEstabelecimento] = useState(true)
@@ -173,6 +179,71 @@ export default function CadastroPromocao() {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
+  // Manipulador de seleção de imagem
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validar arquivo
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      setMessage({ type: 'error', text: validation.error || 'Arquivo inválido' })
+      return
+    }
+
+    // Criar preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+
+    // Salvar arquivo no estado
+    setFormData(prev => ({ ...prev, image: file }))
+    setMessage(null)
+  }
+
+  // Remover imagem selecionada
+  const handleRemoveImage = () => {
+    setFormData(prev => ({ ...prev, image: null, imageUrl: '' }))
+    setImagePreview(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  // Manipulador de drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+
+    // Validar arquivo
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      setMessage({ type: 'error', text: validation.error || 'Arquivo inválido' })
+      return
+    }
+
+    // Criar preview
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+
+    // Salvar arquivo no estado
+    setFormData(prev => ({ ...prev, image: file }))
+    setMessage(null)
+  }
+
   const calculateDiscount = () => {
     const normal = parseFloat(formData.normalPrice.replace(',', '.'))
     const promo = parseFloat(formData.promoPrice.replace(',', '.'))
@@ -272,12 +343,35 @@ export default function CadastroPromocao() {
         return
       }
 
+      // Upload da imagem para Azure se houver
+      let imageUrl = ''
+      if (formData.image) {
+        try {
+          setUploadingImage(true)
+          console.log('📤 Iniciando upload da imagem para Azure...')
+          const uploadedUrl = await uploadImageToAzure(formData.image)
+          if (uploadedUrl) {
+            imageUrl = uploadedUrl
+            console.log('✅ Imagem enviada:', imageUrl)
+          }
+        } catch (uploadError: any) {
+          console.error('❌ Erro no upload da imagem:', uploadError)
+          setMessage({ type: 'error', text: uploadError.message || 'Erro ao enviar imagem' })
+          setLoading(false)
+          setUploadingImage(false)
+          return
+        } finally {
+          setUploadingImage(false)
+        }
+      }
+
       // Monta payload no formato exato solicitado
       const produtoData: produtoRequest = {
         nome: formData.name.trim(),
         descricao: formData.description.trim(),
         id_estabelecimento: estabelecimento.id,
-        preco: preco
+        preco: preco,
+        ...(imageUrl && { imagem: imageUrl })
       }
       
       // Adiciona id_categoria se selecionado (opcional)
@@ -338,9 +432,14 @@ export default function CadastroPromocao() {
             market: '',
             validUntil: '',
             image: null,
+            imageUrl: '',
             categoriaId: null,
             categoriaNome: ''
           })
+          setImagePreview(null)
+          if (fileInputRef.current) {
+            fileInputRef.current.value = ''
+          }
           setMessage(null)
         }, 2000)
       }
@@ -696,14 +795,54 @@ export default function CadastroPromocao() {
                   </div>
                   <h2 className="text-xl font-bold text-gray-800">Imagem do Produto</h2>
                 </div>
-                <div className="border-3 border-dashed border-orange-300 rounded-2xl p-12 text-center hover:border-orange-500 hover:bg-orange-50 transition-all cursor-pointer bg-gradient-to-br from-orange-50 to-yellow-50">
-                  <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 shadow-lg">
-                    <Upload className="w-10 h-10 text-orange-500" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                  id="image-upload"
+                />
+                
+                {imagePreview ? (
+                  <div className="relative rounded-2xl overflow-hidden border-3 border-orange-300">
+                    <img 
+                      src={imagePreview} 
+                      alt="Preview" 
+                      className="w-full h-64 object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-3 right-3 w-10 h-10 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110"
+                    >
+                      <X className="w-5 h-5 text-white" />
+                    </button>
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
+                      <div className="flex items-center gap-2 text-white">
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                        <span className="font-medium">Imagem selecionada</span>
+                      </div>
+                      <p className="text-xs text-gray-300 mt-1">
+                        {formData.image?.name} ({((formData.image?.size || 0) / 1024).toFixed(1)} KB)
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-lg font-semibold text-gray-700 mb-1">Arraste a imagem aqui</p>
-                  <p className="text-sm text-gray-500 mb-2">ou clique para selecionar</p>
-                  <p className="text-xs text-gray-400">PNG, JPG ou WEBP até 5MB</p>
-                </div>
+                ) : (
+                  <label
+                    htmlFor="image-upload"
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    className="border-3 border-dashed border-orange-300 rounded-2xl p-12 text-center hover:border-orange-500 hover:bg-orange-50 transition-all cursor-pointer bg-gradient-to-br from-orange-50 to-yellow-50 block"
+                  >
+                    <div className="bg-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                      <Upload className="w-10 h-10 text-orange-500" />
+                    </div>
+                    <p className="text-lg font-semibold text-gray-700 mb-1">Arraste a imagem aqui</p>
+                    <p className="text-sm text-gray-500 mb-2">ou clique para selecionar</p>
+                    <p className="text-xs text-gray-400">PNG, JPG ou WEBP até 5MB</p>
+                  </label>
+                )}
               </div>
 
               {/* Botão de Cadastrar Premium */}
@@ -714,8 +853,8 @@ export default function CadastroPromocao() {
               >
                 {loading ? (
                   <>
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                    Cadastrando...
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                    {uploadingImage ? 'Enviando imagem...' : 'Cadastrando...'}
                   </>
                 ) : (
                   <>
@@ -737,8 +876,12 @@ export default function CadastroPromocao() {
                 
                 {/* Card de Oferta */}
                 <div className="border-2 border-orange-200 rounded-2xl overflow-hidden hover:shadow-lg transition-all">
-                  <div className="bg-gradient-to-br from-orange-100 to-yellow-50 h-48 flex items-center justify-center relative">
-                    <Package className="w-20 h-20 text-orange-300" />
+                  <div className="bg-gradient-to-br from-orange-100 to-yellow-50 h-48 flex items-center justify-center relative overflow-hidden">
+                    {imagePreview ? (
+                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                      <Package className="w-20 h-20 text-orange-300" />
+                    )}
                     <div className="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 rounded-full font-bold text-sm flex items-center gap-1 shadow-lg">
                       <Percent className="w-4 h-4" />
                       {calculateDiscount()}% OFF

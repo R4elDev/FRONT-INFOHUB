@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from "react-router-dom";
 import SidebarLayout from "../../components/layouts/SidebarLayout";
-import { MessageCircle, ThumbsUp, Edit3, ArrowLeft, Calendar, Award, Loader2 } from "lucide-react";
+import { MessageCircle, ThumbsUp, Edit3, ArrowLeft, Calendar, Award, Loader2, Package, ShoppingBag } from "lucide-react";
 import iconPerfilComentario from "../../assets/iconPerfilComentario.png";
-import comunidadeService from '../../services/mockComunidadeService'; // Usando serviço mock para demonstração
+import comunidadeService from '../../services/comunidadeService'; // Usando serviço REAL
 import { useUser } from '../../contexts/UserContext';
 
 // Animação CSS
@@ -48,17 +48,31 @@ export default function InfoCashComentarios() {
 
   const carregarComentarios = async () => {
     try {
-      console.log('🔎 Carregando posts e comentários do sistema mock...');
+      setLoading(true);
+      setError(null);
+      console.log('🔎 [InfoCashComentarios] Carregando posts do backend...');
+      
       const response = await comunidadeService.listarPosts();
-      console.log('✅ Resposta recebida do mock:', response);
+      
+      console.log('📥 [InfoCashComentarios] Resposta recebida:', response);
+      console.log('📊 [InfoCashComentarios] Status:', response.status);
+      console.log('📊 [InfoCashComentarios] Data:', response.data);
+      
       if (response.status && Array.isArray(response.data)) {
+        console.log('✅ [InfoCashComentarios] Total de posts:', response.data.length);
         setComments(response.data);
+      } else if (response.status && response.data) {
+        // Caso data não seja array mas exista
+        const dataArray = Array.isArray(response.data) ? response.data : [response.data];
+        setComments(dataArray);
       } else {
-        setError('Nenhum comentário encontrado');
+        console.log('⚠️ [InfoCashComentarios] Nenhum post encontrado');
+        setComments([]);
       }
     } catch (err: any) {
-      console.error('Erro ao carregar comentários:', err);
-      setError('Erro ao carregar comentários');
+      console.error('❌ [InfoCashComentarios] Erro ao carregar posts:', err);
+      console.error('❌ [InfoCashComentarios] Detalhes:', err.response?.data);
+      setError(`Erro ao carregar posts: ${err.response?.data?.message || err.message}`);
     } finally {
       setLoading(false);
     }
@@ -158,6 +172,31 @@ export default function InfoCashComentarios() {
 
                   {/* Título */}
                   <h3 className="text-sm font-bold text-gray-800 mb-2">{c.titulo}</h3>
+                  
+                  {/* Produto Vinculado */}
+                  {c.produto && (
+                    <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
+                      {c.produto.imagem ? (
+                        <img 
+                          src={c.produto.imagem} 
+                          alt={c.produto.nome}
+                          className="w-12 h-12 rounded-lg object-cover border border-blue-200"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                          <ShoppingBag className="w-6 h-6 text-blue-500" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-blue-600 font-medium">Produto vinculado</p>
+                        <p className="text-sm font-bold text-gray-800 truncate">{c.produto.nome}</p>
+                        {c.produto.preco && (
+                          <p className="text-xs text-green-600 font-semibold">R$ {c.produto.preco}</p>
+                        )}
+                      </div>
+                      <Package className="w-5 h-5 text-blue-400" />
+                    </div>
+                  )}
                   
                   {/* Corpo do Comentário */}
                   <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-xl p-4 mb-3">

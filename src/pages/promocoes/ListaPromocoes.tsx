@@ -11,6 +11,7 @@ interface Produto {
   nome: string
   descricao: string
   preco: number
+  imagem?: string
   promocao?: {
     id: number
     preco_promocional: number
@@ -538,8 +539,27 @@ export default function ListaPromocoes() {
                       </div>
                       
                       <div className="p-6">
+                        {/* Imagem do produto */}
+                        <div className="flex justify-center mb-4">
+                          {produto.imagem ? (
+                            <img 
+                              src={produto.imagem} 
+                              alt={produto.nome}
+                              className="w-32 h-32 object-contain rounded-xl bg-gray-50"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                target.style.display = 'none'
+                                target.nextElementSibling?.classList.remove('hidden')
+                              }}
+                            />
+                          ) : null}
+                          <div className={`w-32 h-32 bg-gradient-to-br from-orange-100 to-orange-50 rounded-xl flex items-center justify-center ${produto.imagem ? 'hidden' : ''}`}>
+                            <Package className="w-12 h-12 text-orange-300" />
+                          </div>
+                        </div>
+                        
                         {/* Nome do produto */}
-                        <h3 className="font-bold text-xl text-gray-800 mb-3 leading-tight">
+                        <h3 className="font-bold text-xl text-gray-800 mb-3 leading-tight text-center">
                           {produto.nome}
                         </h3>
                         

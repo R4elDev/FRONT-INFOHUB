@@ -56,6 +56,7 @@ interface Produto {
   nome: string
   descricao: string
   preco: number
+  imagem?: string
   promocao?: {
     id: number
     preco_promocional: number
@@ -162,7 +163,7 @@ function DetalhesProduto() {
       nome: produto.nome,
       preco: emPromocao ? produto.promocao!.preco_promocional : produto.preco,
       precoAntigo: emPromocao ? produto.preco : undefined,
-      imagem: iconJarra,
+      imagem: produto.imagem || iconJarra,
       categoria: produto.categoria?.nome,
       descricao: produto.descricao
     }
@@ -254,7 +255,19 @@ function DetalhesProduto() {
             >
               {/* Efeito de brilho */}
               <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent"></div>
-              <Package className="w-48 h-48 sm:w-64 sm:h-64 text-orange-300 relative z-10" />
+              {produto.imagem ? (
+                <img 
+                  src={produto.imagem} 
+                  alt={produto.nome}
+                  className="w-48 h-48 sm:w-64 sm:h-64 object-contain relative z-10"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'none'
+                    target.nextElementSibling?.classList.remove('hidden')
+                  }}
+                />
+              ) : null}
+              <Package className={`w-48 h-48 sm:w-64 sm:h-64 text-orange-300 relative z-10 ${produto.imagem ? 'hidden' : ''}`} />
               {emPromocao && (
                 <Sparkles className="absolute top-4 right-4 w-8 h-8 text-yellow-400 animate-pulse" />
               )}
@@ -457,7 +470,19 @@ function DetalhesProduto() {
                   )}
                   
                   <div className="flex items-center justify-center py-4 bg-gray-50 rounded-xl mb-3">
-                    <Package className="w-20 h-20 text-gray-300" />
+                    {(produtoRelacionado as any).imagem ? (
+                      <img 
+                        src={(produtoRelacionado as any).imagem} 
+                        alt={produtoRelacionado.nome}
+                        className="w-20 h-20 object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          target.style.display = 'none'
+                          target.nextElementSibling?.classList.remove('hidden')
+                        }}
+                      />
+                    ) : null}
+                    <Package className={`w-20 h-20 text-gray-300 ${(produtoRelacionado as any).imagem ? 'hidden' : ''}`} />
                   </div>
                   
                   <div className="space-y-1">

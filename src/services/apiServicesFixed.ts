@@ -5,7 +5,6 @@ import type {
     categoriaRequest, categoriaResponse, listarCategoriasResponse,
     produtoRequest, produtoResponse, filtrosProdutos, listarProdutosResponse,
     atualizarUsuarioRequest, atualizarEmpresaRequest, atualizarUsuarioResponse,
-    AdicionarFavoritoRequest,
     AdicionarFavoritoResponse,
     RemoverFavoritoRequest,
     ListarFavoritosResponse
@@ -147,12 +146,13 @@ export async function cadastrarEnderecoEstabelecimento(payload: any): Promise<an
         console.log('✅ Resposta:', JSON.stringify(response.data, null, 2))
         
         // SOLUÇÃO: Salvar endereço formatado no localStorage para exibir na interface
-        if (response.data && response.data.status && response.data.id) {
-            const enderecoFormatado = `${response.data.id.logradouro}, ${response.data.id.numero}${response.data.id.complemento ? ', ' + response.data.id.complemento : ''} - ${response.data.id.bairro}, ${response.data.id.cidade}/${response.data.id.estado} - CEP: ${response.data.id.cep}`
+        const resData = response.data as any
+        if (resData && resData.status && resData.id) {
+            const enderecoFormatado = `${resData.id.logradouro}, ${resData.id.numero}${resData.id.complemento ? ', ' + resData.id.complemento : ''} - ${resData.id.bairro}, ${resData.id.cidade}/${resData.id.estado} - CEP: ${resData.id.cep}`
             
             // Salva o endereço formatado no localStorage
             localStorage.setItem('estabelecimentoEndereco', enderecoFormatado)
-            localStorage.setItem('estabelecimentoEnderecoCompleto', JSON.stringify(response.data.id))
+            localStorage.setItem('estabelecimentoEnderecoCompleto', JSON.stringify(resData.id))
             
             console.log('✅ Endereço salvo no localStorage para exibição:', enderecoFormatado)
         }
@@ -197,7 +197,7 @@ export async function listarCategorias(): Promise<listarCategoriasResponse> {
         
         // A API retorna: { status, status_code, categorias: [...], message }
         // Precisamos mapear para o formato esperado
-        const apiResponse = response.data
+        const apiResponse = response.data as any
         
         if (apiResponse.status && apiResponse.categorias) {
             // Mapeia id_categoria -> id para compatibilidade
@@ -228,7 +228,7 @@ export async function listarCategorias(): Promise<listarCategoriasResponse> {
 /**
  * Cadastra um novo produto/promoção
  * Endpoint: POST /produtos
- * Request body: { "nome", "descricao", "id_categoria"?, "id_estabelecimento", "preco", "promocao"? }
+ * Request body: { "nome", "descricao", "id_categoria"?, "id_estabelecimento", "preco", "promocao"?, "imagem"? }
  * Formato exato conforme especificado pelo usuário
  */
 export async function cadastrarProduto(payload: produtoRequest): Promise<produtoResponse> {
@@ -246,6 +246,11 @@ export async function cadastrarProduto(payload: produtoRequest): Promise<produto
             produtoPayload.id_categoria = payload.id_categoria
         }
         
+        // Adiciona imagem apenas se fornecida (opcional)
+        if (payload.imagem) {
+            produtoPayload.imagem = payload.imagem
+        }
+        
         // Adiciona promoção apenas se fornecida (opcional)
         if (payload.promocao) {
             produtoPayload.promocao = {
@@ -255,9 +260,9 @@ export async function cadastrarProduto(payload: produtoRequest): Promise<produto
             }
         }
         
-        console.log('📦 Enviando payload no formato exato:', produtoPayload)
+        console.log(' Enviando payload no formato exato:', produtoPayload)
         const { data } = await api.post<produtoResponse>("/produtos", produtoPayload)
-        console.log('✅ Produto cadastrado com sucesso:', data)
+        console.log(' Produto cadastrado com sucesso:', data)
         return data
     } catch (error: any) {
         console.error('❌ Erro ao cadastrar produto:', error.response?.data || error.message)
@@ -409,6 +414,7 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                     nome: produto.nome,
                     descricao: produto.descricao,
                     preco: produto.preco,
+                    imagem: produto.imagem || null,
                     promocao: promocaoData ? {
                         id: promocaoData.id || promocaoData.id_promocao || 0,
                         preco_promocional: promocaoData.preco_promocional,
@@ -539,6 +545,7 @@ export async function listarProdutos(filtros?: filtrosProdutos): Promise<listarP
                         nome: produto.nome,
                         descricao: produto.descricao,
                         preco: produto.preco,
+                        imagem: produto.imagem || null,
                         promocao: promocaoData ? {
                             id: promocaoData.id || promocaoData.id_promocao || 0,
                             preco_promocional: promocaoData.preco_promocional,
@@ -610,7 +617,8 @@ export function calcularDesconto(precoNormal: number, precoPromocional: number):
  */
 export async function buscarNomeEstabelecimento(id: number): Promise<string> {
     try {
-        const { data } = await api.get(`/estabelecimento/${id}`)
+        const response = await api.get(`/estabelecimento/${id}`)
+        const data = response.data as any
         if (data.status && data.data && data.data.nome) {
             return data.data.nome
         }
@@ -625,7 +633,8 @@ export async function buscarNomeEstabelecimento(id: number): Promise<string> {
  */
 export async function buscarNomeCategoria(id: number): Promise<string> {
     try {
-        const { data } = await api.get(`/categoria/${id}`)
+        const response = await api.get(`/categoria/${id}`)
+        const data = response.data as any
         if (data.status && data.data && data.data.nome) {
             return data.data.nome
         }
@@ -863,7 +872,8 @@ export async function listarEstabelecimentosUsuario(): Promise<listarEstabelecim
         // Tenta buscar estabelecimentos por usuário primeiro
         // Usando endpoint específico por usuário se existir
         try {
-            const { data } = await api.get<any>(`/estabelecimentos/usuario/${user.id}`)
+            const response = await api.get<any>(`/estabelecimentos/usuario/${user.id}`)
+            const data = response.data as any
             console.log('📡 Resposta da API /estabelecimentos/usuario:', data)
             
             if (data.status && data.estabelecimentos && data.estabelecimentos.length > 0) {
@@ -880,7 +890,8 @@ export async function listarEstabelecimentosUsuario(): Promise<listarEstabelecim
             
         // Fallback: Busca todos os estabelecimentos e filtra pelo id_usuario
         try {
-            const { data } = await api.get<any>("/estabelecimentos")
+            const response = await api.get<any>("/estabelecimentos")
+            const data = response.data as any
             console.log('📡 Resposta da API /estabelecimentos (todos):', data)
                 
             if (data.status && data.estabelecimentos) {
@@ -966,7 +977,8 @@ export async function buscarDadosEstabelecimentoAtualizado(): Promise<any> {
         })
         console.log('🔍 Buscando dados do estabelecimento:', estabelecimentoId)
         
-        const { data } = await api.get(`/estabelecimento/${estabelecimentoId}`)
+        const response = await api.get(`/estabelecimento/${estabelecimentoId}`)
+        const data = response.data as any
         console.log('✅ Dados do estabelecimento recebidos:', data)
         
         // Atualiza localStorage com dados mais recentes
@@ -1028,7 +1040,7 @@ export async function verificarEstabelecimento(): Promise<{ possuiEstabeleciment
             return {
                 possuiEstabelecimento: true,
                 estabelecimento: {
-                    id: estabelecimento.id_estabelecimento || estabelecimento.id,
+                    id: (estabelecimento as any).id_estabelecimento || estabelecimento.id,
                     nome: estabelecimento.nome,
                     cnpj: estabelecimento.cnpj,
                     telefone: estabelecimento.telefone
@@ -1180,21 +1192,19 @@ export async function buscarDadosUsuarioDireto() {
         
         const user = JSON.parse(userData)
         const userId = user.id
-        
-        console.log('👤 Buscando dados para usuário ID:', userId)
-        
-        // Tenta diferentes endpoints que podem funcionar
         const endpoints = [
-            `/usuarios/${userId}`,
             `/usuario/${userId}`,
-            `/users/${userId}`,
+            `/usuarios/${userId}`,
             `/user/${userId}`
         ]
         
         for (const endpoint of endpoints) {
             try {
-                console.log(`🔍 Tentando endpoint: ${endpoint}`)
-                const { data: response } = await api.get(endpoint)
+                console.log(` Tentando endpoint: ${endpoint}`)
+                const apiResponse = await api.get(endpoint)
+                const response = apiResponse.data as any
+                
+                console.log(` Resposta do ${endpoint}:`, response)
                 
                 console.log(`📋 Resposta do ${endpoint}:`, response)
                 
@@ -1246,140 +1256,12 @@ export async function buscarDadosUsuarioDireto() {
             return obterDadosUsuario()
         }
         
-        console.log('⚠️ Nenhum endpoint de usuário funcionou, tentando estabelecimentos...')
-        return await buscarDadosEstabelecimento()
+        console.log('⚠️ Nenhum endpoint de usuário funcionou, retornando dados do localStorage...')
+        return obterDadosUsuario()
         
     } catch (error: any) {
         console.error('❌ Erro ao buscar dados do usuário:', error)
         return obterDadosUsuario()
-    }
-}
-
-/**
- * Busca dados do estabelecimento do usuário logado
- */
-export async function buscarDadosEstabelecimento() {
-    try {
-        console.log('🏢 Buscando dados do estabelecimento...')
-        
-        const userData = localStorage.getItem('user_data')
-        if (!userData) {
-            throw new Error('Usuário não encontrado no localStorage')
-        }
-        
-        const user = JSON.parse(userData)
-        const userId = user.id
-        
-        console.log('👤 Buscando estabelecimento para usuário ID:', userId)
-        
-        // Busca todos os estabelecimentos
-        const { data: estabelecimentos } = await api.get('/estabelecimentos')
-        
-        console.log('📋 Resposta completa da API /estabelecimentos:', estabelecimentos)
-        console.log('📋 Estrutura da resposta:', {
-            status: estabelecimentos?.status,
-            data: estabelecimentos?.data,
-            dataType: typeof estabelecimentos?.data,
-            dataLength: Array.isArray(estabelecimentos?.data) ? estabelecimentos.data.length : 'não é array'
-        })
-        
-        // Verifica diferentes estruturas de resposta possíveis
-        let listaEstabelecimentos = null
-        
-        if (estabelecimentos?.status && estabelecimentos?.estabelecimentos) {
-            // A API retorna na propriedade 'estabelecimentos'
-            listaEstabelecimentos = estabelecimentos.estabelecimentos
-        } else if (estabelecimentos?.status && estabelecimentos?.data) {
-            listaEstabelecimentos = estabelecimentos.data
-        } else if (Array.isArray(estabelecimentos)) {
-            // Caso a resposta seja diretamente um array
-            listaEstabelecimentos = estabelecimentos
-        }
-        
-        console.log('📋 Lista de estabelecimentos processada:', listaEstabelecimentos)
-        
-        if (listaEstabelecimentos && Array.isArray(listaEstabelecimentos) && listaEstabelecimentos.length > 0) {
-            console.log('📋 Total de estabelecimentos encontrados:', listaEstabelecimentos.length)
-            
-            // Mostra todos os estabelecimentos para debug
-            listaEstabelecimentos.forEach((est: any, index: number) => {
-                console.log(`📋 Estabelecimento ${index + 1}:`, {
-                    id: est.id,
-                    nome: est.nome,
-                    cnpj: est.cnpj,
-                    id_usuario: est.id_usuario,
-                    usuario_id: est.usuario_id,
-                    user_id: est.user_id
-                })
-            })
-            
-            // Procura estabelecimento do usuário com diferentes estratégias
-            let meuEstabelecimento = null
-            
-            // Estratégia 1: Busca por campos de relacionamento
-            meuEstabelecimento = listaEstabelecimentos.find((est: any) => {
-                const match = est.id_usuario === userId || est.usuario_id === userId || est.user_id === userId
-                console.log(`🔍 Verificando estabelecimento ${est.id}: id_usuario=${est.id_usuario}, usuario_id=${est.usuario_id}, user_id=${est.user_id} → Match: ${match}`)
-                return match
-            })
-            
-            // Estratégia 2: Se não encontrou por ID, busca por nome do usuário
-            if (!meuEstabelecimento) {
-                console.log('🔍 Não encontrado por ID, tentando buscar por nome do usuário...')
-                meuEstabelecimento = listaEstabelecimentos.find((est: any) => {
-                    const nomeEstabelecimento = est.nome?.toLowerCase() || ''
-                    const nomeUsuario = user.nome?.toLowerCase() || ''
-                    const match = nomeEstabelecimento.includes(nomeUsuario) && nomeUsuario.length > 0
-                    console.log(`🔍 Verificando por nome: "${est.nome}" contém "${user.nome}"? → Match: ${match}`)
-                    return match
-                })
-            }
-            
-            // Estratégia 3: Se ainda não encontrou e há apenas um estabelecimento, assume que é do usuário
-            if (!meuEstabelecimento && listaEstabelecimentos.length === 1) {
-                console.log('🔍 Apenas um estabelecimento encontrado, assumindo que é do usuário logado...')
-                meuEstabelecimento = listaEstabelecimentos[0]
-            }
-            
-            if (meuEstabelecimento) {
-                console.log('✅ Estabelecimento encontrado:', meuEstabelecimento)
-                
-                // Monta dados completos
-                const dadosCompletos = {
-                    ...user,
-                    cnpj: meuEstabelecimento.cnpj || '',
-                    telefone: meuEstabelecimento.telefone || '',
-                    razao_social: meuEstabelecimento.nome || meuEstabelecimento.razao_social || '',
-                    endereco: meuEstabelecimento.endereco ? 
-                        `${meuEstabelecimento.endereco.logradouro || ''}, ${meuEstabelecimento.endereco.bairro || ''}, ${meuEstabelecimento.endereco.cidade || ''} - ${meuEstabelecimento.endereco.estado || ''}`.replace(/^,\s*/, '').replace(/,\s*$/, '') :
-                        '',
-                    estabelecimento_id: meuEstabelecimento.id
-                }
-                
-                // Atualiza localStorage
-                localStorage.setItem('user_data', JSON.stringify(dadosCompletos))
-                console.log('✅ Dados do estabelecimento salvos no localStorage:', dadosCompletos)
-                
-                return dadosCompletos
-            } else {
-                console.log('⚠️ Nenhum estabelecimento encontrado para o usuário ID:', userId)
-                console.log('⚠️ Estabelecimentos disponíveis:', listaEstabelecimentos.map(est => ({
-                    id: est.id,
-                    nome: est.nome,
-                    id_usuario: est.id_usuario,
-                    usuario_id: est.usuario_id,
-                    user_id: est.user_id
-                })))
-                return user
-            }
-        } else {
-            console.log('⚠️ API não retornou estabelecimentos válidos ou lista está vazia')
-            console.log('⚠️ Dados recebidos:', estabelecimentos)
-            return user
-        }
-    } catch (error: any) {
-        console.error('❌ Erro ao buscar dados do estabelecimento:', error)
-        return obterDadosUsuario() // Retorna dados do localStorage como fallback
     }
 }
 
@@ -1407,7 +1289,8 @@ export async function buscarDadosCompletosDaAPI() {
         try {
             // Primeiro tenta o endpoint de usuário
             console.log('🔍 Tentando endpoint /usuario/:id...')
-            const { data } = await api.get(`/usuario/${userId}`)
+            const response = await api.get(`/usuario/${userId}`)
+            const data = response.data as any
             
             if (data.status && data.data) {
                 dadosCompletos = { ...user, ...data.data }
@@ -1420,7 +1303,8 @@ export async function buscarDadosCompletosDaAPI() {
             if (user.perfil === 'estabelecimento') {
                 try {
                     console.log('🔍 Tentando buscar estabelecimento do usuário...')
-                    const { data: estabelecimentos } = await api.get('/estabelecimentos')
+                    const estResponse = await api.get('/estabelecimentos')
+                    const estabelecimentos = estResponse.data as any
                     
                     if (estabelecimentos.status && estabelecimentos.data) {
                         // Procura estabelecimento do usuário
@@ -1433,8 +1317,9 @@ export async function buscarDadosCompletosDaAPI() {
                                 ...user,
                                 cnpj: meuEstabelecimento.cnpj,
                                 telefone: meuEstabelecimento.telefone,
-                                endereco: meuEstabelecimento.endereco?.logradouro || 
-                                         `${meuEstabelecimento.endereco?.logradouro || ''}, ${meuEstabelecimento.endereco?.bairro || ''}, ${meuEstabelecimento.endereco?.cidade || ''} - ${meuEstabelecimento.endereco?.estado || ''}`.trim(),
+                                endereco: meuEstabelecimento.endereco ? 
+                                    `${meuEstabelecimento.endereco.logradouro || ''}, ${meuEstabelecimento.endereco.bairro || ''}, ${meuEstabelecimento.endereco.cidade || ''} - ${meuEstabelecimento.endereco.estado || ''}`.replace(/^,\s*/, '').replace(/,\s*$/, '') :
+                                    '',
                                 razao_social: meuEstabelecimento.nome || meuEstabelecimento.razao_social,
                                 estabelecimento_id: meuEstabelecimento.id
                             }
@@ -1458,133 +1343,6 @@ export async function buscarDadosCompletosDaAPI() {
     } catch (error: any) {
         console.error('❌ Erro geral ao buscar dados da API:', error)
         return obterDadosUsuario() // Retorna dados do localStorage como fallback
-    }
-}
-
-// ============================================
-// SERVIÇOS DE FAVORITOS
-// ============================================
-
-/**
- * Adiciona um produto aos favoritos do usuário
- * Endpoint: POST /favoritos
- */
-export async function adicionarFavorito(payload: AdicionarFavoritoRequest): Promise<AdicionarFavoritoResponse> {
-    try {
-        console.log('❤️ Adicionando produto aos favoritos:', payload)
-        
-        // Verifica se usuário está autenticado
-        const { valid } = checkTokenValidity()
-        if (!valid) {
-            throw new Error('Usuário não autenticado. Faça login novamente.')
-        }
-        
-        console.log('📡 Fazendo requisição POST /favoritos')
-        const response = await api.post<AdicionarFavoritoResponse>('/favoritos', payload)
-        
-        // ATUALIZA CACHE LOCAL
-        const cacheKey = `favoritos_cache_user_${payload.id_usuario}`
-        const favoritosCache = JSON.parse(localStorage.getItem(cacheKey) || '[]')
-        
-        // Adiciona ao cache se não existir
-        const jaExiste = favoritosCache.some((fav: any) => fav.id_produto === payload.id_produto)
-        if (!jaExiste) {
-            const novoFavorito = {
-                id: Date.now(),
-                id_usuario: payload.id_usuario,
-                id_produto: payload.id_produto,
-                id_estabelecimento: payload.id_estabelecimento,
-                data_criacao: new Date().toISOString(),
-                produto: {
-                    id: payload.id_produto,
-                    nome: `Produto ${payload.id_produto}`,
-                    preco: 0,
-                    descricao: 'Produto favoritado'
-                }
-            }
-            favoritosCache.push(novoFavorito)
-            localStorage.setItem(cacheKey, JSON.stringify(favoritosCache))
-            console.log('📦 Cache de favoritos atualizado (adicionado)')
-        }
-        
-        console.log('✅ Produto adicionado aos favoritos:', response.data)
-        return response.data
-        
-    } catch (error: any) {
-        console.error('❌ Erro ao adicionar favorito:', error.response?.data || error.message)
-        
-        if (error.response?.status === 401) {
-            throw new Error('Sessão expirada. Faça login novamente.')
-        }
-        
-        if (error.response?.status === 409) {
-            // PRODUTO JÁ EXISTE NO BACKEND - FORÇA REMOÇÃO REAL
-            console.log('⚠️ Produto já existe no backend, FORÇANDO REMOÇÃO REAL...')
-            
-            try {
-                // TENTA FORÇAR REMOÇÃO DO BACKEND PRIMEIRO
-                console.log('🔥 Tentando forçar remoção do backend antes de sincronizar')
-                
-                // Método especial: POST com força de remoção
-                const forceRemovePayload = {
-                    id_usuario: payload.id_usuario,
-                    id_produto: payload.id_produto,
-                    force_remove: true,
-                    action: 'force_delete'
-                }
-                
-                try {
-                    const removeResponse = await api.post('/favoritos', forceRemovePayload)
-                    console.log('✅ Remoção forçada bem-sucedida:', removeResponse.data)
-                    
-                    // Remove do cache também
-                    const cacheKey = `favoritos_cache_user_${payload.id_usuario}`
-                    const favoritosCache = JSON.parse(localStorage.getItem(cacheKey) || '[]')
-                    const favoritosLimpos = favoritosCache.filter((fav: any) => fav.id_produto !== payload.id_produto)
-                    localStorage.setItem(cacheKey, JSON.stringify(favoritosLimpos))
-                    console.log('📦 Cache limpo após remoção forçada')
-                    
-                    // Agora tenta adicionar novamente
-                    console.log('🔄 Tentando adicionar após remoção forçada...')
-                    const addResponse = await api.post('/favoritos', payload)
-                    console.log('✅ Produto adicionado após remoção forçada')
-                    return addResponse.data
-                    
-                } catch (forceError: any) {
-                    console.log('❌ Remoção forçada falhou, usando estratégia de bloqueio')
-                    
-                    // ESTRATÉGIA DE BLOQUEIO: Marca como "tentativa de remoção pendente"
-                    const cacheKey = `favoritos_cache_user_${payload.id_usuario}`
-                    const favoritosCache = JSON.parse(localStorage.getItem(cacheKey) || '[]')
-                    
-                    // Remove do cache e marca como "removido pelo usuário"
-                    const favoritosLimpos = favoritosCache.filter((fav: any) => fav.id_produto !== payload.id_produto)
-                    
-                    // Adiciona flag de "não sincronizar este produto"
-                    const blockedKey = `favoritos_blocked_user_${payload.id_usuario}`
-                    const blockedProducts = JSON.parse(localStorage.getItem(blockedKey) || '[]')
-                    if (!blockedProducts.includes(payload.id_produto)) {
-                        blockedProducts.push(payload.id_produto)
-                        localStorage.setItem(blockedKey, JSON.stringify(blockedProducts))
-                    }
-                    
-                    localStorage.setItem(cacheKey, JSON.stringify(favoritosLimpos))
-                    console.log('🚫 Produto bloqueado para sincronização - não será mais adicionado automaticamente')
-                    
-                    return {
-                        status: true,
-                        status_code: 200,
-                        message: 'Produto removido (bloqueado para sincronização)'
-                    }
-                }
-                
-            } catch (error: any) {
-                console.error('❌ Erro na estratégia de remoção forçada:', error)
-                throw new Error('Não foi possível processar o favorito.')
-            }
-        }
-        
-        throw error
     }
 }
 
@@ -1675,7 +1433,7 @@ export async function removerFavorito(payload: RemoverFavoritoRequest): Promise<
                         localStorage.setItem(cacheKey4, JSON.stringify(favoritosAtualizados4))
                         console.log('📦 Cache sincronizado após remoção do banco')
                         
-                        return response4.data
+                        return response4.data as AdicionarFavoritoResponse
                     } catch (error4: any) {
                         console.log('⚠️ Método 4 falhou. Tentando método 5...')
                         
@@ -1684,8 +1442,9 @@ export async function removerFavorito(payload: RemoverFavoritoRequest): Promise<
                             console.log('📡 Buscando ID do favorito no banco para remoção específica')
                             const favoritosResponse = await api.get('/favoritos')
                             
-                            if (favoritosResponse.data && favoritosResponse.data.data) {
-                                const favorito = favoritosResponse.data.data.find((fav: any) => 
+                            const favData = favoritosResponse.data as any
+                            if (favData && favData.data) {
+                                const favorito = favData.data.find((fav: any) => 
                                     fav.id_produto === payload.id_produto && fav.id_usuario === payload.id_usuario
                                 )
                                 
