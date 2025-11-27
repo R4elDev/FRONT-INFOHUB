@@ -14,7 +14,7 @@ import './index.css'
 import Home from './pages/inicio/Home'
 import HomeInicial from './pages/inicio/HomeInicial'
 import HomeInicialAdmin from './pages/inicio/HomeInicialAdmin'
-import Localizacao from './pages/inicio/TelaLocalizacao'
+import TelaLocalizacao from './pages/inicio/TelaLocalizacao'
 import CadastroDeEndereco from './pages/inicio/CadastroDeEndereco'
 
 // Páginas de autenticação
@@ -110,7 +110,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/recuperar-senha2" element={<RecuperarSenha2/>} />
         <Route path="/recuperar-senha-final" element={<RecuperarSenhaFinal/>} />
         <Route path="/CadastroDeEndereco" element={<CadastroDeEndereco/>} />
-        <Route path="/Localizacao" element={<Localizacao/>} />
+        <Route path="/Localizacao" element={<TelaLocalizacao/>} />
         <Route path="/HomeInicial" element={
           <ProtectedRoute requireAuth={true}>
             <SmartRoute 
