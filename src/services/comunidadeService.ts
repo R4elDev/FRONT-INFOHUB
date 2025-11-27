@@ -638,13 +638,12 @@ class ComunidadeService {
   }
 
   /**
-   * Toggle curtida (curtir/descurtir) em um post
-   * O backend usa o mesmo endpoint POST para ambas as ações
-   * @deprecated Use curtirPost() que já funciona como toggle
+   * Descurtir um post - USA O MESMO ENDPOINT DE CURTIR (TOGGLE)
+   * O backend detecta automaticamente se deve adicionar ou remover a curtida
    */
   async descurtirPost(idPost: number): Promise<{ status: boolean; message: string; data?: any }> {
-    console.log(`👎 [descurtirPost] Redirecionando para curtirPost() (toggle)...`);
-    // Redirecionar para curtirPost que já é um toggle
+    console.log(`👎 [descurtirPost] Backend usa TOGGLE - redirecionando para curtirPost()...`);
+    // Backend usa toggle - o mesmo endpoint POST para curtir/descurtir
     return this.curtirPost(idPost);
   }
 
@@ -753,39 +752,109 @@ class ComunidadeService {
       
       const user = JSON.parse(userData);
       
-      const payload = {
+      console.log(`💬 [comentarEmPost] Testando múltiplos formatos de payload...`);
+      
+      // TESTE 1: Payload SEM id_post (id já vem na URL)
+      const payloadSemIdPost = {
+        id_usuario: user.id,
+        conteudo
+      };
+      
+      // TESTE 2: Payload COM id_post
+      const payloadComIdPost = {
         id_post: idPost,
         id_usuario: user.id,
         conteudo
       };
       
-      let response;
+      // TESTE 3: Payload apenas com conteudo
+      const payloadMinimo = {
+        conteudo
+      };
+      
+      let response: any = null;
+      
+      // TESTE 1: POST /post/:id/comentario SEM id_post
       try {
-        // Formato 1: POST /post/:id/comentario
-        response = await api.post(`/post/${idPost}/comentario`, payload);
+        console.log(`🔍 [TESTE 1] POST /post/${idPost}/comentario SEM id_post`);
+        console.log(`📦 Payload:`, payloadSemIdPost);
+        response = await api.post(`/post/${idPost}/comentario`, payloadSemIdPost);
+        console.log(`✅ [TESTE 1] SUCESSO! Este é o formato correto.`);
+        
+        return {
+          status: true,
+          message: 'Comentário criado com sucesso!',
+          data: response?.data
+        };
       } catch (err1: any) {
+        console.log(`❌ [TESTE 1] Falhou:`, err1.response?.status);
+        if (err1.response?.status === 500) {
+          console.error(`🔴 [TESTE 1] ERRO 500:`, err1.response?.data);
+        }
+        
+        // TESTE 2: POST /post/:id/comentario COM id_post
         try {
-          // Formato 2: POST /comentario
-          response = await api.post('/comentario', payload);
+          console.log(`🔍 [TESTE 2] POST /post/${idPost}/comentario COM id_post`);
+          console.log(`📦 Payload:`, payloadComIdPost);
+          response = await api.post(`/post/${idPost}/comentario`, payloadComIdPost);
+          console.log(`✅ [TESTE 2] SUCESSO! Este é o formato correto.`);
+          
+          return {
+            status: true,
+            message: 'Comentário criado com sucesso!',
+            data: response?.data
+          };
         } catch (err2: any) {
-          // Formato 3: POST /posts/:id/comment
-          response = await api.post(`/posts/${idPost}/comment`, payload);
+          console.log(`❌ [TESTE 2] Falhou:`, err2.response?.status);
+          if (err2.response?.status === 500) {
+            console.error(`🔴 [TESTE 2] ERRO 500:`, err2.response?.data);
+          }
+          
+          // TESTE 3: POST /post/:id/comentario apenas com conteudo
+          try {
+            console.log(`🔍 [TESTE 3] POST /post/${idPost}/comentario apenas conteudo`);
+            console.log(`📦 Payload:`, payloadMinimo);
+            response = await api.post(`/post/${idPost}/comentario`, payloadMinimo);
+            console.log(`✅ [TESTE 3] SUCESSO! Este é o formato correto.`);
+            
+            return {
+              status: true,
+              message: 'Comentário criado com sucesso!',
+              data: response?.data
+            };
+          } catch (err3: any) {
+            console.log(`❌ [TESTE 3] Falhou:`, err3.response?.status);
+            if (err3.response?.status === 500) {
+              console.error(`🔴 [TESTE 3] ERRO 500:`, err3.response?.data);
+            }
+            
+            // TESTE 4: POST /comentario com payload completo
+            try {
+              console.log(`🔍 [TESTE 4] POST /comentario COM id_post`);
+              console.log(`📦 Payload:`, payloadComIdPost);
+              response = await api.post('/comentario', payloadComIdPost);
+              console.log(`✅ [TESTE 4] SUCESSO! Este é o formato correto.`);
+              
+              return {
+                status: true,
+                message: 'Comentário criado com sucesso!',
+                data: response?.data
+              };
+            } catch (err4: any) {
+              console.log(`❌ [TESTE 4] Falhou:`, err4.response?.status);
+              console.error('❌ Todos os 4 testes falharam');
+              throw new Error('Nenhum formato de payload funcionou');
+            }
+          }
         }
       }
       
-      console.log('✅ [comentarEmPost] Comentário criado!');
-      
-      return {
-        status: true,
-        message: 'Comentário criado com sucesso!',
-        data: response?.data
-      };
-      
     } catch (error: any) {
-      console.error('❌ [comentarEmPost] Erro:', error.response?.data || error.message);
+      console.error('❌ [comentarEmPost] Todos os endpoints falharam');
+      console.error('🔴 [comentarEmPost] Último erro:', error.response?.data || error.message);
       return {
         status: false,
-        message: error.response?.data?.message || 'Erro ao comentar'
+        message: error.response?.data?.message || 'Erro ao comentar. Verifique os logs (F12).'
       };
     }
   }

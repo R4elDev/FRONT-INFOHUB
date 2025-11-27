@@ -109,17 +109,12 @@ export default function InfoCashComentarios() {
   };
 
   const handleCurtir = async (idPost: number) => {
-    const curtidaAtual = curtidas[idPost];
-    const acao = curtidaAtual?.curtido ? 'descurtir' : 'curtir';
-    
-    console.log(`🔄 [handleCurtir] Tentando ${acao} post ${idPost}...`);
-    
-    // O backend usa toggle - o mesmo endpoint para curtir e descurtir
+    // Backend usa TOGGLE - sempre chama curtirPost, independente do estado atual
     const resultado = await comunidadeService.curtirPost(idPost);
     
     if (resultado.status && resultado.data) {
       // Usar os dados retornados pelo backend (já vem correto)
-      console.log(`✅ [handleCurtir] ${acao} bem-sucedido:`, resultado.data);
+      console.log(`✅ Curtida atualizada:`, resultado.data);
       
       setCurtidas(prev => ({
         ...prev,
@@ -129,8 +124,8 @@ export default function InfoCashComentarios() {
         }
       }));
     } else {
-      console.error(`❌ [handleCurtir] Erro ao ${acao}:`, resultado.message);
-      alert(`Não foi possível ${acao}: ${resultado.message}\n\nVerifique os logs do console (F12) para mais detalhes.`);
+      console.error('❌ Erro ao curtir/descurtir:', resultado.message);
+      alert(`Não foi possível atualizar curtida: ${resultado.message}`);
     }
   };
 
