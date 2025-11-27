@@ -109,32 +109,23 @@ export default function InfoCashComentarios() {
   };
 
   const handleCurtir = async (idPost: number) => {
-    const curtidaAtual = curtidas[idPost];
+    // Backend usa TOGGLE - sempre chama curtirPost, independente do estado atual
+    const resultado = await comunidadeService.curtirPost(idPost);
     
-    if (curtidaAtual?.curtido) {
-      // Descurtir
-      const resultado = await comunidadeService.descurtirPost(idPost);
-      if (resultado.status) {
-        setCurtidas(prev => ({
-          ...prev,
-          [idPost]: { curtido: false, total: Math.max(0, prev[idPost].total - 1) }
-        }));
-      } else {
-        console.error('❌ Erro ao descurtir:', resultado.message);
-        alert(`Não foi possível descurtir: ${resultado.message}`);
-      }
+    if (resultado.status && resultado.data) {
+      // Usar os dados retornados pelo backend (já vem correto)
+      console.log(`✅ Curtida atualizada:`, resultado.data);
+      
+      setCurtidas(prev => ({
+        ...prev,
+        [idPost]: { 
+          curtido: resultado.data.curtido, 
+          total: resultado.data.total_curtidas 
+        }
+      }));
     } else {
-      // Curtir
-      const resultado = await comunidadeService.curtirPost(idPost);
-      if (resultado.status) {
-        setCurtidas(prev => ({
-          ...prev,
-          [idPost]: { curtido: true, total: (prev[idPost]?.total || 0) + 1 }
-        }));
-      } else {
-        console.error('❌ Erro ao curtir:', resultado.message);
-        alert(`Não foi possível curtir: ${resultado.message}\n\nVerifique os logs do console (F12) para mais detalhes.`);
-      }
+      console.error('❌ Erro ao curtir/descurtir:', resultado.message);
+      alert(`Não foi possível atualizar curtida: ${resultado.message}`);
     }
   };
 
