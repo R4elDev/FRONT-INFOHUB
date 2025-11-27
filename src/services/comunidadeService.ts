@@ -638,59 +638,14 @@ class ComunidadeService {
   }
 
   /**
-   * Descurtir um post
+   * Toggle curtida (curtir/descurtir) em um post
+   * O backend usa o mesmo endpoint POST para ambas as ações
+   * @deprecated Use curtirPost() que já funciona como toggle
    */
-  async descurtirPost(idPost: number): Promise<{ status: boolean; message: string }> {
-    try {
-      console.log(`👎 [descurtirPost] Removendo curtida do post ${idPost}...`);
-      
-      const userData = localStorage.getItem('user_data');
-      if (!userData) {
-        return {
-          status: false,
-          message: 'Você precisa estar logado'
-        };
-      }
-      
-      const user = JSON.parse(userData);
-      
-      // Tentar vários formatos de endpoint
-      const endpoints = [
-        { url: `/curtida/${idPost}/${user.id}` },
-        { url: `/post/${idPost}/curtir/${user.id}` },
-        { url: `/posts/${idPost}/curtir/${user.id}` },
-        { url: `/curtidas/${idPost}/${user.id}` },
-        { url: `/post/${idPost}/like/${user.id}` },
-      ];
-      
-      let ultimoErro: any = null;
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`🔍 [descurtirPost] Tentando DELETE ${endpoint.url}...`);
-          await api.delete(endpoint.url);
-          console.log(`✅ [descurtirPost] Sucesso com ${endpoint.url}!`);
-          
-          return {
-            status: true,
-            message: 'Curtida removida'
-          };
-        } catch (err: any) {
-          console.log(`❌ [descurtirPost] ${endpoint.url} falhou:`, err.response?.status);
-          ultimoErro = err;
-          continue;
-        }
-      }
-      
-      throw ultimoErro;
-      
-    } catch (error: any) {
-      console.error('❌ [descurtirPost] Todos os endpoints falharam');
-      return {
-        status: false,
-        message: 'Endpoint de descurtir não encontrado'
-      };
-    }
+  async descurtirPost(idPost: number): Promise<{ status: boolean; message: string; data?: any }> {
+    console.log(`👎 [descurtirPost] Redirecionando para curtirPost() (toggle)...`);
+    // Redirecionar para curtirPost que já é um toggle
+    return this.curtirPost(idPost);
   }
 
   /**

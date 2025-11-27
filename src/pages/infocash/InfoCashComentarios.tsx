@@ -110,31 +110,27 @@ export default function InfoCashComentarios() {
 
   const handleCurtir = async (idPost: number) => {
     const curtidaAtual = curtidas[idPost];
+    const acao = curtidaAtual?.curtido ? 'descurtir' : 'curtir';
     
-    if (curtidaAtual?.curtido) {
-      // Descurtir
-      const resultado = await comunidadeService.descurtirPost(idPost);
-      if (resultado.status) {
-        setCurtidas(prev => ({
-          ...prev,
-          [idPost]: { curtido: false, total: Math.max(0, prev[idPost].total - 1) }
-        }));
-      } else {
-        console.error('❌ Erro ao descurtir:', resultado.message);
-        alert(`Não foi possível descurtir: ${resultado.message}`);
-      }
+    console.log(`🔄 [handleCurtir] Tentando ${acao} post ${idPost}...`);
+    
+    // O backend usa toggle - o mesmo endpoint para curtir e descurtir
+    const resultado = await comunidadeService.curtirPost(idPost);
+    
+    if (resultado.status && resultado.data) {
+      // Usar os dados retornados pelo backend (já vem correto)
+      console.log(`✅ [handleCurtir] ${acao} bem-sucedido:`, resultado.data);
+      
+      setCurtidas(prev => ({
+        ...prev,
+        [idPost]: { 
+          curtido: resultado.data.curtido, 
+          total: resultado.data.total_curtidas 
+        }
+      }));
     } else {
-      // Curtir
-      const resultado = await comunidadeService.curtirPost(idPost);
-      if (resultado.status) {
-        setCurtidas(prev => ({
-          ...prev,
-          [idPost]: { curtido: true, total: (prev[idPost]?.total || 0) + 1 }
-        }));
-      } else {
-        console.error('❌ Erro ao curtir:', resultado.message);
-        alert(`Não foi possível curtir: ${resultado.message}\n\nVerifique os logs do console (F12) para mais detalhes.`);
-      }
+      console.error(`❌ [handleCurtir] Erro ao ${acao}:`, resultado.message);
+      alert(`Não foi possível ${acao}: ${resultado.message}\n\nVerifique os logs do console (F12) para mais detalhes.`);
     }
   };
 
