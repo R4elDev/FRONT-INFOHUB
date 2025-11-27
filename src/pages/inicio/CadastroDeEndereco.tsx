@@ -36,32 +36,8 @@ function CadastroDeEndereco() {
     }
   };
 
-  // Função para buscar coordenadas usando Nominatim (OpenStreetMap)
-  const buscarCoordenadas = async (endereco: string, cidadeNome: string, estadoUF: string) => {
-    try {
-      const query = `${endereco}, ${cidadeNome}, ${estadoUF}, Brasil`
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`
-      )
-      
-      if (!response.ok) {
-        throw new Error('Erro ao buscar coordenadas')
-      }
 
-      const data = await response.json()
-      
-      if (data && data.length > 0) {
-        setLatitude(data[0].lat)
-        setLongitude(data[0].lon)
-        console.log('Coordenadas encontradas:', { lat: data[0].lat, lon: data[0].lon })
-      }
-    } catch (error) {
-      console.error('Erro ao buscar coordenadas:', error)
-      // Não exibe alerta para não interromper o fluxo
-    }
-  }
-
-  // Função para buscar CEP (usa ViaCEP diretamente)
+  // Função para buscar CEP (usa Google Geocoding API)
   const buscarCep = async (cepValue: string) => {
     const cepLimpo = cepValue.replace(/\D/g, '')
     
@@ -72,33 +48,32 @@ function CadastroDeEndereco() {
     setCarregandoCep(true)
 
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+      const { buscarCoordenadasPorCEP } = await import('../../services/googleMapsService')
       
-      if (!response.ok) {
-        throw new Error('Erro na requisição')
+      const resultado = await buscarCoordenadasPorCEP(cepValue)
+      
+      // Extrair informações dos componentes do endereço
+      const components = resultado.addressComponents
+      
+      if (components) {
+        setRua(components.logradouro || "")
+        setBairro(components.bairro || "")
+        setCidade(components.cidade || "")
+        setEstado(components.estado || "")
+        setComplemento("")
       }
-
-      const data = await response.json()
-
-      if (data.erro) {
-        toast.error('CEP não encontrado!')
-        setCarregandoCep(false)
-        return
+      
+      // Definir coordenadas
+      if (resultado.coordinates) {
+        setLatitude(resultado.coordinates.lat.toString())
+        setLongitude(resultado.coordinates.lng.toString())
       }
-
-      // Preenche os campos automaticamente
-      setRua(data.logradouro || "")
-      setBairro(data.bairro || "")
-      setCidade(data.localidade || "")
-      setEstado(data.uf || "")
-      setComplemento(data.complemento || "")
-
-      // Busca as coordenadas geográficas
-      await buscarCoordenadas(data.logradouro, data.localidade, data.uf)
+      
+      toast.success('CEP encontrado com sucesso!')
 
     } catch (error) {
       console.error('Erro ao buscar CEP:', error)
-      toast.error('Erro ao buscar CEP. Tente novamente.')
+      toast.error('CEP não encontrado ou inválido.')
     } finally {
       setCarregandoCep(false)
     }
