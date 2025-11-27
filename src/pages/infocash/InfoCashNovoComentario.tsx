@@ -105,14 +105,14 @@ export default function InfoCashNovoComentario() {
       return
     }
     
-    // Combinar título e conteúdo, já que o backend não suporta título separado
-    const conteudoCompleto = titulo.trim() 
-      ? `${titulo.trim()}\n\n${conteudo.trim()}`
-      : conteudo.trim();
-      
-    // Validar tamanho do conteúdo (backend aceita máximo 500 caracteres)
-    if (conteudoCompleto.length > 500) {
-      setError(`O texto completo tem ${conteudoCompleto.length} caracteres. Máximo permitido: 500.`)
+    // Validar tamanhos individuais
+    if (titulo.trim().length > 100) {
+      setError('Título deve ter no máximo 100 caracteres.')
+      return
+    }
+    
+    if (conteudo.trim().length > 500) {
+      setError('Conteúdo deve ter no máximo 500 caracteres.')
       return
     }
     
@@ -122,19 +122,32 @@ export default function InfoCashNovoComentario() {
     try {
         
       console.log('📝 [InfoCashNovoComentario] Criando post...');
-      console.log('📝 [InfoCashNovoComentario] Conteúdo completo:', conteudoCompleto);
+      console.log('📝 [InfoCashNovoComentario] Título:', titulo.trim());
+      console.log('📝 [InfoCashNovoComentario] Conteúdo:', conteudo.trim());
       console.log('📝 [InfoCashNovoComentario] Produto selecionado:', produtoSelecionado);
+      console.log('📝 [InfoCashNovoComentario] User ID:', user?.id);
       
-      // Criando post - TEMPORARIAMENTE sem produto para testar
-      console.log('⚠️ TESTE: Enviando SEM produto para evitar erro no backend');
-      const response = await comunidadeService.criarPost({
-        conteudo: conteudoCompleto, // Backend não aceita título separado
-        // id_produto: produtoSelecionado ? parseInt(produtoSelecionado) : undefined, // DESABILITADO TEMPORARIAMENTE
-        imagem: img || undefined
-      })
+      // Monta o payload completo - com titulo separado
+      const payload: any = {
+        titulo: titulo.trim(),
+        conteudo: conteudo.trim()
+      }
       
-      // Para testar COM produto, descomente a linha abaixo:
-      // id_produto: produtoSelecionado ? parseInt(produtoSelecionado) : undefined,
+      // Adiciona produto se selecionado
+      if (produtoSelecionado) {
+        payload.id_produto = parseInt(produtoSelecionado)
+      }
+      
+      // Adiciona imagem se existir
+      if (img) {
+        payload.imagem = img
+      }
+      
+      console.log('📤 [InfoCashNovoComentario] Payload enviado:', JSON.stringify(payload, null, 2));
+      
+      const response = await comunidadeService.criarPost(payload)
+      
+      console.log('📥 [InfoCashNovoComentario] Resposta recebida:', response);
       
       if (response.status) {
         setSuccess(true)
@@ -146,8 +159,19 @@ export default function InfoCashNovoComentario() {
         setError(response.message || 'Erro ao criar comentário')
       }
     } catch (err: any) {
-      console.error('Erro ao criar comentário:', err)
-      setError('Erro ao criar comentário. Tente novamente.')
+      console.error('❌ [InfoCashNovoComentario] Erro ao criar post:', err)
+      console.error('❌ [InfoCashNovoComentario] Erro response:', err.response)
+      console.error('❌ [InfoCashNovoComentario] Erro response.data:', err.response?.data)
+      console.error('❌ [InfoCashNovoComentario] Erro status:', err.response?.status)
+      console.error('❌ [InfoCashNovoComentario] Erro message:', err.message)
+      
+      // Mostra erro detalhado
+      const errorMessage = err.response?.data?.message 
+        || err.response?.data?.error 
+        || err.message 
+        || 'Erro desconhecido ao criar comentário'
+      
+      setError(`Erro: ${errorMessage} (Status: ${err.response?.status || 'N/A'})`)
     } finally {
       setLoading(false)
     }

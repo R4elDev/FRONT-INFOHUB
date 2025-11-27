@@ -268,6 +268,7 @@ export interface produtoRequest {
   id_categoria?: number;
   id_estabelecimento: number;
   preco: number;
+  imagem?: string;  // URL da imagem no Azure Blob Storage
   promocao?: {
     preco_promocional: number;
     data_inicio: string;
@@ -314,6 +315,7 @@ export interface listarProdutosResponse {
     id_categoria: number;
     id_estabelecimento: number;
     preco: number;
+    imagem?: string;
     promocao?: {
       id: number;
       preco_promocional: number;

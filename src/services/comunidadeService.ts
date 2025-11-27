@@ -1,5 +1,13 @@
 import api from '../lib/api';
 
+interface Produto {
+  id_produto: number;
+  nome: string;
+  descricao?: string;
+  preco?: string;
+  imagem?: string;
+}
+
 interface Comentario {
   id_comentario: number;
   titulo: string;
@@ -9,6 +17,9 @@ interface Comentario {
   data_atualizacao: string;
   nome_usuario: string;
   id_usuario: number;
+  id_produto?: number;
+  produto?: Produto;
+  foto_url?: string;
 }
 
 interface ComentarioResponse {
@@ -100,54 +111,16 @@ class ComunidadeService {
       
       const user = JSON.parse(userData);
       
-      // ⚠️ MOCK TEMPORÁRIO - BACKEND COM ERRO NO DAO/MODEL
-      const USE_MOCK = true; // Mudar para false quando backend for corrigido
-      
-      if (USE_MOCK) {
-        console.log('⚠️ [MOCK] Usando mock temporário - backend com erro no DAO');
-        console.log('📝 [MOCK] Simulando criação de post...');
-        
-        // Simular delay de rede
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Salvar no localStorage como fallback
-        const posts = JSON.parse(localStorage.getItem('mock_posts') || '[]');
-        const novoPost = {
-          id_post: Date.now(),
-          id_usuario: user.id,
-          conteudo: dados.conteudo,
-          id_produto: dados.id_produto || null,
-          foto_url: dados.imagem || null,
-          data_criacao: new Date().toISOString(),
-          nome_usuario: user.nome || 'Usuário'
-        };
-        
-        posts.unshift(novoPost);
-        localStorage.setItem('mock_posts', JSON.stringify(posts));
-        
-        console.log('✅ [MOCK] Post salvo localmente:', novoPost);
-        
-        return {
-          status: true,
-          message: 'Post criado com sucesso! (Mock temporário)',
-          data: {
-            id_comentario: novoPost.id_post,
-            titulo: dados.titulo || 'Post',
-            conteudo: dados.conteudo,
-            pontos_ganhos: 10,
-            data_criacao: novoPost.data_criacao,
-            data_atualizacao: novoPost.data_criacao,
-            nome_usuario: novoPost.nome_usuario,
-            id_usuario: novoPost.id_usuario
-          }
-        };
-      }
-      
-      // Código original para quando backend for corrigido
+      // POST REAL - SEM MOCK
       const payload: any = {
         id_usuario: user.id,
         conteudo: dados.conteudo
       };
+      
+      // Enviar titulo separadamente se existir
+      if (dados.titulo) {
+        payload.titulo = dados.titulo;
+      }
       
       if (dados.id_produto) {
         payload.id_produto = parseInt(String(dados.id_produto));
@@ -239,58 +212,89 @@ class ComunidadeService {
   }
 
   async listarPosts(limite = 50, page = 1): Promise<ComentarioResponse> {
+    console.log('📋 [listarPosts] Buscando posts do backend...');
+    
     try {
-      // Primeiro tentar buscar posts mockados se USE_MOCK estiver ativo
-      const mockPosts = localStorage.getItem('mock_posts');
-      if (mockPosts) {
-        const posts = JSON.parse(mockPosts);
-        console.log('📋 [MOCK] Listando posts locais:', posts.length);
-        
-        return {
-          status: true,
-          message: 'Posts listados com sucesso (mock)',
-          data: posts.map((p: any) => ({
-            id_comentario: p.id_post || p.id,
-            titulo: 'Post',
-            conteudo: p.conteudo || '',
-            pontos_ganhos: 10,
-            data_criacao: p.data_criacao || new Date().toISOString(),
-            data_atualizacao: p.data_criacao || new Date().toISOString(),
-            nome_usuario: p.nome_usuario || 'Usuário',
-            id_usuario: p.id_usuario || 1
-          }))
-        };
+      // Tentar primeiro com paginação, depois sem
+      console.log('🔍 [listarPosts] Chamando GET /posts...');
+      
+      let response;
+      try {
+        // Primeira tentativa: com paginação
+        response = await api.get('/posts', {
+          params: { page, limit: limite }
+        });
+      } catch (firstError: any) {
+        console.log('⚠️ [listarPosts] Falhou com paginação, tentando sem params...');
+        // Segunda tentativa: sem parâmetros
+        response = await api.get('/posts');
       }
       
-      const response = await api.get(`/posts`, {
-        params: { page, limit: limite }
-      });
+      console.log('✅ [listarPosts] Resposta:', response.data);
       
       const responseData = response.data as any;
-      if (responseData && responseData.status) {
-        const posts = Array.isArray(responseData.data) ? responseData.data : 
-                     Array.isArray(responseData) ? responseData : [];
-        
-        return {
-          status: true,
-          message: 'Posts listados com sucesso',
-          data: posts.map((p: any) => ({
-            id_comentario: p.id_post || p.id,
-            titulo: p.titulo || 'Post',
-            conteudo: p.conteudo || p.texto || '',
-            pontos_ganhos: 10,
-            data_criacao: p.data_criacao || p.createdAt || new Date().toISOString(),
-            data_atualizacao: p.data_atualizacao || p.updatedAt || new Date().toISOString(),
-            nome_usuario: p.nome_usuario || p.usuario?.nome || 'Usuário',
-            id_usuario: p.id_usuario || p.usuario?.id || 1
-          }))
-        };
+      
+      // Extrair posts de diferentes estruturas de resposta
+      let posts: any[] = [];
+      
+      if (responseData && responseData.data && Array.isArray(responseData.data)) {
+        posts = responseData.data;
+      } else if (responseData && responseData.posts && Array.isArray(responseData.posts)) {
+        posts = responseData.posts;
+      } else if (Array.isArray(responseData)) {
+        posts = responseData;
       }
       
-      return await this.listarComentarios(limite, page);
-    } catch (error: any) {
-      console.error('Erro ao listar posts:', error);
-      return await this.listarComentarios(limite, page);
+      console.log(`📊 [listarPosts] Total de posts: ${posts.length}`);
+      
+      // Log para debug - ver estrutura do produto
+      if (posts.length > 0) {
+        console.log('🔍 [listarPosts] Estrutura do primeiro post:', JSON.stringify(posts[0], null, 2));
+      }
+      
+      return {
+        status: true,
+        message: 'Posts listados com sucesso',
+        data: posts.map((p: any) => {
+          // Extrair dados do produto de diferentes estruturas possíveis
+          const produtoData = p.produto || p.Produto || null;
+          
+          return {
+            id_comentario: p.id_post || p.id || p.id_comentario,
+            titulo: p.titulo || 'Post',
+            conteudo: p.conteudo || p.texto || '',
+            pontos_ganhos: p.pontos_ganhos || 10,
+            data_criacao: p.data_criacao || p.createdAt || p.created_at || new Date().toISOString(),
+            data_atualizacao: p.data_atualizacao || p.updatedAt || p.updated_at || new Date().toISOString(),
+            nome_usuario: p.nome_usuario || p.usuario?.nome || p.Usuario?.nome || 'Usuário',
+            id_usuario: p.id_usuario || p.usuario?.id || p.Usuario?.id || 1,
+            id_produto: p.id_produto || produtoData?.id_produto || produtoData?.id || null,
+            produto: produtoData ? {
+              id_produto: produtoData.id_produto || produtoData.id,
+              nome: produtoData.nome || produtoData.name || 'Produto',
+              descricao: produtoData.descricao || produtoData.description || '',
+              preco: produtoData.preco || produtoData.price || '',
+              imagem: produtoData.imagem || produtoData.image || produtoData.foto_url || ''
+            } : undefined,
+            foto_url: p.foto_url || p.imagem || null
+          };
+        })
+      };
+      
+    } catch (err: any) {
+      console.error('❌ [listarPosts] Erro:', err.response?.status, err.response?.data || err.message);
+      
+      // Log detalhado do erro
+      if (err.response) {
+        console.error('📋 [listarPosts] Response headers:', err.response.headers);
+        console.error('📋 [listarPosts] Response config:', err.response.config?.url);
+      }
+      
+      return {
+        status: false,
+        message: err.response?.data?.message || 'Erro ao buscar posts',
+        data: []
+      };
     }
   }
   
