@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from "react-router-dom";
 import SidebarLayout from "../../components/layouts/SidebarLayout";
-import { MessageCircle, ThumbsUp, Edit3, ArrowLeft, Calendar, Award, Loader2, Package, ShoppingBag } from "lucide-react";
+import { MessageCircle, ThumbsUp, MessageSquare, ArrowLeft, Calendar, Award, Loader2, Package, ShoppingBag } from "lucide-react";
 import iconPerfilComentario from "../../assets/iconPerfilComentario.png";
 import comunidadeService from '../../services/comunidadeService'; // Usando serviço REAL
-import { useUser } from '../../contexts/UserContext';
 
 // Animação CSS
 const style = document.createElement('style')
@@ -37,10 +36,23 @@ if (!document.head.querySelector('style[data-infocash-animations]')) {
 }
 
 export default function InfoCashComentarios() {
-  const { user } = useUser();
   const [comments, setComments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Estados para curtidas
+  const [curtidas, setCurtidas] = useState<{ [key: number]: { curtido: boolean; total: number } }>({});
+  
+  // Estados para modal de comentário
+  const [modalComentarioAberto, setModalComentarioAberto] = useState(false);
+  const [postSelecionado, setPostSelecionado] = useState<any | null>(null);
+  const [comentarioTexto, setComentarioTexto] = useState('');
+  const [enviandoComentario, setEnviandoComentario] = useState(false);
+  
+  // Estados para visualização de comentários
+  const [comentariosVisiveis, setComentariosVisiveis] = useState<{ [key: number]: boolean }>({});
+  const [comentariosPorPost, setComentariosPorPost] = useState<{ [key: number]: any[] }>({});
+  const [carregandoComentarios, setCarregandoComentarios] = useState<{ [key: number]: boolean }>({});
 
   useEffect(() => {
     carregarComentarios();
@@ -61,10 +73,14 @@ export default function InfoCashComentarios() {
       if (response.status && Array.isArray(response.data)) {
         console.log('✅ [InfoCashComentarios] Total de posts:', response.data.length);
         setComments(response.data);
+        
+        // Carregar curtidas de cada post
+        carregarCurtidasPosts(response.data);
       } else if (response.status && response.data) {
         // Caso data não seja array mas exista
         const dataArray = Array.isArray(response.data) ? response.data : [response.data];
         setComments(dataArray);
+        carregarCurtidasPosts(dataArray);
       } else {
         console.log('⚠️ [InfoCashComentarios] Nenhum post encontrado');
         setComments([]);
@@ -76,6 +92,108 @@ export default function InfoCashComentarios() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const carregarCurtidasPosts = async (posts: any[]) => {
+    const curtidasTemp: { [key: number]: { curtido: boolean; total: number } } = {};
+    
+    for (const post of posts) {
+      const resultado = await comunidadeService.verificarCurtida(post.id_comentario);
+      curtidasTemp[post.id_comentario] = {
+        curtido: resultado.curtido,
+        total: resultado.total_curtidas
+      };
+    }
+    
+    setCurtidas(curtidasTemp);
+  };
+
+  const handleCurtir = async (idPost: number) => {
+    const curtidaAtual = curtidas[idPost];
+    
+    if (curtidaAtual?.curtido) {
+      // Descurtir
+      const resultado = await comunidadeService.descurtirPost(idPost);
+      if (resultado.status) {
+        setCurtidas(prev => ({
+          ...prev,
+          [idPost]: { curtido: false, total: Math.max(0, prev[idPost].total - 1) }
+        }));
+      } else {
+        console.error('❌ Erro ao descurtir:', resultado.message);
+        alert(`Não foi possível descurtir: ${resultado.message}`);
+      }
+    } else {
+      // Curtir
+      const resultado = await comunidadeService.curtirPost(idPost);
+      if (resultado.status) {
+        setCurtidas(prev => ({
+          ...prev,
+          [idPost]: { curtido: true, total: (prev[idPost]?.total || 0) + 1 }
+        }));
+      } else {
+        console.error('❌ Erro ao curtir:', resultado.message);
+        alert(`Não foi possível curtir: ${resultado.message}\n\nVerifique os logs do console (F12) para mais detalhes.`);
+      }
+    }
+  };
+
+  const abrirModalComentario = (post: any) => {
+    setPostSelecionado(post);
+    setModalComentarioAberto(true);
+    setComentarioTexto('');
+  };
+
+  const fecharModalComentario = () => {
+    setModalComentarioAberto(false);
+    setPostSelecionado(null);
+    setComentarioTexto('');
+  };
+
+  const handleEnviarComentario = async () => {
+    if (!comentarioTexto.trim() || !postSelecionado) return;
+    
+    setEnviandoComentario(true);
+    const resultado = await comunidadeService.comentarEmPost(postSelecionado.id_comentario, comentarioTexto);
+    setEnviandoComentario(false);
+    
+    if (resultado.status) {
+      fecharModalComentario();
+      alert('Comentário enviado com sucesso!');
+      
+      // Recarregar comentários desse post
+      carregarComentariosDoPost(postSelecionado.id_comentario);
+    } else {
+      alert(resultado.message || 'Erro ao enviar comentário');
+    }
+  };
+
+  const toggleComentarios = async (idPost: number) => {
+    // Se já está visível, apenas esconde
+    if (comentariosVisiveis[idPost]) {
+      setComentariosVisiveis(prev => ({ ...prev, [idPost]: false }));
+      return;
+    }
+    
+    // Se não tem comentários carregados, busca
+    if (!comentariosPorPost[idPost]) {
+      await carregarComentariosDoPost(idPost);
+    }
+    
+    // Mostra os comentários
+    setComentariosVisiveis(prev => ({ ...prev, [idPost]: true }));
+  };
+
+  const carregarComentariosDoPost = async (idPost: number) => {
+    setCarregandoComentarios(prev => ({ ...prev, [idPost]: true }));
+    
+    const resultado = await comunidadeService.listarComentariosDoPost(idPost);
+    
+    if (resultado.status) {
+      setComentariosPorPost(prev => ({ ...prev, [idPost]: resultado.comentarios }));
+    }
+    
+    setCarregandoComentarios(prev => ({ ...prev, [idPost]: false }));
   };
 
   const formatarData = (data: string) => {
@@ -207,21 +325,101 @@ export default function InfoCashComentarios() {
                   
                   {/* Ações */}
                   <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
-                    <button className="flex items-center gap-2 text-gray-600 hover:text-[#F9A01B] transition-colors group">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 group-hover:bg-orange-100 flex items-center justify-center transition-colors">
-                        <ThumbsUp className="w-4 h-4" />
+                    <button 
+                      onClick={() => handleCurtir(c.id_comentario)}
+                      className={`flex items-center gap-2 transition-colors group ${
+                        curtidas[c.id_comentario]?.curtido 
+                          ? 'text-[#F9A01B]' 
+                          : 'text-gray-600 hover:text-[#F9A01B]'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                        curtidas[c.id_comentario]?.curtido
+                          ? 'bg-orange-100'
+                          : 'bg-gray-100 group-hover:bg-orange-100'
+                      }`}>
+                        <ThumbsUp className={`w-4 h-4 ${curtidas[c.id_comentario]?.curtido ? 'fill-current' : ''}`} />
                       </div>
-                      <span className="text-sm font-medium">Curtir</span>
+                      <span className="text-sm font-medium">
+                        {curtidas[c.id_comentario]?.curtido ? 'Curtido' : 'Curtir'}
+                        {curtidas[c.id_comentario]?.total > 0 && (
+                          <span className="ml-1">({curtidas[c.id_comentario]?.total})</span>
+                        )}
+                      </span>
                     </button>
-                    {user?.id === c.id_usuario && (
-                      <button className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors group">
-                        <div className="w-8 h-8 rounded-full bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
-                          <Edit3 className="w-4 h-4" />
-                        </div>
-                        <span className="text-sm font-medium">Editar</span>
-                      </button>
-                    )}
+                    <button 
+                      onClick={() => abrirModalComentario(c)}
+                      className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors group"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gray-100 group-hover:bg-blue-100 flex items-center justify-center transition-colors">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <span className="text-sm font-medium">Comentar</span>
+                    </button>
+                    
+                    {/* Botão Ver Comentários */}
+                    <button 
+                      onClick={() => toggleComentarios(c.id_comentario)}
+                      className="flex items-center gap-2 text-gray-600 hover:text-purple-600 transition-colors group ml-auto"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span className="text-xs font-medium">
+                        {comentariosVisiveis[c.id_comentario] ? 'Ocultar' : 'Ver'} comentários
+                        {comentariosPorPost[c.id_comentario] && ` (${comentariosPorPost[c.id_comentario].length})`}
+                      </span>
+                    </button>
                   </div>
+
+                  {/* Seção de Comentários */}
+                  {comentariosVisiveis[c.id_comentario] && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      {carregandoComentarios[c.id_comentario] ? (
+                        <div className="flex items-center justify-center py-4">
+                          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                          <span className="ml-2 text-sm text-gray-500">Carregando comentários...</span>
+                        </div>
+                      ) : comentariosPorPost[c.id_comentario]?.length > 0 ? (
+                        <div className="space-y-3">
+                          <p className="text-xs font-bold text-gray-600 uppercase">
+                            {comentariosPorPost[c.id_comentario].length} Comentário(s)
+                          </p>
+                          {comentariosPorPost[c.id_comentario].map((comentario: any, idx: number) => (
+                            <div key={idx} className="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                              <div className="flex items-start gap-2 mb-2">
+                                <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-xs font-bold text-purple-600">
+                                    {comentario.nome_usuario?.[0] || 'U'}
+                                  </span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-gray-800">
+                                    {comentario.nome_usuario || 'Usuário'}
+                                  </p>
+                                  <p className="text-xs text-gray-500">
+                                    {formatarData(comentario.data_criacao || comentario.createdAt || new Date().toISOString())}
+                                  </p>
+                                </div>
+                              </div>
+                              <p className="text-sm text-gray-700 leading-relaxed pl-10">
+                                {comentario.conteudo}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-6">
+                          <MessageCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                          <p className="text-sm text-gray-500">Nenhum comentário ainda</p>
+                          <button
+                            onClick={() => abrirModalComentario(c)}
+                            className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                          >
+                            Seja o primeiro a comentar!
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))
             )}
@@ -231,11 +429,76 @@ export default function InfoCashComentarios() {
           <Link to="/infocash/novo-comentario">
             <button className="fixed right-6 bottom-6 bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] text-white rounded-2xl shadow-2xl px-6 py-4 hover:shadow-[0_10px_40px_rgba(249,160,27,0.4)] hover:scale-105 transition-all flex items-center gap-3 z-50 group">
               <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center group-hover:rotate-90 transition-transform duration-300">
-                <Edit3 className="w-5 h-5 text-white" />
+                <MessageSquare className="w-5 h-5 text-white" />
               </div>
               <span className="font-bold text-base">Novo Comentário</span>
             </button>
           </Link>
+
+          {/* Modal de Comentário */}
+          {modalComentarioAberto && postSelecionado && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
+                {/* Header */}
+                <div className="sticky top-0 bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-800">Comentar no Post</h3>
+                  <button 
+                    onClick={fecharModalComentario}
+                    className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+                  >
+                    <span className="text-gray-500 text-xl">×</span>
+                  </button>
+                </div>
+
+                {/* Conteúdo do Post */}
+                <div className="p-4 bg-gray-50">
+                  <p className="text-xs text-gray-500 mb-1">Você está comentando em:</p>
+                  <p className="text-sm font-bold text-gray-800">{postSelecionado.titulo}</p>
+                  <p className="text-xs text-gray-600 line-clamp-2 mt-1">{postSelecionado.conteudo}</p>
+                </div>
+
+                {/* Textarea */}
+                <div className="p-4">
+                  <textarea
+                    value={comentarioTexto}
+                    onChange={(e) => setComentarioTexto(e.target.value)}
+                    placeholder="Digite seu comentário..."
+                    className="w-full min-h-[120px] p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none resize-none text-sm"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-gray-200 p-4 flex items-center justify-between">
+                  <p className="text-xs text-gray-500">
+                    {comentarioTexto.length} caracteres
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={fecharModalComentario}
+                      className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleEnviarComentario}
+                      disabled={!comentarioTexto.trim() || enviandoComentario}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                    >
+                      {enviandoComentario ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Enviando...
+                        </>
+                      ) : (
+                        'Enviar'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </SidebarLayout>
