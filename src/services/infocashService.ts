@@ -68,9 +68,58 @@ class InfoCashService {
   async getSaldo(idUsuario: number): Promise<SaldoResponse> {
     try {
       const response = await api.get(`/infocash/saldo/${idUsuario}`);
-      return response.data as SaldoResponse;
+      const responseData = response.data as any;
+      
+      console.log('💰 [getSaldo] Resposta bruta:', JSON.stringify(responseData, null, 2));
+      
+      // Extrair dados - pode vir em vários formatos
+      const rawData = responseData?.data || responseData || {};
+      
+      // Extrair saldo - O BACKEND RETORNA: { saldo: { saldo_total: 2 } }
+      let saldoValor = 0;
+      
+      // Caso 1: saldo é objeto com saldo_total (formato do backend atual)
+      if (rawData.saldo && typeof rawData.saldo === 'object' && rawData.saldo.saldo_total !== undefined) {
+        saldoValor = Number(rawData.saldo.saldo_total) || 0;
+        console.log('💡 [getSaldo] Saldo extraído de saldo.saldo_total:', saldoValor);
+      }
+      // Caso 2: saldo é número direto
+      else if (typeof rawData.saldo === 'number') {
+        saldoValor = rawData.saldo;
+      } 
+      // Caso 3: saldo_total na raiz
+      else if (typeof rawData.saldo_total === 'number') {
+        saldoValor = rawData.saldo_total;
+      } 
+      // Caso 4: pontos
+      else if (typeof rawData.pontos === 'number') {
+        saldoValor = rawData.pontos;
+      }
+      // Caso 5: número direto
+      else if (typeof rawData === 'number') {
+        saldoValor = rawData;
+      }
+      // Caso 6: tentar converter
+      else {
+        saldoValor = Number(rawData.saldo) || Number(rawData.saldo_total) || 0;
+      }
+      
+      const saldoNormalizado = {
+        saldo: saldoValor,
+        nivel: rawData.nivel || rawData.level || this.getNivelUsuario(saldoValor).nivel,
+        total_ganho: Number(rawData.total_ganho) || Number(rawData.ganho) || 0,
+        total_gasto: Number(rawData.total_gasto) || Number(rawData.gasto) || 0
+      };
+      
+      console.log('✅ [getSaldo] Saldo normalizado:', saldoNormalizado);
+      
+      return { 
+        status: true, 
+        message: 'Saldo carregado',
+        data: saldoNormalizado
+      };
     } catch (error: any) {
-      console.error('Erro ao buscar saldo:', error);
+      console.warn('⚠️ [getSaldo] Erro:', error.response?.status, error.message);
       return { 
         status: false, 
         message: error.response?.data?.message || 'Erro ao buscar saldo',
@@ -87,9 +136,34 @@ class InfoCashService {
   async getHistorico(idUsuario: number, limite = 50): Promise<HistoricoResponse> {
     try {
       const response = await api.get(`/infocash/historico/${idUsuario}?limite=${limite}`);
-      return response.data as HistoricoResponse;
+      const responseData = response.data as any;
+      
+      console.log('📜 [getHistorico] Resposta bruta:', responseData);
+      
+      // Normalizar dados do histórico
+      const rawHistorico = responseData?.data || responseData?.historico || responseData?.transacoes || responseData || [];
+      
+      let historicoNormalizado: TransacaoHistorico[] = [];
+      
+      if (Array.isArray(rawHistorico)) {
+        historicoNormalizado = rawHistorico.map((item: any) => ({
+          id_transacao: item.id_transacao || item.id || 0,
+          tipo_acao: item.tipo_acao || item.tipo || item.action || 'OUTROS',
+          pontos: item.pontos || item.valor || item.amount || 0,
+          descricao: item.descricao || item.description || item.motivo || '',
+          data_transacao: item.data_transacao || item.data || item.createdAt || item.created_at || new Date().toISOString()
+        }));
+      }
+      
+      console.log('✅ [getHistorico] Histórico normalizado:', historicoNormalizado.length, 'itens');
+      
+      return { 
+        status: true, 
+        message: 'Histórico carregado',
+        data: historicoNormalizado 
+      };
     } catch (error: any) {
-      console.error('Erro ao buscar histórico:', error);
+      console.warn('⚠️ [getHistorico] Erro:', error.response?.status, error.message);
       return { 
         status: false, 
         message: error.response?.data?.message || 'Erro ao buscar histórico', 
@@ -146,9 +220,55 @@ class InfoCashService {
   async getPerfilCompleto(idUsuario: number): Promise<PerfilCompletoResponse> {
     try {
       const response = await api.get(`/infocash/perfil/${idUsuario}`);
-      return response.data as PerfilCompletoResponse;
+      const responseData = response.data as any;
+      
+      console.log('👤 [getPerfilCompleto] Resposta bruta:', JSON.stringify(responseData, null, 2));
+      
+      // Extrair dados - pode vir em vários formatos
+      const rawData = responseData?.data || responseData || {};
+      
+      // Extrair saldo - O BACKEND RETORNA: { saldo: { saldo_total: 2 } }
+      let saldoValor = 0;
+      
+      // Caso 1: saldo é objeto com saldo_total (formato do backend atual)
+      if (rawData.saldo && typeof rawData.saldo === 'object' && rawData.saldo.saldo_total !== undefined) {
+        saldoValor = Number(rawData.saldo.saldo_total) || 0;
+        console.log('💡 [getPerfilCompleto] Saldo extraído de saldo.saldo_total:', saldoValor);
+      }
+      // Caso 2: saldo é número direto
+      else if (typeof rawData.saldo === 'number') {
+        saldoValor = rawData.saldo;
+      } 
+      // Caso 3: saldo_total na raiz
+      else if (typeof rawData.saldo_total === 'number') {
+        saldoValor = rawData.saldo_total;
+      } 
+      // Caso 4: pontos
+      else if (typeof rawData.pontos === 'number') {
+        saldoValor = rawData.pontos;
+      }
+      // Caso 5: tentar converter
+      else {
+        saldoValor = Number(rawData.saldo) || Number(rawData.saldo_total) || 0;
+      }
+      
+      const perfilNormalizado = {
+        saldo: saldoValor,
+        nivel: rawData.nivel || rawData.level || this.getNivelUsuario(saldoValor).nivel,
+        total_ganho: Number(rawData.total_ganho) || Number(rawData.ganho) || 0,
+        total_gasto: Number(rawData.total_gasto) || Number(rawData.gasto) || 0,
+        resumo_por_tipo: rawData.resumo_por_tipo || rawData.resumo || []
+      };
+      
+      console.log('✅ [getPerfilCompleto] Perfil normalizado:', perfilNormalizado);
+      
+      return { 
+        status: true, 
+        message: 'Perfil carregado',
+        data: perfilNormalizado
+      };
     } catch (error: any) {
-      console.error('Erro ao buscar perfil completo:', error);
+      console.warn('⚠️ [getPerfilCompleto] Erro:', error.response?.status, error.message);
       return { 
         status: false, 
         message: error.response?.data?.message || 'Erro ao buscar perfil',
@@ -166,9 +286,34 @@ class InfoCashService {
   async getRanking(limite = 10): Promise<RankingResponse> {
     try {
       const response = await api.get(`/infocash/ranking?limite=${limite}`);
-      return response.data as RankingResponse;
+      const responseData = response.data as any;
+      
+      console.log('📊 [getRanking] Resposta bruta:', responseData);
+      
+      // Normalizar dados do ranking
+      let rankingData: UsuarioRanking[] = [];
+      
+      // Extrair array de ranking
+      const rawRanking = responseData?.data || responseData?.ranking || responseData || [];
+      
+      if (Array.isArray(rawRanking)) {
+        rankingData = rawRanking.map((item: any, index: number) => ({
+          id_usuario: item.id_usuario || item.id || item.usuario_id || 0,
+          nome_usuario: item.nome_usuario || item.nome || item.name || item.usuario?.nome || 'Usuário',
+          saldo_total: item.saldo_total || item.saldo || item.pontos || item.total || 0,
+          posicao: item.posicao || item.position || index + 1
+        }));
+      }
+      
+      console.log('✅ [getRanking] Ranking normalizado:', rankingData);
+      
+      return { 
+        status: true, 
+        message: 'Ranking carregado', 
+        data: rankingData 
+      };
     } catch (error: any) {
-      console.error('Erro ao buscar ranking:', error);
+      console.warn('⚠️ [getRanking] Erro:', error.response?.status, error.message);
       return { 
         status: false, 
         message: error.response?.data?.message || 'Erro ao buscar ranking', 

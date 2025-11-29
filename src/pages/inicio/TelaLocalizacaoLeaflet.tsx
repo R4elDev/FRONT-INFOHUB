@@ -6,7 +6,22 @@ import "leaflet/dist/leaflet.css"
 import { Input as CampoTexto } from "../../components/ui/input"
 import lupaPesquisa from "../../assets/lupa de pesquisa .png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { MapPin, Star, ShoppingCart, X, Navigation } from "lucide-react"
+import { MapPin, Star, ShoppingCart, X, Navigation, Store, Building2 } from "lucide-react"
+import api from "../../lib/api"
+
+// CSS para corrigir problema de ícones do Leaflet
+const leafletCustomCSS = `
+  .custom-marker-cadastrado,
+  .custom-marker-regiao,
+  .custom-marker-usuario {
+    background: transparent !important;
+    border: none !important;
+  }
+  .leaflet-marker-icon {
+    background: transparent !important;
+    border: none !important;
+  }
+`
 
 // ===============================
 // INTERFACES
@@ -38,6 +53,7 @@ interface Estabelecimento {
   comentario: string
   endereco?: string
   imagem: string
+  isCadastrado?: boolean // true = cadastrado no sistema (laranja), false = da região (verde)
 }
 
 // ===============================
@@ -161,41 +177,182 @@ function Localizacao() {
     return imagensPorTipo[tipo] || 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=400&h=300&fit=crop'
   }
 
-  // Criar ícone personalizado para marcadores
-  const criarIconeCarrinho = () => {
+  // Estado para estabelecimentos cadastrados no sistema
+  const [estabelecimentosCadastrados, setEstabelecimentosCadastrados] = useState<Estabelecimento[]>([])
+
+  // Criar ícone LARANJA para estabelecimentos CADASTRADOS no sistema
+  const criarIconeCadastrado = () => {
     return new DivIcon({
       html: `
-        <div style="
-          background: linear-gradient(135deg, #F9A01B 0%, #FF8C00 100%);
-          border-radius: 50%;
-          width: 40px;
-          height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 4px 12px rgba(249, 160, 27, 0.4);
-          border: 3px solid white;
-        ">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="8" cy="21" r="1"/>
-            <circle cx="19" cy="21" r="1"/>
-            <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
-          </svg>
+        <div style="position: relative; width: 44px; height: 54px;">
+          <div style="
+            background: linear-gradient(135deg, #F9A01B 0%, #FF8C00 100%);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(249, 160, 27, 0.5);
+            border: 3px solid white;
+          ">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+          </div>
+          <div style="
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 10px solid #FF8C00;
+          "></div>
         </div>
       `,
-      className: "custom-marker",
-      iconSize: [40, 40],
-      iconAnchor: [20, 40],
+      className: "custom-marker-cadastrado",
+      iconSize: [44, 54],
+      iconAnchor: [22, 54],
+    })
+  }
+
+  // Criar ícone VERDE para estabelecimentos da REGIÃO (OpenStreetMap)
+  const criarIconeRegiao = () => {
+    return new DivIcon({
+      html: `
+        <div style="position: relative; width: 38px; height: 48px;">
+          <div style="
+            background: linear-gradient(135deg, #22C55E 0%, #16A34A 100%);
+            border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+            border: 3px solid white;
+          ">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="8" cy="21" r="1"/>
+              <circle cx="19" cy="21" r="1"/>
+              <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
+            </svg>
+          </div>
+          <div style="
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid #16A34A;
+          "></div>
+        </div>
+      `,
+      className: "custom-marker-regiao",
+      iconSize: [38, 48],
+      iconAnchor: [19, 48],
     })
   }
 
   // ===============================
-  // BUSCA DE MERCADOS PRÓXIMOS
+  // BUSCA DE ESTABELECIMENTOS CADASTRADOS NO SISTEMA
+  // ===============================
+  const buscarEstabelecimentosCadastrados = async (lat: number, lon: number): Promise<void> => {
+    try {
+      console.log("🏢 Buscando estabelecimentos cadastrados no sistema...")
+      
+      // Busca todos os estabelecimentos do backend
+      const response = await api.get<any>("/estabelecimentos")
+      const data = response.data
+      
+      if (data.status && data.estabelecimentos && data.estabelecimentos.length > 0) {
+        console.log(`✅ ${data.estabelecimentos.length} estabelecimentos cadastrados encontrados`)
+        
+        const estabelecimentosProcessados: Estabelecimento[] = []
+        
+        for (const estab of data.estabelecimentos) {
+          // Verifica se tem coordenadas
+          let estabLat = estab.latitude || estab.endereco?.latitude
+          let estabLon = estab.longitude || estab.endereco?.longitude
+          
+          // Se não tem coordenadas, tenta buscar pelo endereço
+          if (!estabLat || !estabLon) {
+            // Tenta pegar do localStorage se for do próprio usuário
+            const enderecoStorage = localStorage.getItem('estabelecimentoEnderecoCompleto')
+            if (enderecoStorage) {
+              try {
+                const enderecoObj = JSON.parse(enderecoStorage)
+                if (enderecoObj.latitude && enderecoObj.longitude) {
+                  estabLat = enderecoObj.latitude
+                  estabLon = enderecoObj.longitude
+                }
+              } catch (e) {
+                // Ignora erro de parse
+              }
+            }
+          }
+          
+          // Se ainda não tem coordenadas, pula este estabelecimento
+          if (!estabLat || !estabLon) {
+            console.log(`⚠️ Estabelecimento ${estab.nome} sem coordenadas, ignorando...`)
+            continue
+          }
+          
+          const distancia = calcularDistancia(lat, lon, estabLat, estabLon)
+          
+          // Só mostra estabelecimentos em até 50km
+          if (distancia > 50) continue
+          
+          estabelecimentosProcessados.push({
+            id: estab.id_estabelecimento || estab.id,
+            nome: estab.nome,
+            tipo: 'cadastrado',
+            lat: estabLat,
+            lon: estabLon,
+            distancia: parseFloat(distancia.toFixed(2)),
+            rating: 5.0, // Estabelecimentos cadastrados têm nota máxima
+            comentario: 'Estabelecimento parceiro InfoHub',
+            endereco: estab.endereco?.logradouro 
+              ? `${estab.endereco.logradouro}, ${estab.endereco.numero || ''} - ${estab.endereco.bairro || ''}`
+              : 'Endereço cadastrado',
+            imagem: 'https://images.unsplash.com/photo-1534723452862-4c874018d66d?w=400&h=300&fit=crop',
+            isCadastrado: true
+          })
+        }
+        
+        // Ordena por distância
+        estabelecimentosProcessados.sort((a, b) => a.distancia - b.distancia)
+        
+        console.log(`📍 ${estabelecimentosProcessados.length} estabelecimentos cadastrados com coordenadas`)
+        setEstabelecimentosCadastrados(estabelecimentosProcessados)
+      } else {
+        console.log("ℹ️ Nenhum estabelecimento cadastrado encontrado")
+        setEstabelecimentosCadastrados([])
+      }
+    } catch (error) {
+      console.log("⚠️ Erro ao buscar estabelecimentos cadastrados:", error)
+      setEstabelecimentosCadastrados([])
+    }
+  }
+
+  // ===============================
+  // BUSCA DE MERCADOS PRÓXIMOS (REGIÃO)
   // ===============================
   const buscarMercadosProximos = async (lat: number, lon: number): Promise<void> => {
     setLoading(true)
+    
+    // Também busca estabelecimentos cadastrados
+    buscarEstabelecimentosCadastrados(lat, lon)
+    
     try {
-      console.log("🔍 Buscando estabelecimentos próximos de:", lat, lon)
+      console.log("🔍 Buscando estabelecimentos da região de:", lat, lon)
       
       // API Overpass do OpenStreetMap - Query melhorada para incluir center
       const query = `
@@ -497,8 +654,45 @@ function Localizacao() {
     }
   }, [modalAberto])
 
+  // Criar ícone AZUL para posição atual do USUÁRIO
+  const criarIconeUsuario = () => {
+    return new DivIcon({
+      html: `
+        <div style="position: relative; width: 24px; height: 24px;">
+          <div style="
+            background: #3B82F6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3), 0 4px 12px rgba(59, 130, 246, 0.4);
+            border: 3px solid white;
+            animation: pulse 2s infinite;
+          ">
+            <div style="width: 8px; height: 8px; background: white; border-radius: 50%;"></div>
+          </div>
+        </div>
+      `,
+      className: "custom-marker-usuario",
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    })
+  }
+
   return (
     <SidebarLayout>
+      {/* CSS para marcadores Leaflet */}
+      <style>{leafletCustomCSS}</style>
+      <style>{`
+        @keyframes pulse {
+          0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+          70% { box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+      `}</style>
+      
       {/* Barra de Pesquisa */}
       <section className="mt-8">
         <div className="relative">
@@ -564,9 +758,48 @@ function Localizacao() {
         </div>
       </section>
 
+      {/* Legenda do Mapa */}
+      <section className="mt-4">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+            <MapPin className="w-4 h-4" />
+            Legenda do Mapa
+          </h3>
+          <div className="flex flex-wrap gap-4">
+            {/* Marcador do usuário */}
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-md ring-2 ring-blue-200">
+                <Navigation className="w-3 h-3 text-white" />
+              </div>
+              <span className="text-sm text-gray-600">Sua localização</span>
+            </div>
+            {/* Parceiros InfoHub */}
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] flex items-center justify-center shadow-md">
+                <Store className="w-3 h-3 text-white" />
+              </div>
+              <span className="text-sm text-gray-600">Parceiros InfoHub</span>
+              <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                {estabelecimentosCadastrados.length}
+              </span>
+            </div>
+            {/* Estabelecimentos da região */}
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-full bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center shadow-md">
+                <Building2 className="w-3 h-3 text-white" />
+              </div>
+              <span className="text-sm text-gray-600">Estabelecimentos da região</span>
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                {estabelecimentos.length}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Mapa Interativo */}
-      <section className="mt-6 bg-white rounded-3xl border border-gray-100 shadow-[0_4px_20px_RGBA(0,0,0,0.06)] overflow-hidden">
-        <div className="w-full h-[400px] relative">
+      <section className="mt-4 bg-white rounded-3xl border border-gray-100 shadow-[0_4px_20px_RGBA(0,0,0,0.06)] overflow-hidden">
+        <div className="w-full h-[450px] relative">
           <MapContainer
             center={[latitude, longitude]}
             zoom={zoom}
@@ -579,17 +812,78 @@ function Localizacao() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             
-            {/* Marcadores dos estabelecimentos */}
+            {/* Marcador AZUL - Posição atual do USUÁRIO */}
+            <Marker
+              key="user-location"
+              position={[latitude, longitude]}
+              icon={criarIconeUsuario()}
+            >
+              <Popup>
+                <div className="p-2 text-center">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
+                      <Navigation className="w-3 h-3 text-white" />
+                    </div>
+                    <span className="font-bold text-sm">Sua localização</span>
+                  </div>
+                  <p className="text-xs text-gray-500">Você está aqui</p>
+                </div>
+              </Popup>
+            </Marker>
+            
+            {/* Marcadores LARANJAS - Estabelecimentos CADASTRADOS no sistema */}
+            {estabelecimentosCadastrados.map((estabelecimento) => (
+              <Marker
+                key={`cadastrado-${estabelecimento.id}`}
+                position={[estabelecimento.lat, estabelecimento.lon]}
+                icon={criarIconeCadastrado()}
+              >
+                <Popup>
+                  <div className="p-3 min-w-[200px]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] flex items-center justify-center">
+                        <Store className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sm text-gray-800">{estabelecimento.nome}</h3>
+                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
+                          Parceiro InfoHub
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 mb-1">
+                      <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                      <span className="text-xs font-medium">{estabelecimento.rating}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {estabelecimento.distancia} km de distância
+                    </p>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+            
+            {/* Marcadores VERDES - Estabelecimentos da REGIÃO */}
             {estabelecimentos.map((estabelecimento) => (
               <Marker
-                key={estabelecimento.id}
+                key={`regiao-${estabelecimento.id}`}
                 position={[estabelecimento.lat, estabelecimento.lon]}
-                icon={criarIconeCarrinho()}
+                icon={criarIconeRegiao()}
               >
                 <Popup>
                   <div className="p-2">
-                    <h3 className="font-semibold text-sm mb-1">{estabelecimento.nome}</h3>
-                    <p className="text-xs text-gray-600 mb-1">{estabelecimento.tipo}</p>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-6 h-6 rounded-lg bg-gradient-to-r from-green-500 to-green-600 flex items-center justify-center">
+                        <ShoppingCart className="w-3 h-3 text-white" />
+                      </div>
+                      <h3 className="font-semibold text-sm">{estabelecimento.nome}</h3>
+                    </div>
+                    <p className="text-xs text-gray-600 mb-1">
+                      {estabelecimento.tipo === 'supermarket' ? '🏪 Supermercado' :
+                       estabelecimento.tipo === 'convenience' ? '🏪 Conveniência' :
+                       estabelecimento.tipo === 'grocery' ? '🫒 Mercearia' : estabelecimento.tipo}
+                    </p>
                     <div className="flex items-center gap-1 mb-1">
                       <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
                       <span className="text-xs font-medium">{estabelecimento.rating}</span>
@@ -602,23 +896,28 @@ function Localizacao() {
           </MapContainer>
         </div>
       </section>
-      {/* Lista de Estabelecimentos */}
-      {estabelecimentos.length > 0 && (
+      {/* Lista de Estabelecimentos CADASTRADOS (Parceiros InfoHub) */}
+      {estabelecimentosCadastrados.length > 0 && (
         <section className="mt-6">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-md overflow-hidden">
-            {/* Header da Lista */}
-            <div className="bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] p-4">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <ShoppingCart className="w-5 h-5" />
-                Estabelecimentos Próximos
+          <div className="bg-white rounded-2xl border-2 border-orange-200 shadow-lg overflow-hidden">
+            {/* Header Premium */}
+            <div className="bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] p-4 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12" />
+              <h2 className="text-xl font-bold text-white flex items-center gap-2 relative">
+                <Store className="w-6 h-6" />
+                Parceiros InfoHub
+                <span className="ml-2 bg-white/20 px-2 py-0.5 rounded-full text-sm">
+                  {estabelecimentosCadastrados.length}
+                </span>
               </h2>
+              <p className="text-orange-100 text-sm mt-1">Estabelecimentos verificados</p>
             </div>
 
             {/* Lista */}
-            <div className="divide-y divide-gray-100">
-              {estabelecimentos.map((estabelecimento, index) => (
+            <div className="divide-y divide-orange-100">
+              {estabelecimentosCadastrados.map((estabelecimento, index) => (
                 <div
-                  key={estabelecimento.id}
+                  key={`list-cad-${estabelecimento.id}`}
                   onClick={() => handleCardClick(estabelecimento)}
                   className={`
                     p-5 cursor-pointer transition-all duration-200
@@ -630,9 +929,90 @@ function Localizacao() {
                   }}
                 >
                   <div className="flex items-center gap-4">
-                    {/* Ícone do Estabelecimento */}
-                    <div className="flex-shrink-0">
+                    {/* Ícone LARANJA */}
+                    <div className="flex-shrink-0 relative">
                       <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] flex items-center justify-center shadow-lg">
+                        <Store className="w-7 h-7 text-white" />
+                      </div>
+                      {/* Badge de verificado */}
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Informações */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-3 mb-1.5">
+                        <h3 className="text-lg font-bold text-gray-800 truncate">
+                          {estabelecimento.nome}
+                        </h3>
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F9A01B] text-white rounded-full text-xs font-bold shadow-sm flex-shrink-0">
+                          <MapPin className="w-3.5 h-3.5" />
+                          {estabelecimento.distancia} km
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-semibold">
+                          ⭐ Parceiro Verificado
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                          <span className="text-sm font-bold text-gray-800">
+                            {estabelecimento.rating}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-gray-600 italic line-clamp-1">
+                        💬 "{estabelecimento.comentario}"
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Lista de Estabelecimentos da REGIÃO */}
+      {estabelecimentos.length > 0 && (
+        <section className="mt-6">
+          <div className="bg-white rounded-2xl border border-green-200 shadow-md overflow-hidden">
+            {/* Header Verde */}
+            <div className="bg-gradient-to-r from-green-500 to-green-600 p-4">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                <Building2 className="w-5 h-5" />
+                Estabelecimentos da Região
+                <span className="ml-2 bg-white/20 px-2 py-0.5 rounded-full text-sm">
+                  {estabelecimentos.length}
+                </span>
+              </h2>
+              <p className="text-green-100 text-sm mt-1">Encontrados via OpenStreetMap</p>
+            </div>
+
+            {/* Lista */}
+            <div className="divide-y divide-green-50">
+              {estabelecimentos.map((estabelecimento, index) => (
+                <div
+                  key={`list-reg-${estabelecimento.id}`}
+                  onClick={() => handleCardClick(estabelecimento)}
+                  className={`
+                    p-5 cursor-pointer transition-all duration-200
+                    hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50
+                    ${animatingCardId === estabelecimento.id ? 'bg-green-50 scale-[0.98]' : ''}
+                  `}
+                  style={{
+                    animation: `fadeInUp 0.3s ease-out ${index * 0.05}s both`
+                  }}
+                >
+                  <div className="flex items-center gap-4">
+                    {/* Ícone VERDE */}
+                    <div className="flex-shrink-0">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg">
                         <ShoppingCart className="w-7 h-7 text-white" />
                       </div>
                     </div>
@@ -644,7 +1024,7 @@ function Localizacao() {
                         <h3 className="text-lg font-bold text-gray-800 truncate">
                           {estabelecimento.nome}
                         </h3>
-                        <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#F9A01B] text-white rounded-full text-xs font-bold shadow-sm flex-shrink-0">
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-full text-xs font-bold shadow-sm flex-shrink-0">
                           <MapPin className="w-3.5 h-3.5" />
                           {estabelecimento.distancia} km
                         </span>
@@ -687,106 +1067,151 @@ function Localizacao() {
         </section>
       )}
 
-      {/* Card de Detalhes Aprimorado */}
+      {/* Card de Detalhes PRO - Design Compacto */}
       {modalAberto && estabelecimentoSelecionado && (
-        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center p-4">
-          {/* Modal */}
-          <div
-            className="relative bg-white rounded-3xl w-full max-w-md shadow-2xl border border-gray-200 max-h-[90vh] overflow-y-auto pointer-events-auto"
-            style={{ animation: 'slideUp 0.3s ease-out' }}
-          >
-            {/* Botão Fechar */}
-            <button
-              onClick={handleCloseModal}
-              className="absolute top-4 right-4 z-10 bg-gray-100 hover:bg-gray-200 rounded-full p-2 shadow-md transition-all hover:scale-110"
+        <>
+          {/* Overlay com blur */}
+          <div 
+            className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm"
+            onClick={handleCloseModal}
+            style={{ animation: 'fadeIn 0.2s ease-out' }}
+          />
+          
+          {/* Modal Card Compacto */}
+          <div className="fixed inset-x-4 bottom-4 z-[9999] md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-sm">
+            <div
+              className="bg-white rounded-2xl shadow-2xl overflow-hidden"
+              style={{ animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}
             >
-              <X className="w-5 h-5 text-gray-700" />
-            </button>
-
-            {/* Header com ícone */}
-            <div className="bg-gradient-to-br from-[#F9A01B] to-[#FF8C00] p-6 rounded-t-3xl">
-              <div className="flex items-start gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
-                  <ShoppingCart className="w-8 h-8 text-white" />
-                </div>
-                <div className="flex-1 min-w-0 pt-1">
-                  <h2 className="text-2xl font-bold text-white mb-1 pr-8 leading-tight">
-                    {estabelecimentoSelecionado.nome}
-                  </h2>
-                  <p className="text-white text-opacity-90 text-sm font-medium">
-                    {estabelecimentoSelecionado.tipo === 'supermarket' ? '🏪 Supermercado' :
-                     estabelecimentoSelecionado.tipo === 'convenience' ? '🏪 Conveniência' :
-                     estabelecimentoSelecionado.tipo === 'grocery' ? '🫒 Mercearia' : estabelecimentoSelecionado.tipo}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Conteúdo */}
-            <div className="p-6">
-              {/* Distância e Rating */}
-              <div className="flex items-center justify-between mb-5 pb-5 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-[#F9A01B]" />
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">Distância</p>
-                    <p className="text-lg font-bold text-gray-800">{estabelecimentoSelecionado.distancia} km</p>
+              {/* Header Compacto */}
+              <div className={`p-4 relative overflow-hidden ${
+                estabelecimentoSelecionado.isCadastrado 
+                  ? 'bg-gradient-to-r from-[#F9A01B] to-[#FF8C00]' 
+                  : 'bg-gradient-to-r from-green-500 to-emerald-600'
+              }`}>
+                {/* Decoração */}
+                <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full" />
+                <div className="absolute -right-2 -bottom-8 w-16 h-16 bg-white/5 rounded-full" />
+                
+                {/* Botão Fechar */}
+                <button
+                  onClick={handleCloseModal}
+                  className="absolute top-3 right-3 bg-white/20 hover:bg-white/30 rounded-full p-1.5 transition-all"
+                >
+                  <X className="w-4 h-4 text-white" />
+                </button>
+                
+                {/* Info Principal */}
+                <div className="flex items-center gap-3 relative">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                    estabelecimentoSelecionado.isCadastrado 
+                      ? 'bg-white/20' 
+                      : 'bg-white/20'
+                  }`}>
+                    {estabelecimentoSelecionado.isCadastrado ? (
+                      <Store className="w-6 h-6 text-white" />
+                    ) : (
+                      <ShoppingCart className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg font-bold text-white truncate pr-6">
+                      {estabelecimentoSelecionado.nome}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/80 text-xs">
+                        {estabelecimentoSelecionado.tipo === 'supermarket' ? 'Supermercado' :
+                         estabelecimentoSelecionado.tipo === 'convenience' ? 'Conveniência' :
+                         estabelecimentoSelecionado.tipo === 'grocery' ? 'Mercearia' : 
+                         estabelecimentoSelecionado.tipo === 'cadastrado' ? 'Parceiro' : estabelecimentoSelecionado.tipo}
+                      </span>
+                      {estabelecimentoSelecionado.isCadastrado && (
+                        <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">
+                          ✓ Verificado
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                  <div>
-                    <p className="text-xs text-gray-500 font-medium">Avaliação</p>
-                    <p className="text-lg font-bold text-gray-800">{estabelecimentoSelecionado.rating}</p>
+              </div>
+
+              {/* Stats em Grid */}
+              <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+                <div className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 text-[#F9A01B] mb-0.5">
+                    <MapPin className="w-4 h-4" />
                   </div>
+                  <p className="text-lg font-bold text-gray-800">{estabelecimentoSelecionado.distancia}</p>
+                  <p className="text-[10px] text-gray-500 uppercase">km</p>
+                </div>
+                <div className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 text-yellow-500 mb-0.5">
+                    <Star className="w-4 h-4 fill-current" />
+                  </div>
+                  <p className="text-lg font-bold text-gray-800">{estabelecimentoSelecionado.rating}</p>
+                  <p className="text-[10px] text-gray-500 uppercase">Nota</p>
+                </div>
+                <div className="p-3 text-center">
+                  <div className="flex items-center justify-center gap-1 text-green-500 mb-0.5">
+                    <Navigation className="w-4 h-4" />
+                  </div>
+                  <p className="text-lg font-bold text-gray-800">~{Math.round(estabelecimentoSelecionado.distancia * 3)}</p>
+                  <p className="text-[10px] text-gray-500 uppercase">min</p>
                 </div>
               </div>
 
-              {/* Informações */}
-              <div className="space-y-4 mb-5">
+              {/* Info Compacta */}
+              <div className="p-4 space-y-3">
                 {/* Endereço */}
-                <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">📍 Endereço</p>
-                  <p className="text-sm text-gray-700 leading-relaxed">
-                    {estabelecimentoSelecionado.endereco}
-                  </p>
-                </div>
-
-                {/* Comentário */}
-                <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">💬 Avaliação</p>
-                  <div className="bg-gradient-to-r from-gray-50 to-orange-50 p-4 rounded-xl border border-gray-100">
-                    <p className="text-sm text-gray-700 italic">
-                      "{estabelecimentoSelecionado.comentario}"
-                    </p>
+                {estabelecimentoSelecionado.endereco && estabelecimentoSelecionado.endereco !== "Endereço não disponível" && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-gray-600 line-clamp-2">{estabelecimentoSelecionado.endereco}</p>
                   </div>
-                </div>
-
-                {/* Coordenadas (opcional, para debug) */}
-                <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">🧭 Coordenadas</p>
-                  <p className="text-xs text-gray-500 font-mono">
-                    {estabelecimentoSelecionado.lat.toFixed(6)}, {estabelecimentoSelecionado.lon.toFixed(6)}
+                )}
+                
+                {/* Comentário */}
+                <div className="bg-gray-50 rounded-xl p-3">
+                  <p className="text-sm text-gray-600 italic line-clamp-2">
+                    "{estabelecimentoSelecionado.comentario}"
                   </p>
                 </div>
               </div>
 
               {/* Botão de Ação */}
-              <button
-                onClick={() => {
-                  window.open(
-                    `https://www.google.com/maps/dir/?api=1&destination=${estabelecimentoSelecionado.lat},${estabelecimentoSelecionado.lon}`,
-                    '_blank'
-                  )
-                }}
-                className="w-full bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] text-white font-bold py-4 rounded-xl hover:shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2"
-              >
-                <MapPin className="w-5 h-5" />
-                Abrir Rota no Google Maps
-              </button>
+              <div className="p-4 pt-0">
+                <button
+                  onClick={() => {
+                    window.open(
+                      `https://www.google.com/maps/dir/?api=1&destination=${estabelecimentoSelecionado.lat},${estabelecimentoSelecionado.lon}`,
+                      '_blank'
+                    )
+                  }}
+                  className={`w-full font-bold py-3 rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
+                    estabelecimentoSelecionado.isCadastrado 
+                      ? 'bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] text-white shadow-lg shadow-orange-200' 
+                      : 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-200'
+                  }`}
+                >
+                  <Navigation className="w-5 h-5" />
+                  Iniciar Navegação
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+          
+          {/* Estilos de animação */}
+          <style>{`
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+            @keyframes slideUp {
+              from { opacity: 0; transform: translateY(20px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+          `}</style>
+        </>
       )}
     </SidebarLayout>
   )

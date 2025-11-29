@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Coins, MessageCircle, Plus, Users } from 'lucide-react';
+import { Coins, MessageCircle, Plus, Users, Star, Store } from 'lucide-react';
 import SidebarLayout from '../../components/layouts/SidebarLayout';
 import CardSaldo from '../../components/infocash/CardSaldo';
 import HistoricoTransacoes from '../../components/infocash/HistoricoTransacoes';
@@ -276,6 +276,52 @@ export default function InfoCashPrincipal() {
                 </div>
               </div>
             </button>
+          </div>
+
+          {/* Botões de Avaliação */}
+          <div className="mt-6 pt-6 border-t border-purple-200">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Star className="w-5 h-5 text-amber-500" />
+              Ganhe pontos avaliando
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                onClick={() => navigate('/avaliar-produto')}
+                className="group relative overflow-hidden bg-white hover:bg-gradient-to-r hover:from-amber-500 hover:to-orange-500 border-2 border-amber-300 hover:border-transparent rounded-xl p-5 transition-all duration-300 hover:scale-105 hover:shadow-xl"
+              >
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="p-3 bg-amber-100 group-hover:bg-white/20 rounded-full transition-colors">
+                    <Star className="w-7 h-7 text-amber-600 group-hover:text-white transition-colors" />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="text-base font-bold text-gray-800 group-hover:text-white transition-colors">
+                      Avaliar Produto
+                    </h4>
+                    <p className="text-sm text-gray-600 group-hover:text-white/90 transition-colors">
+                      +8 HubCoins por avaliação
+                    </p>
+                  </div>
+                </div>
+              </button>
+              <button
+                onClick={() => navigate('/avaliar-estabelecimento')}
+                className="group relative overflow-hidden bg-white hover:bg-gradient-to-r hover:from-purple-500 hover:to-violet-500 border-2 border-purple-300 hover:border-transparent rounded-xl p-5 transition-all duration-300 hover:scale-105 hover:shadow-xl"
+              >
+                <div className="relative z-10 flex items-center gap-4">
+                  <div className="p-3 bg-purple-100 group-hover:bg-white/20 rounded-full transition-colors">
+                    <Store className="w-7 h-7 text-purple-600 group-hover:text-white transition-colors" />
+                  </div>
+                  <div className="text-left">
+                    <h4 className="text-base font-bold text-gray-800 group-hover:text-white transition-colors">
+                      Avaliar Estabelecimento
+                    </h4>
+                    <p className="text-sm text-gray-600 group-hover:text-white/90 transition-colors">
+                      +8 HubCoins por avaliação
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
           </div>
 
           {/* Preview Rápido */}

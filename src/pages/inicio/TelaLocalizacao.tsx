@@ -843,218 +843,230 @@ function TelaLocalizacao() {
         </section>
       )}
 
-      {/* Modal de Detalhes */}
+      {/* Modal de Detalhes PREMIUM */}
       {modalAberto && estabelecimentoSelecionado && (
-        <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center p-3">
-          {/* Modal */}
-          <div
-            className="relative bg-white rounded-3xl w-full max-w-lg shadow-2xl border border-gray-200 max-h-[92vh] overflow-y-auto pointer-events-auto"
-            style={{ animation: 'slideUp 0.3s ease-out' }}
-          >
-            {/* Botão Fechar */}
-            <button
-              onClick={handleCloseModal}
-              className="absolute top-4 right-4 z-10 bg-gray-100 hover:bg-gray-200 rounded-full p-2 shadow-md transition-all hover:scale-110"
+        <>
+          {/* Overlay com blur */}
+          <div 
+            className="fixed inset-0 z-[9998] bg-black/60 backdrop-blur-md"
+            onClick={handleCloseModal}
+            style={{ animation: 'fadeIn 0.25s ease-out' }}
+          />
+          
+          {/* Modal Grande */}
+          <div className="fixed inset-4 z-[9999] flex items-center justify-center">
+            <div
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+              style={{ animation: 'scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}
             >
-              <X className="w-5 h-5 text-gray-700" />
-            </button>
-
-            {/* Header moderno com foto */}
-            <div className="relative">
-              {/* Imagem principal */}
-              <div className="h-52 rounded-t-3xl overflow-hidden relative">
+              {/* Header Hero com Imagem Grande */}
+              <div className="relative h-56 flex-shrink-0 overflow-hidden">
                 <img 
                   src={estabelecimentoSelecionado.imagem}
                   alt={estabelecimentoSelecionado.nome}
-                  className="w-full h-full object-cover scale-105 hover:scale-100 transition-transform duration-500"
+                  className="w-full h-full object-cover transform hover:scale-105 transition-transform duration-700"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
                     const parent = target.parentElement!;
-                    parent.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                    parent.style.background = 'linear-gradient(135deg, #F9A01B 0%, #FF8C00 50%, #E91E63 100%)';
                   }}
                 />
-                {/* Overlay gradiente sofisticado */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-purple-600/20"></div>
+                {/* Overlays */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-600/20 via-transparent to-purple-600/20" />
                 
-                {/* Badge de status */}
-                {estabelecimentoSelecionado.abreAgora !== null && (
-                  <div className="absolute top-4 left-4">
-                    <div className={`px-3 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border ${
+                {/* Decorações */}
+                <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -mr-20 -mt-20" />
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full -ml-16 -mb-16" />
+                
+                {/* Botão Fechar Premium */}
+                <button
+                  onClick={handleCloseModal}
+                  className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 backdrop-blur-xl rounded-full p-3 transition-all hover:scale-110 border border-white/20"
+                >
+                  <X className="w-6 h-6 text-white" />
+                </button>
+                
+                {/* Badges Premium */}
+                <div className="absolute top-4 left-4 flex gap-2">
+                  {estabelecimentoSelecionado.abreAgora !== undefined && (
+                    <div className={`px-4 py-2 rounded-full text-sm font-bold backdrop-blur-xl border ${
                       estabelecimentoSelecionado.abreAgora 
-                        ? 'bg-green-500/90 text-white border-green-300/50' 
-                        : 'bg-red-500/90 text-white border-red-300/50'
+                        ? 'bg-green-500/80 text-white border-green-300/30' 
+                        : 'bg-red-500/80 text-white border-red-300/30'
                     }`}>
-                      {estabelecimentoSelecionado.abreAgora ? '🟢 ABERTO' : '🔴 FECHADO'}
+                      <span className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${estabelecimentoSelecionado.abreAgora ? 'bg-green-300 animate-pulse' : 'bg-red-300'}`} />
+                        {estabelecimentoSelecionado.abreAgora ? 'Aberto Agora' : 'Fechado'}
+                      </span>
                     </div>
-                  </div>
-                )}
-
-                {/* Rating badge */}
-                <div className="absolute top-4 right-4">
-                  <div className="bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="text-sm font-bold text-gray-800">{estabelecimentoSelecionado.rating}</span>
-                  </div>
-                </div>
-                
-                {/* Conteúdo principal */}
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <div className="flex items-end gap-4">
-                    <div className="w-18 h-18 rounded-2xl bg-white/15 backdrop-blur-md border border-white/30 flex items-center justify-center flex-shrink-0">
-                      <ShoppingCart className="w-10 h-10 text-white drop-shadow-lg" />
+                  )}
+                  {estabelecimentoSelecionado.rating >= 4.5 && (
+                    <div className="px-3 py-2 rounded-full text-sm font-bold bg-yellow-500/80 text-white backdrop-blur-xl border border-yellow-300/30">
+                      ⭐ Top Avaliado
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h1 className="text-3xl font-bold text-white mb-2 pr-8 leading-tight drop-shadow-xl">
-                        {estabelecimentoSelecionado.nome}
-                      </h1>
-                      <div className="flex items-center gap-2">
-                        <div className="bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
-                          <p className="text-white text-sm font-medium">
-                            {estabelecimentoSelecionado.tipo === 'grocery_or_supermarket' ? '🏪 Supermercado' :
-                             estabelecimentoSelecionado.tipo === 'store' ? '🏪 Loja' : 
-                             estabelecimentoSelecionado.tipo === 'convenience_store' ? '🏪 Conveniência' : '🏪 ' + estabelecimentoSelecionado.tipo}
-                          </p>
-                        </div>
-                        <div className="bg-orange-500/80 backdrop-blur-sm px-3 py-1 rounded-full">
-                          <p className="text-white text-sm font-bold">
-                            {estabelecimentoSelecionado.distancia} km
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Conteúdo moderno */}
-            <div className="px-7 pt-7 pb-7 space-y-7">
-              {/* Cards de informações principais */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Card de Preço */}
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/50 rounded-2xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-                      <span className="text-white text-sm font-bold">💰</span>
-                    </div>
-                    <span className="text-green-700 text-xs font-semibold px-2 py-1 bg-green-100 rounded-full">
-                      PREÇO
-                    </span>
-                  </div>
-                  <div className="text-2xl font-bold text-green-700 mb-1">
-                    {estabelecimentoSelecionado.priceLevel !== undefined ? 
-                      '💰'.repeat(estabelecimentoSelecionado.priceLevel + 1) : 'N/A'}
-                  </div>
-                  <p className="text-xs text-green-600 font-medium">
-                    {estabelecimentoSelecionado.priceLevelText || 'Não informado'}
-                  </p>
-                </div>
-
-                {/* Card de Avaliações */}
-                <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200/50 rounded-2xl p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
-                      <Star className="w-4 h-4 fill-white text-white" />
-                    </div>
-                    <span className="text-yellow-700 text-xs font-semibold px-2 py-1 bg-yellow-100 rounded-full">
-                      RATING
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-1 mb-1">
-                    <span className="text-2xl font-bold text-yellow-700">{estabelecimentoSelecionado.rating}</span>
-                    <span className="text-yellow-600 text-sm">/5</span>
-                  </div>
-                  {estabelecimentoSelecionado.totalAvaliacoes && (
-                    <p className="text-xs text-yellow-600 font-medium">
-                      {estabelecimentoSelecionado.totalAvaliacoes} avaliações
-                    </p>
                   )}
                 </div>
+                
+                {/* Info Principal sobre Hero */}
+                <div className="absolute bottom-0 left-0 right-0 p-6">
+                  <div className="flex items-end gap-5">
+                    {/* Ícone Grande */}
+                    <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center flex-shrink-0 shadow-2xl">
+                      <ShoppingCart className="w-10 h-10 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h1 className="text-3xl font-black text-white mb-2 drop-shadow-2xl leading-tight">
+                        {estabelecimentoSelecionado.nome}
+                      </h1>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="bg-white/20 backdrop-blur-sm px-4 py-1.5 rounded-full text-white text-sm font-medium">
+                          {estabelecimentoSelecionado.tipo === 'grocery_or_supermarket' ? '🏪 Supermercado' :
+                           estabelecimentoSelecionado.tipo === 'store' ? '🏬 Loja' : 
+                           estabelecimentoSelecionado.tipo === 'convenience_store' ? '🏪 Conveniência' : 
+                           '🏢 ' + estabelecimentoSelecionado.tipo.replace(/_/g, ' ')}
+                        </span>
+                        <span className="bg-orange-500 px-4 py-1.5 rounded-full text-white text-sm font-bold shadow-lg">
+                          📍 {estabelecimentoSelecionado.distancia} km
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Informações detalhadas */}
-              <div className="space-y-4">
-                {/* Card de Endereço */}
-                <div className="bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200/50 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <MapPin className="w-4 h-4 text-white" />
+              {/* Stats Cards Premium */}
+              <div className="grid grid-cols-2 gap-4 p-5 bg-gradient-to-r from-gray-50 to-orange-50/30 border-b border-gray-100">
+                {/* Rating */}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center hover:shadow-md transition-shadow">
+                  <div className="w-14 h-14 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl mx-auto mb-3 flex items-center justify-center shadow-lg">
+                    <Star className="w-7 h-7 fill-white text-white" />
+                  </div>
+                  <p className="text-3xl font-black text-gray-800">{estabelecimentoSelecionado.rating}</p>
+                  <p className="text-sm text-gray-500 font-medium">{estabelecimentoSelecionado.totalAvaliacoes || 0} avaliações</p>
+                </div>
+                {/* Distância */}
+                <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 text-center hover:shadow-md transition-shadow">
+                  <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-xl mx-auto mb-3 flex items-center justify-center shadow-lg">
+                    <MapPin className="w-7 h-7 text-white" />
+                  </div>
+                  <p className="text-3xl font-black text-gray-800">{estabelecimentoSelecionado.distancia} <span className="text-lg font-bold text-gray-500">km</span></p>
+                  <p className="text-sm text-gray-500 font-medium">de distância</p>
+                </div>
+              </div>
+
+              {/* Conteúdo Principal Scrollável */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                {/* Endereço Card */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg">
+                      <MapPin className="w-6 h-6 text-white" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="text-sm font-bold text-gray-800 mb-1">Localização</h3>
-                      <p className="text-sm text-gray-600 leading-relaxed">
-                        {estabelecimentoSelecionado.endereco}
-                      </p>
-                      <p className="text-xs text-blue-600 font-medium mt-1">
-                        📍 {estabelecimentoSelecionado.coordinates.lat.toFixed(4)}, {estabelecimentoSelecionado.coordinates.lng.toFixed(4)}
+                      <h3 className="text-sm font-bold text-gray-800 mb-1">Endereço Completo</h3>
+                      <p className="text-sm text-gray-600 leading-relaxed">{estabelecimentoSelecionado.endereco}</p>
+                      <p className="text-xs text-blue-600 font-mono mt-2 bg-blue-100/50 inline-block px-2 py-1 rounded">
+                        📍 {estabelecimentoSelecionado.coordinates.lat.toFixed(5)}, {estabelecimentoSelecionado.coordinates.lng.toFixed(5)}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Card de Horários */}
-                {estabelecimentoSelecionado.horarios && estabelecimentoSelecionado.horarios.length > 0 && (
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200/50 rounded-xl p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-sm">🕒</span>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-sm font-bold text-gray-800 mb-3">Horários de Funcionamento</h3>
-                        <div className="grid grid-cols-1 gap-1.5">
-                          {estabelecimentoSelecionado.horarios.slice(0, 4).map((horario, index) => (
-                            <div key={index} className="flex justify-between items-center bg-white/60 rounded-lg px-3 py-1.5">
-                              <span className="text-xs font-medium text-purple-700">
-                                {horario.split(':')[0]}:
-                              </span>
-                              <span className="text-xs text-purple-600">
-                                {horario.split(': ')[1]}
-                              </span>
-                            </div>
-                          ))}
+                {/* Grid de 2 Colunas */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Horários */}
+                  {estabelecimentoSelecionado.horarios && estabelecimentoSelecionado.horarios.length > 0 && (
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-5 border border-purple-100">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+                          <span className="text-lg">🕒</span>
                         </div>
-                        {estabelecimentoSelecionado.horarios.length > 4 && (
-                          <p className="text-xs text-purple-600 text-center mt-2">
-                            +{estabelecimentoSelecionado.horarios.length - 4} mais dias
-                          </p>
+                        <h3 className="text-sm font-bold text-gray-800">Horários</h3>
+                      </div>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {estabelecimentoSelecionado.horarios.map((horario, index) => (
+                          <div key={index} className="flex justify-between items-center bg-white/70 rounded-lg px-3 py-2 text-xs">
+                            <span className="font-medium text-purple-700">{horario.split(':')[0]}</span>
+                            <span className="text-gray-600">{horario.split(': ').slice(1).join(': ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contato */}
+                  {(estabelecimentoSelecionado.telefone || estabelecimentoSelecionado.website) && (
+                    <div className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-2xl p-5 border border-teal-100">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
+                          <span className="text-lg">📞</span>
+                        </div>
+                        <h3 className="text-sm font-bold text-gray-800">Contato</h3>
+                      </div>
+                      <div className="space-y-3">
+                        {estabelecimentoSelecionado.telefone && (
+                          <a 
+                            href={`tel:${estabelecimentoSelecionado.telefone}`}
+                            className="flex items-center gap-3 bg-white/70 rounded-xl p-3 hover:bg-white transition-colors group"
+                          >
+                            <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                              <span className="text-white">📱</span>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Telefone</p>
+                              <p className="text-sm font-bold text-gray-800">{estabelecimentoSelecionado.telefone}</p>
+                            </div>
+                          </a>
+                        )}
+                        {estabelecimentoSelecionado.website && (
+                          <a 
+                            href={estabelecimentoSelecionado.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-3 bg-white/70 rounded-xl p-3 hover:bg-white transition-colors group"
+                          >
+                            <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                              <span className="text-white">🌐</span>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Website</p>
+                              <p className="text-sm font-bold text-blue-600">Visitar site oficial →</p>
+                            </div>
+                          </a>
                         )}
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
-                {/* Galeria de Fotos Moderna */}
+                {/* Galeria de Fotos Premium */}
                 {estabelecimentoSelecionado.fotos && estabelecimentoSelecionado.fotos.length > 0 && (
-                  <div className="bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200/50 rounded-xl p-4">
+                  <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-2xl p-5 border border-orange-100">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-sm">📷</span>
+                      <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center shadow-lg">
+                        <span className="text-lg">📷</span>
                       </div>
-                      <div className="flex-1">
+                      <div>
                         <h3 className="text-sm font-bold text-gray-800">Galeria de Fotos</h3>
-                        <p className="text-xs text-orange-600">
-                          {estabelecimentoSelecionado.fotos.length} foto(s) • Clique para ampliar
-                        </p>
+                        <p className="text-xs text-orange-600">{estabelecimentoSelecionado.fotos.length} fotos disponíveis</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {estabelecimentoSelecionado.fotos.slice(0, 4).map((foto, index) => (
-                        <div key={index} className="relative aspect-video rounded-xl overflow-hidden bg-white/60 border border-orange-200/30">
+                    <div className="grid grid-cols-4 gap-3">
+                      {estabelecimentoSelecionado.fotos.slice(0, 8).map((foto, index) => (
+                        <div 
+                          key={index} 
+                          className="aspect-square rounded-xl overflow-hidden cursor-pointer group relative"
+                          onClick={() => window.open(foto, '_blank')}
+                        >
                           <img 
                             src={foto} 
-                            alt={`${estabelecimentoSelecionado.nome} - Foto ${index + 1}`}
-                            className="w-full h-full object-cover hover:scale-110 transition-all duration-300 cursor-pointer"
-                            onClick={() => window.open(foto, '_blank')}
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
+                            alt={`Foto ${index + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-200" />
-                          <div className="absolute top-2 right-2 w-6 h-6 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200">
-                            <span className="text-xs">🔍</span>
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                            <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity text-lg">🔍</span>
                           </div>
                         </div>
                       ))}
@@ -1062,53 +1074,46 @@ function TelaLocalizacao() {
                   </div>
                 )}
 
-
-                {/* Avaliações dos Clientes - Modernas */}
+                {/* Avaliações Premium */}
                 {estabelecimentoSelecionado.avaliacoes && estabelecimentoSelecionado.avaliacoes.length > 0 && (
-                  <div className="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-200/50 rounded-xl p-4">
+                  <div className="bg-gradient-to-r from-indigo-50 to-violet-50 rounded-2xl p-5 border border-indigo-100">
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <Star className="w-4 h-4 fill-white text-white" />
+                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-xl flex items-center justify-center shadow-lg">
+                        <Star className="w-5 h-5 fill-white text-white" />
                       </div>
-                      <div className="flex-1">
-                        <h3 className="text-sm font-bold text-gray-800">Avaliações dos Clientes</h3>
-                        <p className="text-xs text-indigo-600">
-                          {estabelecimentoSelecionado.avaliacoes.length} review(s) verificada(s)
-                        </p>
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-800">Avaliações de Clientes</h3>
+                        <p className="text-xs text-indigo-600">{estabelecimentoSelecionado.avaliacoes.length} reviews verificados</p>
                       </div>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
                       {estabelecimentoSelecionado.avaliacoes.map((avaliacao, index) => (
-                        <div key={index} className="bg-white/70 backdrop-blur-sm p-4 rounded-lg border border-indigo-100/50">
+                        <div key={index} className="bg-white rounded-xl p-4 border border-indigo-100/50">
                           <div className="flex items-start gap-3">
-                            <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                              <span className="text-white text-xs font-bold">
+                            <div className="w-10 h-10 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-white font-bold text-sm">
                                 {avaliacao.autor.charAt(0).toUpperCase()}
                               </span>
                             </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-bold text-gray-800">{avaliacao.autor}</span>
-                                <span className="text-xs text-gray-500">{avaliacao.tempo}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-bold text-sm text-gray-800">{avaliacao.autor}</span>
+                                <span className="text-xs text-gray-400">{avaliacao.tempo}</span>
                               </div>
                               <div className="flex items-center gap-1 mb-2">
                                 {[...Array(5)].map((_, i) => (
                                   <Star
                                     key={i}
-                                    className={`w-3.5 h-3.5 ${
+                                    className={`w-4 h-4 ${
                                       i < avaliacao.rating 
                                         ? 'fill-yellow-400 text-yellow-400' 
-                                        : 'text-gray-300'
+                                        : 'text-gray-200'
                                     }`}
                                   />
                                 ))}
-                                <span className="text-xs font-bold text-indigo-600 ml-1">
-                                  {avaliacao.rating}/5
-                                </span>
+                                <span className="text-xs font-bold text-indigo-600 ml-2">{avaliacao.rating}/5</span>
                               </div>
-                              <p className="text-sm text-gray-700 leading-relaxed italic">
-                                "{avaliacao.texto}"
-                              </p>
+                              <p className="text-sm text-gray-600 leading-relaxed">"{avaliacao.texto}"</p>
                             </div>
                           </div>
                         </div>
@@ -1116,59 +1121,23 @@ function TelaLocalizacao() {
                     </div>
                   </div>
                 )}
-
-                {/* Card de Contato */}
-                {(estabelecimentoSelecionado.telefone || estabelecimentoSelecionado.website) && (
-                  <div className="bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200/50 rounded-xl p-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-sm">📞</span>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-sm font-bold text-gray-800">Entre em Contato</h3>
-                        <p className="text-xs text-teal-600">Informações de contato disponíveis</p>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      {estabelecimentoSelecionado.telefone && (
-                        <a 
-                          href={`tel:${estabelecimentoSelecionado.telefone}`}
-                          className="flex items-center gap-3 bg-white/60 rounded-lg p-3 hover:bg-white/80 transition-colors duration-200"
-                        >
-                          <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-xs">📱</span>
-                          </div>
-                          <div className="flex-1">
-                            <span className="text-sm font-medium text-gray-700">Telefone</span>
-                            <p className="text-xs text-teal-600">{estabelecimentoSelecionado.telefone}</p>
-                          </div>
-                        </a>
-                      )}
-                      {estabelecimentoSelecionado.website && (
-                        <a 
-                          href={estabelecimentoSelecionado.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 bg-white/60 rounded-lg p-3 hover:bg-white/80 transition-colors duration-200"
-                        >
-                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-white text-xs">🌐</span>
-                          </div>
-                          <div className="flex-1">
-                            <span className="text-sm font-medium text-gray-700">Website</span>
-                            <p className="text-xs text-teal-600 truncate">Visitar site oficial</p>
-                          </div>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
 
-              {/* Ações finais */}
-              <div className="pt-6 mt-6 border-t border-gray-200/50">
-                <div className="space-y-3">
-                  {/* Botão principal - Rota */}
+              {/* Footer com Ações Premium */}
+              <div className="p-5 bg-gradient-to-r from-gray-50 to-orange-50/50 border-t border-gray-100 flex-shrink-0">
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      window.open(
+                        `https://www.google.com/maps/place/${estabelecimentoSelecionado.coordinates.lat},${estabelecimentoSelecionado.coordinates.lng}`,
+                        '_blank'
+                      )
+                    }}
+                    className="flex-1 bg-white border-2 border-gray-200 text-gray-700 font-bold py-4 rounded-xl hover:border-gray-300 hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <MapPin className="w-5 h-5" />
+                    Ver no Maps
+                  </button>
                   <button
                     onClick={() => {
                       window.open(
@@ -1176,33 +1145,25 @@ function TelaLocalizacao() {
                         '_blank'
                       )
                     }}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 rounded-2xl hover:shadow-2xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-[1.02] flex items-center justify-center gap-3 group"
+                    className="flex-[2] bg-gradient-to-r from-[#F9A01B] to-[#FF8C00] text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-300/50 hover:shadow-xl hover:shadow-orange-300/50 active:scale-[0.98] transition-all flex items-center justify-center gap-3"
                   >
-                    <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center group-hover:rotate-12 transition-transform duration-300">
-                      <Navigation className="w-4 h-4" />
-                    </div>
+                    <Navigation className="w-6 h-6" />
                     <span className="text-lg">Como Chegar</span>
-                    <div className="w-2 h-2 bg-white/40 rounded-full group-hover:scale-150 transition-transform duration-300"></div>
-                  </button>
-                  
-                  {/* Botão secundário - Ver no Maps */}
-                  <button
-                    onClick={() => {
-                      window.open(
-                        `https://www.google.com/maps/place/${estabelecimentoSelecionado.coordinates.lat},${estabelecimentoSelecionado.coordinates.lng}/@${estabelecimentoSelecionado.coordinates.lat},${estabelecimentoSelecionado.coordinates.lng},17z`,
-                        '_blank'
-                      )
-                    }}
-                    className="w-full bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gradient-to-r hover:from-gray-200 hover:to-gray-300 transition-all duration-200 flex items-center justify-center gap-2"
-                  >
-                    <MapPin className="w-4 h-4" />
-                    <span>Ver no Google Maps</span>
                   </button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+          
+          {/* Animações */}
+          <style>{`
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes scaleIn { 
+              from { opacity: 0; transform: scale(0.9); } 
+              to { opacity: 1; transform: scale(1); } 
+            }
+          `}</style>
+        </>
       )}
     </SidebarLayout>
   )

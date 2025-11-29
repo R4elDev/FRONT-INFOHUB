@@ -5,10 +5,16 @@
  */
 
 // Configurações do Azure Blob Storage
+// IMPORTANTE: O SAS Token precisa ter permissão de LEITURA (r) para exibir imagens
+// Permissões necessárias: r (read), c (create), w (write)
 const AZURE_CONFIG = {
   storageAccount: 'infohubstorage',
   containerName: 'infohubfotos',
-  sasToken: 'sp=cw&st=2025-11-27T02:49:12Z&se=2025-12-12T15:00:00Z&sv=2024-11-04&sr=c&sig=KwdC4ievGnVlKJSDHjwRongfdcaq8kCW%2BU8KssM1F%2Bo%3D',
+  // Token para UPLOAD (create, write)
+  sasTokenUpload: 'sp=cw&st=2025-11-27T02:49:12Z&se=2025-12-12T15:00:00Z&sv=2024-11-04&sr=c&sig=KwdC4ievGnVlKJSDHjwRongfdcaq8kCW%2BU8KssM1F%2Bo%3D',
+  // Token para LEITURA - PRECISA GERAR NO AZURE COM PERMISSÃO 'r' (read)
+  // OU tornar o container público (mais fácil)
+  sasTokenRead: '', // Deixar vazio se container for público
 }
 
 // URL base do container
@@ -54,8 +60,8 @@ export async function uploadImageToAzure(file: File): Promise<string | null> {
     // Gera nome único para o arquivo
     const blobName = generateUniqueFileName(file.name)
     
-    // URL completa do blob com SAS token
-    const blobUrl = `${getContainerUrl()}/${blobName}?${AZURE_CONFIG.sasToken}`
+    // URL completa do blob com SAS token para upload
+    const blobUrl = `${getContainerUrl()}/${blobName}?${AZURE_CONFIG.sasTokenUpload}`
     
     console.log('📤 Iniciando upload para Azure...')
     console.log('📁 Nome do arquivo:', blobName)

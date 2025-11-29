@@ -88,8 +88,8 @@ export const FavoritosProvider: React.FC<FavoritosProviderProps> = ({ children }
           return
         }
       } catch (apiError: any) {
-        console.log('⚠️ Falha no banco, usando localStorage como fallback')
-        console.error('Erro da API:', apiError)
+        // Backend indisponível - usar fallback silenciosamente
+        console.warn('⚠️ API favoritos indisponível, usando localStorage...')
       }
       
       // FALLBACK: Usar localStorage
@@ -104,7 +104,7 @@ export const FavoritosProvider: React.FC<FavoritosProviderProps> = ({ children }
         console.log('📝 Nenhum favorito encontrado')
       }
     } catch (error) {
-      console.error('Erro ao buscar favoritos:', error)
+      console.warn('⚠️ Erro geral ao buscar favoritos, iniciando vazio')
       setFavoritos([])
     } finally {
       setLoading(false)

@@ -3,6 +3,8 @@ import { Input } from "../../components/ui/input"
 import { useNavigate } from "react-router-dom"
 import { ChevronLeft, CreditCard, Smartphone, Banknote, MapPin, User, Phone, Mail, Check, ShoppingCart, Truck, Package, Loader2, AlertCircle } from "lucide-react"
 import { useState } from "react"
+import { useCarrinho } from "../../contexts/CarrinhoContext"
+import { useUser } from "../../contexts/UserContext"
 import iconJarra from "../../assets/icon de jara.png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 
@@ -57,6 +59,8 @@ type FormaPagamento = 'credito' | 'debito' | 'pix' | 'dinheiro'
 
 function Checkout() {
   const navigate = useNavigate()
+  const { items, total: subtotalCarrinho, clearCart } = useCarrinho()
+  const { user } = useUser()
   const [formaPagamento, setFormaPagamento] = useState<FormaPagamento>('credito')
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
@@ -68,19 +72,23 @@ function Checkout() {
   const [bairro, setBairro] = useState('')
   const [cidade, setCidade] = useState('')
   const [estado, setEstado] = useState('')
+  const [processando, setProcessando] = useState(false)
   
   // Estados para busca de CEP
   const [loadingCep, setLoadingCep] = useState(false)
   const [erroCep, setErroCep] = useState('')
 
-  // Dados do carrinho (virão do contexto/estado global depois)
-  const itensCarrinho = [
-    { id: 1, nome: "Garrafa de suco de laranja 250 ml", preco: 8.99, quantidade: 2, imagem: iconJarra },
-    { id: 2, nome: "Garrafa de suco de laranja 250 ml", preco: 8.99, quantidade: 1, imagem: iconJarra }
-  ]
+  // Dados do carrinho real
+  const itensCarrinho = items.map(item => ({
+    id: item.id,
+    nome: item.nome,
+    preco: Number(item.preco) || 0,
+    quantidade: item.quantidade,
+    imagem: item.imagem || iconJarra
+  }))
 
-  const subtotal = itensCarrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0)
-  const frete = 5.00
+  const subtotal = subtotalCarrinho
+  const frete = subtotal >= 50 ? 0 : 5.00
   const total = subtotal + frete
 
   const handleVoltar = () => {
@@ -155,15 +163,61 @@ function Checkout() {
     }
   }
 
-  const handleFinalizarPedido = () => {
+  const handleFinalizarPedido = async () => {
     // Validações básicas
     if (!nome || !telefone || !cep || !endereco || !numero || !bairro || !cidade || !estado) {
       alert('Por favor, preencha todos os campos obrigatórios')
       return
     }
 
-    // Navega para página de sucesso
-    navigate('/pagamento-sucesso')
+    if (itensCarrinho.length === 0) {
+      alert('Seu carrinho está vazio!')
+      navigate('/promocoes')
+      return
+    }
+
+    setProcessando(true)
+
+    try {
+      // Simula processamento do pedido
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Salvar pedido no localStorage para simulação de "entregue"
+      const pedido = {
+        id: Date.now(),
+        id_usuario: user?.id,
+        itens: itensCarrinho,
+        endereco: { cep, endereco, numero, complemento, bairro, cidade, estado },
+        pagamento: formaPagamento,
+        subtotal,
+        frete,
+        total,
+        status: 'entregue', // Simulando como entregue para permitir avaliação
+        data_pedido: new Date().toISOString(),
+        data_entrega: new Date().toISOString() // Simulando entrega imediata
+      }
+
+      // Salvar no localStorage
+      const pedidosAnteriores = JSON.parse(localStorage.getItem('pedidos_usuario') || '[]')
+      pedidosAnteriores.push(pedido)
+      localStorage.setItem('pedidos_usuario', JSON.stringify(pedidosAnteriores))
+
+      // Salvar último pedido para página de sucesso
+      localStorage.setItem('ultimo_pedido', JSON.stringify(pedido))
+
+      // Limpar carrinho
+      await clearCart()
+
+      console.log('✅ Pedido simulado como ENTREGUE:', pedido)
+
+      // Navega para página de sucesso
+      navigate('/pagamento-sucesso')
+    } catch (error) {
+      console.error('Erro ao processar pedido:', error)
+      alert('Erro ao processar pedido. Tente novamente.')
+    } finally {
+      setProcessando(false)
+    }
   }
 
   const formasPagamento = [
@@ -472,10 +526,20 @@ function Checkout() {
             {/* Botão Finalizar */}
             <Button
               onClick={handleFinalizarPedido}
-              className="w-full h-16 bg-gradient-to-r from-[#25992E] to-[#1f7a24] hover:from-[#1f7a24] hover:to-[#25992E] text-white text-xl font-black rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center justify-center gap-3"
+              disabled={processando || itensCarrinho.length === 0}
+              className="w-full h-16 bg-gradient-to-r from-[#25992E] to-[#1f7a24] hover:from-[#1f7a24] hover:to-[#25992E] text-white text-xl font-black rounded-2xl shadow-xl hover:shadow-2xl transition-all hover:scale-105 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              <Check className="w-6 h-6" />
-              Confirmar Pedido
+              {processando ? (
+                <>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  <Check className="w-6 h-6" />
+                  Confirmar Pedido
+                </>
+              )}
             </Button>
 
             {/* Segurança */}

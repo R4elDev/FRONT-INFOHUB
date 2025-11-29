@@ -1,9 +1,8 @@
 import { Button } from "../../components/ui/button"
 import { useNavigate } from "react-router-dom"
-import { Trash2, Plus, Minus, ShoppingCart, Package, TrendingUp, Truck, ArrowRight, Database } from "lucide-react"
+import { Trash2, Plus, Minus, ShoppingCart, Package, TrendingUp, Truck, ArrowRight } from "lucide-react"
 import { useCarrinho } from "../../contexts/CarrinhoContext"
-import { useCarrinhoAPI, formatarPreco } from "../../hooks/useCarrinhoAPI"
-import ItemCarrinho from "../../components/carrinho/ItemCarrinho"
+import { formatarPreco } from "../../hooks/useCarrinhoAPI"
 import iconJarra from "../../assets/icon de jara.png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 
@@ -56,8 +55,7 @@ if (!document.head.querySelector('style[data-carrinho-animations]')) {
 
 function Carrinho() {
   const navigate = useNavigate()
-  const { items, updateQuantity, removeFromCart, total, totalItems, isEmpty, loading, error, testarAPI } = useCarrinho()
-  const { carrinho, loading: loadingAPI, error: errorAPI, atualizarQuantidade, removerItem: removerItemAPI, recarregar } = useCarrinhoAPI()
+  const { items, updateQuantity, removeFromCart, total, totalItems, isEmpty, loading } = useCarrinho()
 
   const incrementarQuantidade = async (id: number, quantidadeAtual: number) => {
     await updateQuantity(id, quantidadeAtual + 1)
@@ -138,67 +136,6 @@ function Carrinho() {
             </div>
           )}
 
-          {/* Seção de Debug da Nova API */}
-          <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border-2 border-blue-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-blue-800 flex items-center gap-2">
-                <Database className="w-5 h-5" />
-                🧪 Debug - Nova API de Carrinho
-              </h3>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Button
-                onClick={testarAPI}
-                disabled={loading}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl font-medium flex items-center gap-2"
-              >
-                <Database className="w-4 h-4" />
-                Testar API Completa
-              </Button>
-              
-              <Button
-                onClick={recarregar}
-                disabled={loadingAPI}
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl font-medium"
-              >
-                🔄 Recarregar do Backend
-              </Button>
-              
-              <div className="text-sm">
-                <div className="font-medium text-gray-700">Status API:</div>
-                <div className="text-xs">
-                  {loadingAPI ? '⏳ Carregando...' : '✅ Pronto'}
-                </div>
-                {errorAPI && (
-                  <div className="text-red-600 text-xs mt-1">❌ {errorAPI}</div>
-                )}
-              </div>
-            </div>
-
-            {/* Dados da Nova API */}
-            {carrinho.itens.length > 0 && (
-              <div className="mt-4 p-3 bg-white rounded-xl">
-                <div className="text-sm font-medium text-gray-700 mb-2">
-                  📊 Dados do Backend:
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                  <div>
-                    <span className="font-medium">Itens:</span> {carrinho.resumo.total_itens}
-                  </div>
-                  <div>
-                    <span className="font-medium">Produtos:</span> {carrinho.resumo.total_produtos}
-                  </div>
-                  <div>
-                    <span className="font-medium">Total:</span> R$ {carrinho.resumo.valor_total}
-                  </div>
-                  <div>
-                    <span className="font-medium">Backend:</span> ✅ Conectado
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         </section>
 
       {loading ? (
