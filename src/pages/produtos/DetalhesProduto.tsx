@@ -78,6 +78,7 @@ interface Produto {
 function DetalhesProduto() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { addToCart } = useCarrinho() // IMPORTANTE: hooks devem vir antes de qualquer return
   const [quantidade, setQuantidade] = useState(1)
   const [produto, setProduto] = useState<Produto | null>(null)
   const [loading, setLoading] = useState(true)
@@ -169,8 +170,6 @@ function DetalhesProduto() {
       descricao: produto.descricao
     }
   }
-
-  const { addToCart } = useCarrinho()
 
   const handleAdicionarCarrinho = async () => {
     if (!produto) return

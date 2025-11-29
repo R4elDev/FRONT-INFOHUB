@@ -86,6 +86,56 @@ export const UserProvider: React.FC<UserProviderProps> = ({ children }) => {
         
         console.log('✅ Dados salvos no contexto:', userData)
         setUser(userData)
+        
+        // SE FOR ESTABELECIMENTO, BUSCA O ESTABELECIMENTO DO USUÁRIO
+        if (userData.perfil === 'estabelecimento') {
+          console.log('🏢 Usuário é estabelecimento, buscando dados...')
+          console.log('🔍 ID do usuário:', userData.id)
+          try {
+            const api = (await import('../lib/api')).default
+            
+            // USA O NOVO ENDPOINT: /estabelecimento/usuario/:id_usuario
+            console.log('🔍 Buscando estabelecimento pelo id_usuario:', userData.id)
+            const estabResponse = await api.get<any>(`/estabelecimento/usuario/${userData.id}`)
+            
+            console.log('📦 Resposta do endpoint /estabelecimento/usuario:', estabResponse.data)
+            
+            if (estabResponse.data?.status && estabResponse.data?.estabelecimento) {
+              const meuEstab = estabResponse.data.estabelecimento
+              
+              console.log('✅ Estabelecimento encontrado:', meuEstab.nome)
+              localStorage.setItem('estabelecimentoId', String(meuEstab.id_estabelecimento))
+              localStorage.setItem('estabelecimentoNome', meuEstab.nome)
+              localStorage.setItem('estabelecimentoUserId', String(userData.id))
+              localStorage.setItem('estabelecimentoCNPJ', meuEstab.cnpj || userData.cnpj || '')
+              
+              // Salvar endereço completo se existir
+              if (meuEstab.logradouro) {
+                const enderecoFormatado = `${meuEstab.logradouro}, ${meuEstab.numero || ''} - ${meuEstab.bairro || ''}, ${meuEstab.cidade || ''}/${meuEstab.estado || ''}`
+                localStorage.setItem('estabelecimentoEndereco', enderecoFormatado)
+                localStorage.setItem('estabelecimentoEnderecoCompleto', JSON.stringify({
+                  logradouro: meuEstab.logradouro,
+                  numero: meuEstab.numero,
+                  bairro: meuEstab.bairro,
+                  cidade: meuEstab.cidade,
+                  estado: meuEstab.estado,
+                  cep: meuEstab.cep,
+                  latitude: meuEstab.latitude,
+                  longitude: meuEstab.longitude
+                }))
+              }
+            } else {
+              console.log('ℹ️ Nenhum estabelecimento encontrado para este usuário')
+            }
+          } catch (error: any) {
+            console.log('⚠️ Erro ao buscar estabelecimento:', error.message)
+            // Se o endpoint falhar, limpa os dados antigos
+            if (error.response?.status === 404) {
+              console.log('ℹ️ Usuário não possui estabelecimento cadastrado')
+            }
+          }
+        }
+        
         return { success: true }
       } else {
         return { success: false, message: 'Credenciais inválidas' }

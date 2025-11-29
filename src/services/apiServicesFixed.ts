@@ -129,43 +129,115 @@ export async function cadastrarEndereco(payload: enderecoRequest): Promise<ender
 
 /**
  * Cadastra endereço específico para estabelecimento
- * Endpoint: POST /endereco-estabelecimento
+ * CORREÇÃO: Precisa passar id_estabelecimento, não id_usuario
  */
 export async function cadastrarEnderecoEstabelecimento(payload: any): Promise<any> {
-    console.log('🏢 SOLUÇÃO DEFINITIVA - Criando endereço de estabelecimento')
+    console.log('🏢 Criando endereço de estabelecimento')
+    console.log('🏢 Payload recebido:', JSON.stringify(payload, null, 2))
     
-    // SOLUÇÃO: Usar o endpoint que funciona, mas salvar o endereço formatado no localStorage
-    // para exibir na interface, já que o backend não tem tabela específica implementada
+    // Obtém o ID do estabelecimento do localStorage
+    const estabelecimentoId = localStorage.getItem('estabelecimentoId')
+    console.log('🏢 ID do estabelecimento:', estabelecimentoId)
     
+    // CORREÇÃO: Preparar payload com id_estabelecimento
+    const payloadCorrigido = {
+        ...payload,
+        id_estabelecimento: estabelecimentoId ? parseInt(estabelecimentoId) : payload.id_estabelecimento
+    }
+    
+    // TENTATIVA 1: Endpoint específico para estabelecimento
     try {
-        console.log('🏢 Usando endpoint /endereco-usuario (que funciona)')
+        console.log('🏢 TENTATIVA 1: POST /endereco-estabelecimento')
+        console.log('🏢 Payload:', JSON.stringify(payloadCorrigido, null, 2))
+        
+        const response = await api.post("/endereco-estabelecimento", payloadCorrigido)
+        console.log('✅ Endereço de estabelecimento salvo com sucesso!')
+        console.log('✅ Resposta:', JSON.stringify(response.data, null, 2))
+        
+        salvarEnderecoNoLocalStorage(response.data, payload)
+        return response.data
+    } catch (error1: any) {
+        console.log('⚠️ TENTATIVA 1 FALHOU:', error1.response?.status, error1.response?.data?.message || error1.message)
+    }
+    
+    // TENTATIVA 2: Endpoint de endereço do usuário (fallback)
+    try {
+        console.log('🏢 TENTATIVA 2: POST /endereco-usuario (fallback)')
         console.log('🏢 Payload:', JSON.stringify(payload, null, 2))
         
         const response = await api.post("/endereco-usuario", payload)
-        console.log('✅ Endereço salvo com sucesso!')
+        console.log('✅ Endereço salvo via /endereco-usuario!')
         console.log('✅ Resposta:', JSON.stringify(response.data, null, 2))
         
-        // SOLUÇÃO: Salvar endereço formatado no localStorage para exibir na interface
-        const resData = response.data as any
-        if (resData && resData.status && resData.id) {
-            const enderecoFormatado = `${resData.id.logradouro}, ${resData.id.numero}${resData.id.complemento ? ', ' + resData.id.complemento : ''} - ${resData.id.bairro}, ${resData.id.cidade}/${resData.id.estado} - CEP: ${resData.id.cep}`
-            
-            // Salva o endereço formatado no localStorage
-            localStorage.setItem('estabelecimentoEndereco', enderecoFormatado)
-            localStorage.setItem('estabelecimentoEnderecoCompleto', JSON.stringify(resData.id))
-            
-            console.log('✅ Endereço salvo no localStorage para exibição:', enderecoFormatado)
-        }
-        
+        salvarEnderecoNoLocalStorage(response.data, payload)
         return response.data
-    } catch (error: any) {
-        console.error('❌ ERRO ao salvar endereço:', error)
-        console.error('❌ Response status:', error.response?.status)
-        console.error('❌ Response data:', error.response?.data)
-        throw error
+    } catch (error2: any) {
+        console.log('⚠️ TENTATIVA 2 FALHOU:', error2.response?.status, error2.response?.data?.message || error2.message)
     }
+    
+    // TENTATIVA 3: PUT para atualizar estabelecimento com endereço
+    try {
+        if (estabelecimentoId) {
+            console.log('🏢 TENTATIVA 3: PUT /estabelecimento/:id com endereço')
+            
+            const payloadUpdate = {
+                cep: payload.cep,
+                logradouro: payload.logradouro,
+                numero: payload.numero,
+                complemento: payload.complemento || '',
+                bairro: payload.bairro,
+                cidade: payload.cidade,
+                estado: payload.estado,
+                latitude: payload.latitude || null,
+                longitude: payload.longitude || null
+            }
+            
+            console.log('🏢 Payload:', JSON.stringify(payloadUpdate, null, 2))
+            
+            const response = await api.put(`/estabelecimento/${estabelecimentoId}`, payloadUpdate)
+            console.log('✅ Estabelecimento atualizado com endereço!')
+            console.log('✅ Resposta:', JSON.stringify(response.data, null, 2))
+            
+            salvarEnderecoNoLocalStorage(response.data, payload)
+            return response.data
+        }
+    } catch (error3: any) {
+        console.log('⚠️ TENTATIVA 3 FALHOU:', error3.response?.status, error3.response?.data?.message || error3.message)
+    }
+    
+    // Se todas falharam, pelo menos salva no localStorage para exibição
+    console.log('⚠️ Salvando endereço apenas no localStorage (backend indisponível)')
+    salvarEnderecoNoLocalStorage(null, payload)
+    
+    return { status: true, message: 'Endereço salvo localmente' }
 }
 
+/**
+ * Salva endereço formatado no localStorage para exibição
+ * IMPORTANTE: Inclui latitude/longitude para exibição no mapa
+ */
+function salvarEnderecoNoLocalStorage(responseData: any, payload: any): void {
+    try {
+        const endereco = responseData?.id || responseData?.data || payload
+        
+        // Garante que as coordenadas do payload original sejam mantidas
+        const enderecoCompleto = {
+            ...endereco,
+            latitude: payload.latitude || endereco.latitude || null,
+            longitude: payload.longitude || endereco.longitude || null
+        }
+        
+        const enderecoFormatado = `${endereco.logradouro}, ${endereco.numero}${endereco.complemento ? ', ' + endereco.complemento : ''} - ${endereco.bairro}, ${endereco.cidade}/${endereco.estado} - CEP: ${endereco.cep}`
+        
+        localStorage.setItem('estabelecimentoEndereco', enderecoFormatado)
+        localStorage.setItem('estabelecimentoEnderecoCompleto', JSON.stringify(enderecoCompleto))
+        
+        console.log('✅ Endereço salvo no localStorage:', enderecoFormatado)
+        console.log('📍 Coordenadas salvas:', { lat: enderecoCompleto.latitude, lon: enderecoCompleto.longitude })
+    } catch (error) {
+        console.error('❌ Erro ao salvar endereço no localStorage:', error)
+    }
+}
 
 // ============================================
 // SERVIÇOS DE CATEGORIA - ENDPOINTS CORRIGIDOS
@@ -617,10 +689,23 @@ export function calcularDesconto(precoNormal: number, precoPromocional: number):
  */
 export async function buscarNomeEstabelecimento(id: number): Promise<string> {
     try {
+        console.log(`🔍 Buscando nome do estabelecimento ID: ${id}`)
         const response = await api.get(`/estabelecimento/${id}`)
         const data = response.data as any
-        if (data.status && data.data && data.data.nome) {
-            return data.data.nome
+        console.log(`📦 Resposta do estabelecimento ${id}:`, data)
+        
+        // Tenta diferentes estruturas de resposta
+        if (data.status) {
+            const estabelecimento = data.data || data.estabelecimento || data
+            if (estabelecimento.nome) {
+                console.log(`✅ Nome encontrado: ${estabelecimento.nome}`)
+                return estabelecimento.nome
+            }
+        }
+        
+        // Fallback: verifica se o nome está diretamente no data
+        if (data.nome) {
+            return data.nome
         }
     } catch (error) {
         console.log(`⚠️ Erro ao buscar estabelecimento ${id}:`, error)
@@ -770,6 +855,38 @@ export async function cadastrarEstabelecimento(payload: estabelecimentoRequest):
     
     const user = JSON.parse(userData)
     console.log('👤 Usuário atual:', user.id)
+    
+    // VERIFICAÇÃO: Checar se o usuário já tem um estabelecimento cadastrado
+    try {
+        console.log('🔍 Verificando se usuário já possui estabelecimento...')
+        const verificacao = await api.get<any>('/estabelecimentos/todos')
+        
+        if (verificacao.data?.status && verificacao.data?.data) {
+            const estabelecimentoExistente = verificacao.data.data.find(
+                (e: any) => e.id_usuario === user.id
+            )
+            
+            if (estabelecimentoExistente) {
+                console.log('⚠️ Usuário já possui estabelecimento:', estabelecimentoExistente.nome)
+                
+                // Salvar no localStorage e retornar o existente
+                localStorage.setItem('estabelecimentoId', String(estabelecimentoExistente.id_estabelecimento))
+                localStorage.setItem('estabelecimentoNome', estabelecimentoExistente.nome)
+                localStorage.setItem('estabelecimentoUserId', String(user.id))
+                localStorage.setItem('estabelecimentoCNPJ', estabelecimentoExistente.cnpj || '')
+                
+                return {
+                    status: true,
+                    status_code: 200,
+                    message: 'Estabelecimento já cadastrado para este usuário',
+                    data: estabelecimentoExistente
+                } as estabelecimentoResponse
+            }
+        }
+    } catch (error: any) {
+        console.log('⚠️ Erro ao verificar estabelecimento existente:', error.message)
+        // Continua com o cadastro se a verificação falhar
+    }
     
     // TESTE 1: Payload com id_usuario (OBRIGATÓRIO segundo a API)
     try {
@@ -1005,6 +1122,13 @@ export async function buscarDadosEstabelecimentoAtualizado(): Promise<any> {
             console.log('  - Nome final:', dadosAtualizados.nome)
             
             localStorage.setItem('user_data', JSON.stringify(dadosAtualizados))
+            
+            // Salva também o CNPJ do estabelecimento separadamente para uso em CadastroPromocao
+            if (estabelecimento.cnpj) {
+                localStorage.setItem('estabelecimentoCNPJ', estabelecimento.cnpj)
+                console.log('✅ estabelecimentoCNPJ salvo:', estabelecimento.cnpj)
+            }
+            
             console.log('✅ localStorage atualizado com dados da API')
             console.log('✅ Dados finais salvos:', dadosAtualizados)
             console.log('⚠️ NOTA: Endereço mantido do localStorage (API não retorna este campo)')

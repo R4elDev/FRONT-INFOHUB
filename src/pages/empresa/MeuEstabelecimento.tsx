@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { useUser } from "../../contexts/UserContext"
-import { cadastrarEndereco, cadastrarEnderecoEstabelecimento } from "../../services/apiServicesFixed"
+import { cadastrarEnderecoEstabelecimento } from "../../services/apiServicesFixed"
 import { Store, MapPin, Phone, FileText, Plus, Edit, Save, X } from 'lucide-react'
 
 export default function MeuEstabelecimento() {
@@ -21,41 +21,162 @@ export default function MeuEstabelecimento() {
     complemento: '',
     bairro: '',
     cidade: '',
-    estado: ''
+    estado: '',
+    latitude: '',
+    longitude: ''
   })
 
   useEffect(() => {
-    // Verifica se o estabelecimento no localStorage pertence ao usuário atual
-    const estabelecimentoId = localStorage.getItem('estabelecimentoId')
-    const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
-    const estabelecimentoUserId = localStorage.getItem('estabelecimentoUserId')
-    const estabelecimentoEndereco = localStorage.getItem('estabelecimentoEndereco')
-    
-    // Se existe estabelecimento mas é de outro usuário, limpa o localStorage
-    if (estabelecimentoUserId && user && parseInt(estabelecimentoUserId) !== user.id) {
-      console.log('🧹 MeuEstabelecimento: Limpando estabelecimento de outro usuário:', estabelecimentoUserId, '!==', user.id)
-      localStorage.removeItem('estabelecimentoId')
-      localStorage.removeItem('estabelecimentoNome')
-      localStorage.removeItem('estabelecimentoUserId')
-      localStorage.removeItem('estabelecimentoEndereco')
-      localStorage.removeItem('estabelecimentoEnderecoCompleto')
-      setEstabelecimento(null)
+    const buscarEstabelecimento = async () => {
+      if (!user || user.perfil !== 'estabelecimento') {
+        setLoading(false)
+        return
+      }
+
+      // Verifica se o estabelecimento no localStorage pertence ao usuário atual
+      const estabelecimentoId = localStorage.getItem('estabelecimentoId')
+      const estabelecimentoNome = localStorage.getItem('estabelecimentoNome')
+      const estabelecimentoUserId = localStorage.getItem('estabelecimentoUserId')
+      const estabelecimentoEndereco = localStorage.getItem('estabelecimentoEndereco')
+      
+      // Se existe estabelecimento mas é de outro usuário, limpa o localStorage
+      if (estabelecimentoUserId && parseInt(estabelecimentoUserId) !== user.id) {
+        console.log('🧹 MeuEstabelecimento: Limpando estabelecimento de outro usuário:', estabelecimentoUserId, '!==', user.id)
+        localStorage.removeItem('estabelecimentoId')
+        localStorage.removeItem('estabelecimentoNome')
+        localStorage.removeItem('estabelecimentoUserId')
+        localStorage.removeItem('estabelecimentoEndereco')
+        localStorage.removeItem('estabelecimentoEnderecoCompleto')
+        localStorage.removeItem('estabelecimentoCNPJ')
+      }
+      
+      // Se tem estabelecimento do usuário atual no localStorage, usa ele
+      if (estabelecimentoId && estabelecimentoNome && estabelecimentoUserId && parseInt(estabelecimentoUserId) === user.id) {
+        console.log('✅ Estabelecimento encontrado no localStorage:', estabelecimentoNome)
+        setEstabelecimento({
+          id: parseInt(estabelecimentoId),
+          nome: estabelecimentoNome,
+          cnpj: user?.cnpj || '',
+          telefone: user?.telefone || '',
+          endereco: estabelecimentoEndereco || 'Endereço não informado'
+        })
+        setLoading(false)
+        return
+      }
+      
+      // Se não tem no localStorage, busca do backend usando novo endpoint
+      console.log('🔍 Buscando estabelecimento do backend para usuário:', user.id)
+      try {
+        const api = (await import('../../lib/api')).default
+        
+        // USA O NOVO ENDPOINT: /estabelecimento/usuario/:id_usuario
+        const response = await api.get<any>(`/estabelecimento/usuario/${user.id}`)
+        console.log('📦 Resposta /estabelecimento/usuario:', response.data)
+        
+        if (response.data?.status && response.data?.estabelecimento) {
+          const meuEstab = response.data.estabelecimento
+          
+          console.log('✅ Estabelecimento encontrado no backend:', meuEstab)
+            
+            // Salva no localStorage
+            localStorage.setItem('estabelecimentoId', String(meuEstab.id_estabelecimento))
+            localStorage.setItem('estabelecimentoNome', meuEstab.nome)
+            localStorage.setItem('estabelecimentoUserId', String(user.id))
+            localStorage.setItem('estabelecimentoCNPJ', meuEstab.cnpj || user.cnpj || '')
+            
+            if (meuEstab.logradouro) {
+              const enderecoFormatado = `${meuEstab.logradouro}, ${meuEstab.numero || ''} - ${meuEstab.bairro || ''}, ${meuEstab.cidade || ''}/${meuEstab.estado || ''} - CEP: ${meuEstab.cep || ''}`
+              localStorage.setItem('estabelecimentoEndereco', enderecoFormatado)
+              
+              // Salvar endereço completo com coordenadas
+              localStorage.setItem('estabelecimentoEnderecoCompleto', JSON.stringify({
+                logradouro: meuEstab.logradouro,
+                numero: meuEstab.numero,
+                bairro: meuEstab.bairro,
+                cidade: meuEstab.cidade,
+                estado: meuEstab.estado,
+                cep: meuEstab.cep,
+                latitude: meuEstab.latitude,
+                longitude: meuEstab.longitude
+              }))
+            }
+            
+            setEstabelecimento({
+              id: meuEstab.id_estabelecimento,
+              nome: meuEstab.nome,
+              cnpj: meuEstab.cnpj || user?.cnpj || '',
+              telefone: meuEstab.telefone || user?.telefone || '',
+              endereco: meuEstab.logradouro 
+                ? `${meuEstab.logradouro}, ${meuEstab.numero || ''} - ${meuEstab.bairro || ''}, ${meuEstab.cidade || ''}`
+                : 'Endereço não informado'
+            })
+        } else {
+          console.log('ℹ️ Nenhum estabelecimento encontrado para este usuário')
+        }
+      } catch (error: any) {
+        console.log('⚠️ Erro ao buscar estabelecimento:', error.message)
+      }
+      
+      setLoading(false)
     }
-    // Se tem estabelecimento do usuário atual, usa ele
-    else if (estabelecimentoId && estabelecimentoNome && estabelecimentoUserId && user?.perfil === 'estabelecimento' && parseInt(estabelecimentoUserId) === user.id) {
-      setEstabelecimento({
-        id: parseInt(estabelecimentoId),
-        nome: estabelecimentoNome,
-        cnpj: user?.cnpj || '',
-        telefone: user?.telefone || '',
-        endereco: estabelecimentoEndereco || 'Endereço não informado'
-      })
-    }
     
-    setLoading(false)
+    buscarEstabelecimento()
   }, [user])
 
-  // Busca CEP via ViaCEP
+  // Busca coordenadas via Google Geocoding API (mais preciso que Nominatim)
+  const buscarCoordenadasGoogle = async (endereco: string): Promise<{ lat: number; lng: number } | null> => {
+    try {
+      console.log('📍 Buscando coordenadas via Google Geocoding para:', endereco)
+      
+      // Verifica se o Google Maps está carregado
+      if (!(window as any).google?.maps?.Geocoder) {
+        console.log('⚠️ Google Maps não carregado, tentando carregar...')
+        // Aguarda o Google Maps carregar
+        await new Promise<void>((resolve) => {
+          const checkGoogle = setInterval(() => {
+            if ((window as any).google?.maps?.Geocoder) {
+              clearInterval(checkGoogle)
+              resolve()
+            }
+          }, 100)
+          // Timeout de 5 segundos
+          setTimeout(() => {
+            clearInterval(checkGoogle)
+            resolve()
+          }, 5000)
+        })
+      }
+      
+      if (!(window as any).google?.maps?.Geocoder) {
+        console.log('❌ Google Maps não disponível')
+        return null
+      }
+      
+      const geocoder = new (window as any).google.maps.Geocoder()
+      
+      return new Promise((resolve) => {
+        geocoder.geocode({ address: endereco }, (results: any[], status: string) => {
+          if (status === 'OK' && results && results.length > 0) {
+            const location = results[0].geometry.location
+            const coords = {
+              lat: location.lat(),
+              lng: location.lng()
+            }
+            console.log('✅ Coordenadas Google encontradas:', coords)
+            resolve(coords)
+          } else {
+            console.log('⚠️ Google Geocoding não encontrou resultados:', status)
+            resolve(null)
+          }
+        })
+      })
+    } catch (error) {
+      console.error('❌ Erro ao buscar coordenadas Google:', error)
+      return null
+    }
+  }
+
+  // Busca CEP via ViaCEP e coordenadas via Google Geocoding API
   const buscarCep = async (cep: string) => {
     if (cep.length !== 8) return
 
@@ -73,7 +194,33 @@ export default function MeuEstabelecimento() {
           cidade: data.localidade || '',
           estado: data.uf || ''
         }))
-        setMessage({ type: 'success', text: 'CEP encontrado! Dados preenchidos automaticamente.' })
+        
+        // Busca coordenadas via Google Geocoding (mais preciso)
+        const enderecoCompleto = `${data.logradouro}, ${enderecoForm.numero || ''}, ${data.bairro}, ${data.localidade}, ${data.uf}, Brasil`
+        const coordenadas = await buscarCoordenadasGoogle(enderecoCompleto)
+        
+        if (coordenadas) {
+          setEnderecoForm(prev => ({
+            ...prev,
+            latitude: coordenadas.lat.toString(),
+            longitude: coordenadas.lng.toString()
+          }))
+          setMessage({ type: 'success', text: `CEP encontrado! Coordenadas Google: ${coordenadas.lat.toFixed(6)}, ${coordenadas.lng.toFixed(6)}` })
+        } else {
+          // Tenta buscar só pelo endereço sem número
+          const enderecoSemNumero = `${data.logradouro}, ${data.bairro}, ${data.localidade}, ${data.uf}, Brasil`
+          const coords = await buscarCoordenadasGoogle(enderecoSemNumero)
+          if (coords) {
+            setEnderecoForm(prev => ({
+              ...prev,
+              latitude: coords.lat.toString(),
+              longitude: coords.lng.toString()
+            }))
+            setMessage({ type: 'success', text: 'CEP encontrado! Coordenadas aproximadas.' })
+          } else {
+            setMessage({ type: 'error', text: 'CEP encontrado, mas coordenadas não disponíveis. Tente novamente.' })
+          }
+        }
       } else {
         setMessage({ type: 'error', text: 'CEP não encontrado. Verifique e tente novamente.' })
       }
@@ -105,22 +252,42 @@ export default function MeuEstabelecimento() {
       return
     }
 
+    // VERIFICAÇÃO CRÍTICA: Coordenadas são necessárias para o mapa
+    if (!enderecoForm.latitude || !enderecoForm.longitude) {
+      setMessage({ type: 'error', text: '⚠️ Coordenadas não encontradas! Aguarde a busca do CEP e tente novamente.' })
+      console.log('❌ ERRO: Coordenadas não foram obtidas!')
+      console.log('   latitude:', enderecoForm.latitude)
+      console.log('   longitude:', enderecoForm.longitude)
+      return
+    }
+
     try {
       setSalvandoEndereco(true)
       setMessage(null)
 
+      const estabelecimentoId = localStorage.getItem('estabelecimentoId')
+      
+      // DEBUG: Verificar se coordenadas existem no form
+      console.log('🔍 DEBUG - enderecoForm atual:', enderecoForm)
+      console.log('🔍 DEBUG - latitude no form:', enderecoForm.latitude, 'tipo:', typeof enderecoForm.latitude)
+      console.log('🔍 DEBUG - longitude no form:', enderecoForm.longitude, 'tipo:', typeof enderecoForm.longitude)
+      
       const enderecoData = {
         id_usuario: user.id,
+        id_estabelecimento: estabelecimentoId ? parseInt(estabelecimentoId) : null,
         cep: enderecoForm.cep.replace(/\D/g, ''),
         logradouro: enderecoForm.logradouro,
         numero: enderecoForm.numero || 'S/N',
         complemento: enderecoForm.complemento || '',
         bairro: enderecoForm.bairro,
         cidade: enderecoForm.cidade,
-        estado: enderecoForm.estado
+        estado: enderecoForm.estado,
+        latitude: enderecoForm.latitude ? parseFloat(enderecoForm.latitude) : null,
+        longitude: enderecoForm.longitude ? parseFloat(enderecoForm.longitude) : null
       }
 
       console.log('📍 Salvando endereço do estabelecimento:', enderecoData)
+      console.log('📍 COORDENADAS ENVIADAS:', { lat: enderecoData.latitude, lng: enderecoData.longitude })
       const response = await cadastrarEnderecoEstabelecimento(enderecoData)
 
       if (response && response.status) {
@@ -159,7 +326,9 @@ export default function MeuEstabelecimento() {
       complemento: '',
       bairro: '',
       cidade: '',
-      estado: ''
+      estado: '',
+      latitude: '',
+      longitude: ''
     })
   }
 

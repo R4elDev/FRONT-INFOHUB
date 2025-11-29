@@ -28,7 +28,7 @@ export interface GoogleMapProps {
 export interface GoogleMapRef {
   getMap: () => any
   setCenter: (coordinates: Coordinates, zoom?: number) => void
-  addMarker: (coordinates: Coordinates, options?: { title?: string }) => any
+  addMarker: (coordinates: Coordinates, options?: { title?: string; color?: 'green' | 'orange' | 'red' | 'blue'; onClick?: () => void }) => any
   clearMarkers: () => void
   buscarEstabelecimentos: (coordinates: Coordinates, radius?: number) => Promise<any[]>
 }
@@ -62,14 +62,35 @@ export const GoogleMap = forwardRef<GoogleMapRef, GoogleMapProps>(({
       }
     },
     
-    addMarker: (coordinates: Coordinates, options?: { title?: string }) => {
+    addMarker: (coordinates: Coordinates, options?: { title?: string; color?: 'green' | 'orange' | 'red' | 'blue'; onClick?: () => void }) => {
       if (mapRef.current) {
-        const marker = new (window as any).google.maps.Marker({
+        // Cores para os marcadores
+        const colors: { [key: string]: string } = {
+          green: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
+          orange: 'http://maps.google.com/mapfiles/ms/icons/orange-dot.png',
+          red: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+          blue: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+        }
+        
+        const markerOptions: any = {
           position: coordinates,
           map: mapRef.current,
           title: options?.title,
           animation: (window as any).google.maps.Animation.DROP
-        })
+        }
+        
+        // Se uma cor foi especificada, usar ícone colorido
+        if (options?.color && colors[options.color]) {
+          markerOptions.icon = colors[options.color]
+        }
+        
+        const marker = new (window as any).google.maps.Marker(markerOptions)
+        
+        // Adicionar evento de clique se fornecido
+        if (options?.onClick) {
+          marker.addListener('click', options.onClick)
+        }
+        
         markersRef.current.push(marker)
         return marker
       }

@@ -60,17 +60,46 @@ export default function CadastroPromocao() {
   const [loadingCategorias, setLoadingCategorias] = useState(false)
   const [showCategoriaDropdown, setShowCategoriaDropdown] = useState(false)
 
-  // Função para gerar CNPJ único baseado no ID do usuário
+  // Função para formatar CNPJ para exibição
+  const formatarCNPJ = (cnpj: string): string => {
+    if (!cnpj) return ''
+    const cnpjLimpo = cnpj.replace(/\D/g, '')
+    if (cnpjLimpo.length !== 14) return cnpj
+    return cnpjLimpo.replace(
+      /^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,
+      '$1.$2.$3/$4-$5'
+    )
+  }
+
+  // Função para gerar CNPJ único baseado no ID do usuário (usado apenas se não tiver CNPJ real)
   const gerarCNPJUnico = (userId: number): string => {
-    // Gera um CNPJ único baseado no ID do usuário
     const base = userId.toString().padStart(8, '0')
     return `${base.substring(0,2)}.${base.substring(2,5)}.${base.substring(5,8)}/0001-${(userId % 100).toString().padStart(2, '0')}`
   }
 
   // Verificar se usuário tem estabelecimento ao carregar e criar se necessário
   useEffect(() => {
+    // Timeout de segurança - 5 segundos
+    const timeout = setTimeout(() => {
+      if (verificandoEstabelecimento) {
+        console.log('⏰ TIMEOUT: Forçando fim da verificação')
+        setVerificandoEstabelecimento(false)
+      }
+    }, 5000)
+
     const verificarOuCriarEstabelecimento = async () => {
-      if (user?.perfil !== 'estabelecimento') {
+      // Aguarda o user carregar
+      if (!user) {
+        console.log('⏳ Aguardando user carregar...')
+        return
+      }
+      
+      clearTimeout(timeout)
+      
+      console.log('👤 User carregado:', user.id, user.perfil)
+      
+      if (user.perfil !== 'estabelecimento') {
+        console.log('❌ Perfil não é estabelecimento:', user.perfil)
         setVerificandoEstabelecimento(false)
         return
       }
@@ -81,6 +110,8 @@ export default function CadastroPromocao() {
       const estabelecimentoCNPJ = localStorage.getItem('estabelecimentoCNPJ')
       const estabelecimentoUserId = localStorage.getItem('estabelecimentoUserId')
 
+      console.log('🔍 Verificando estabelecimento:', { estabelecimentoId, estabelecimentoNome, estabelecimentoUserId, userId: user.id })
+
       // Se existe estabelecimento mas é de outro usuário, limpa o localStorage
       if (estabelecimentoUserId && parseInt(estabelecimentoUserId) !== user.id) {
         console.log('🧹 Limpando estabelecimento de outro usuário:', estabelecimentoUserId, '!==', user.id)
@@ -88,15 +119,24 @@ export default function CadastroPromocao() {
         localStorage.removeItem('estabelecimentoNome')
         localStorage.removeItem('estabelecimentoCNPJ')
         localStorage.removeItem('estabelecimentoUserId')
+        // Após limpar, marca que não tem estabelecimento e para a verificação
+        setTemEstabelecimento(false)
+        setVerificandoEstabelecimento(false)
+        return
       }
       // Se tem estabelecimento do usuário atual, usa ele
       else if (estabelecimentoId && estabelecimentoNome && estabelecimentoUserId && parseInt(estabelecimentoUserId) === user.id) {
         console.log('✅ Usando estabelecimento existente do usuário:', user.id)
+        // Usa o CNPJ real: prioridade 1) localStorage, 2) user.cnpj do contexto
+        const cnpjReal = estabelecimentoCNPJ || user.cnpj || ''
+        console.log('📋 CNPJ do estabelecimento:', cnpjReal)
         setEstabelecimento({
           id: parseInt(estabelecimentoId),
           nome: estabelecimentoNome,
-          cnpj: estabelecimentoCNPJ || gerarCNPJUnico(user.id)
+          cnpj: cnpjReal
         })
+        // Preenche automaticamente o campo "Mercado" com o nome do estabelecimento
+        setFormData(prev => ({ ...prev, market: estabelecimentoNome }))
         setTemEstabelecimento(true)
         setVerificandoEstabelecimento(false)
         return
@@ -128,6 +168,8 @@ export default function CadastroPromocao() {
             nome: novoEstabelecimento.nome,
             cnpj: cnpjUnico
           })
+          // Preenche automaticamente o campo "Mercado" com o nome do estabelecimento
+          setFormData(prev => ({ ...prev, market: novoEstabelecimento.nome }))
           setTemEstabelecimento(true)
           
           console.log('✅ Estabelecimento criado automaticamente:', response.id, 'para usuário:', user.id)
@@ -173,6 +215,8 @@ export default function CadastroPromocao() {
     }
 
     verificarOuCriarEstabelecimento()
+    
+    return () => clearTimeout(timeout)
   }, [user])
 
   const handleInputChange = (field: string, value: string) => {
@@ -420,7 +464,7 @@ export default function CadastroPromocao() {
         
         setMessage({ type: 'success', text: mensagemSucesso })
         
-        // Limpar formulário após 2 segundos
+        // Limpar formulário após 2 segundos (mantendo o nome do mercado)
         setTimeout(() => {
           setFormData({
             name: '',
@@ -429,7 +473,7 @@ export default function CadastroPromocao() {
             promoPrice: '',
             discount: '',
             quantity: '',
-            market: '',
+            market: estabelecimento?.nome || '', // Mantém o nome do estabelecimento
             validUntil: '',
             image: null,
             imageUrl: '',
@@ -509,7 +553,7 @@ export default function CadastroPromocao() {
                   <h3 className="text-lg font-bold text-gray-800">{estabelecimento.nome}</h3>
                   <p className="text-sm text-gray-600 font-medium flex items-center gap-2">
                     <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    CNPJ: <span className="font-mono font-semibold text-blue-700">{estabelecimento.cnpj || 'Carregando...'}</span>
+                    CNPJ: <span className="font-mono font-semibold text-blue-700">{formatarCNPJ(estabelecimento.cnpj) || 'Carregando...'}</span>
                   </p>
                 </div>
               </div>
@@ -601,9 +645,10 @@ export default function CadastroPromocao() {
                       <input
                         type="text"
                         value={formData.market}
-                        onChange={(e) => handleInputChange('market', e.target.value)}
-                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-green-400 focus:outline-none transition-all"
+                        readOnly
+                        className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-100 text-gray-700 cursor-not-allowed"
                         placeholder="Nome do mercado"
+                        title="Nome do estabelecimento (não editável)"
                       />
                     </div>
                   </div>

@@ -6,8 +6,9 @@ import "leaflet/dist/leaflet.css"
 import { Input as CampoTexto } from "../../components/ui/input"
 import lupaPesquisa from "../../assets/lupa de pesquisa .png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { MapPin, Star, ShoppingCart, X, Navigation, Store, Building2 } from "lucide-react"
+import { MapPin, Star, ShoppingCart, X, Navigation, Store, Building2, Package, Tag } from "lucide-react"
 import api from "../../lib/api"
+import { listarProdutos, formatarPreco, isProdutoEmPromocao } from "../../services/apiServicesFixed"
 
 // CSS para corrigir problema de ícones do Leaflet
 const leafletCustomCSS = `
@@ -84,6 +85,8 @@ function Localizacao() {
   const [estabelecimentoSelecionado, setEstabelecimentoSelecionado] = useState<Estabelecimento | null>(null)
   const [modalAberto, setModalAberto] = useState<boolean>(false)
   const [animatingCardId, setAnimatingCardId] = useState<number | null>(null)
+  const [produtosEstabelecimento, setProdutosEstabelecimento] = useState<any[]>([])
+  const [loadingProdutos, setLoadingProdutos] = useState<boolean>(false)
   
   // Refs
   const mapRef = useRef(null)
@@ -609,8 +612,31 @@ function Localizacao() {
     }
   }
 
-  const handleCardClick = (estabelecimento: Estabelecimento): void => {
+  const handleCardClick = async (estabelecimento: Estabelecimento): Promise<void> => {
     setAnimatingCardId(estabelecimento.id)
+    
+    // Se é um estabelecimento cadastrado, busca os produtos
+    if (estabelecimento.isCadastrado) {
+      setLoadingProdutos(true)
+      try {
+        console.log(`📦 Buscando produtos do estabelecimento ${estabelecimento.id}...`)
+        const response = await listarProdutos({ estabelecimento: estabelecimento.id })
+        if (response.status && response.data) {
+          console.log(`✅ ${response.data.length} produtos encontrados`)
+          setProdutosEstabelecimento(response.data)
+        } else {
+          setProdutosEstabelecimento([])
+        }
+      } catch (error) {
+        console.error('❌ Erro ao buscar produtos:', error)
+        setProdutosEstabelecimento([])
+      } finally {
+        setLoadingProdutos(false)
+      }
+    } else {
+      setProdutosEstabelecimento([])
+    }
+    
     setTimeout(() => {
       setEstabelecimentoSelecionado(estabelecimento)
       setModalAberto(true)
@@ -621,6 +647,7 @@ function Localizacao() {
   const handleCloseModal = (): void => {
     setModalAberto(false)
     setEstabelecimentoSelecionado(null)
+    setProdutosEstabelecimento([])
   }
 
   // Obter localização do usuário ao carregar
@@ -1176,6 +1203,72 @@ function Localizacao() {
                     "{estabelecimentoSelecionado.comentario}"
                   </p>
                 </div>
+
+                {/* Produtos do estabelecimento (apenas para parceiros) */}
+                {estabelecimentoSelecionado.isCadastrado && (
+                  <div className="mt-4">
+                    <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2 mb-3">
+                      <Package className="w-4 h-4 text-[#F9A01B]" />
+                      Produtos Disponíveis
+                    </h3>
+                    
+                    {loadingProdutos ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#F9A01B]"></div>
+                      </div>
+                    ) : produtosEstabelecimento.length > 0 ? (
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {produtosEstabelecimento.slice(0, 5).map((produto) => (
+                          <div 
+                            key={produto.id} 
+                            className="flex items-center gap-3 p-2 bg-white rounded-lg border border-gray-100 hover:border-orange-200 transition-colors"
+                          >
+                            {produto.imagem ? (
+                              <img 
+                                src={produto.imagem} 
+                                alt={produto.nome}
+                                className="w-10 h-10 rounded-lg object-cover"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                                <Package className="w-5 h-5 text-gray-400" />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">{produto.nome}</p>
+                              <div className="flex items-center gap-2">
+                                {isProdutoEmPromocao(produto) ? (
+                                  <>
+                                    <span className="text-xs text-gray-400 line-through">
+                                      {formatarPreco(produto.preco)}
+                                    </span>
+                                    <span className="text-sm font-bold text-green-600">
+                                      {formatarPreco(produto.promocao?.preco_promocional || produto.preco)}
+                                    </span>
+                                    <Tag className="w-3 h-3 text-red-500" />
+                                  </>
+                                ) : (
+                                  <span className="text-sm font-bold text-gray-700">
+                                    {formatarPreco(produto.preco)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {produtosEstabelecimento.length > 5 && (
+                          <p className="text-xs text-center text-gray-500 pt-2">
+                            +{produtosEstabelecimento.length - 5} produtos disponíveis
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500 text-center py-2">
+                        Nenhum produto cadastrado ainda
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Botão de Ação */}

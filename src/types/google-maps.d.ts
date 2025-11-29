@@ -235,9 +235,12 @@ declare namespace google {
       }
 
       interface PlaceOpeningHours {
-        open_now: boolean
+        /** @deprecated Use isOpen() instead */
+        open_now?: boolean
         periods?: PlaceOpeningHoursPeriod[]
         weekday_text?: string[]
+        /** Returns whether the place is open now. Use this instead of open_now */
+        isOpen?: () => boolean
       }
 
       interface PlaceOpeningHoursPeriod {
