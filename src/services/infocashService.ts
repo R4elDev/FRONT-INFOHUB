@@ -25,6 +25,45 @@ interface HistoricoResponse {
   data?: TransacaoHistorico[];
 }
 
+interface ResumoPorTipo {
+  tipo_acao: string;
+  total_transacoes: number;
+  total_pontos: number;
+}
+
+interface ResumoPorTipoResponse {
+  status: boolean;
+  message: string;
+  data?: ResumoPorTipo[];
+}
+
+interface PerfilCompleto {
+  saldo: number;
+  nivel: string;
+  total_ganho: number;
+  total_gasto: number;
+  resumo_por_tipo: ResumoPorTipo[];
+}
+
+interface PerfilCompletoResponse {
+  status: boolean;
+  message: string;
+  data?: PerfilCompleto;
+}
+
+interface UsuarioRanking {
+  id_usuario: number;
+  nome_usuario: string;
+  saldo_total: number;
+  posicao: number;
+}
+
+interface RankingResponse {
+  status: boolean;
+  message: string;
+  data?: UsuarioRanking[];
+}
+
 class InfoCashService {
   async getSaldo(idUsuario: number): Promise<SaldoResponse> {
     try {
@@ -89,7 +128,65 @@ class InfoCashService {
   formatarPontos(pontos: number): string {
     return new Intl.NumberFormat('pt-BR').format(pontos);
   }
+
+  async getResumoPorTipo(idUsuario: number): Promise<ResumoPorTipoResponse> {
+    try {
+      const response = await api.get(`/infocash/resumo/${idUsuario}`);
+      return response.data as ResumoPorTipoResponse;
+    } catch (error: any) {
+      console.error('Erro ao buscar resumo por tipo:', error);
+      return { 
+        status: false, 
+        message: error.response?.data?.message || 'Erro ao buscar resumo', 
+        data: [] 
+      };
+    }
+  }
+
+  async getPerfilCompleto(idUsuario: number): Promise<PerfilCompletoResponse> {
+    try {
+      const response = await api.get(`/infocash/perfil/${idUsuario}`);
+      return response.data as PerfilCompletoResponse;
+    } catch (error: any) {
+      console.error('Erro ao buscar perfil completo:', error);
+      return { 
+        status: false, 
+        message: error.response?.data?.message || 'Erro ao buscar perfil',
+        data: {
+          saldo: 0,
+          nivel: 'Bronze',
+          total_ganho: 0,
+          total_gasto: 0,
+          resumo_por_tipo: []
+        }
+      };
+    }
+  }
+
+  async getRanking(limite = 10): Promise<RankingResponse> {
+    try {
+      const response = await api.get(`/infocash/ranking?limite=${limite}`);
+      return response.data as RankingResponse;
+    } catch (error: any) {
+      console.error('Erro ao buscar ranking:', error);
+      return { 
+        status: false, 
+        message: error.response?.data?.message || 'Erro ao buscar ranking', 
+        data: [] 
+      };
+    }
+  }
 }
 
 export default new InfoCashService();
-export type { SaldoResponse, HistoricoResponse, TransacaoHistorico };
+export type { 
+  SaldoResponse, 
+  HistoricoResponse, 
+  TransacaoHistorico,
+  ResumoPorTipo,
+  ResumoPorTipoResponse,
+  PerfilCompleto,
+  PerfilCompletoResponse,
+  UsuarioRanking,
+  RankingResponse
+};

@@ -47,6 +47,7 @@ import ConfiguracoesUsuario from './pages/perfil/ConfiguracoesUsuario'
 
 // Páginas de InfoCash
 import InfoCash from './pages/infocash/InfoCash'
+import InfoCashPrincipal from './pages/infocash/InfoCashPrincipal'
 import InfoCashComentarios from './pages/infocash/InfoCashComentarios'
 import InfoCashNovoComentario from './pages/infocash/InfoCashNovoComentario'
 
@@ -132,7 +133,8 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/configuracoes" element={<ConfiguracoesUsuario/>} />
         <Route path="/configuracoes-usuario" element={<ConfiguracoesUsuario/>} />
         <Route path="/perfil-usuario" element={<PerfilUsuario/>} />
-        <Route path="/infocash" element={<InfoCash/>} />
+        <Route path="/infocash" element={<InfoCashPrincipal/>} />
+        <Route path="/infocash/comunidade" element={<InfoCash/>} />
         <Route path="/infocash/comentarios" element={<InfoCashComentarios/>} />
         <Route path="/infocash/novo-comentario" element={<InfoCashNovoComentario/>} />
         <Route path="/favoritos" element={<Favoritos/>} />
