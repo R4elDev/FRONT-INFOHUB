@@ -159,19 +159,18 @@ export default function InfoCashNovoComentario() {
         setError(response.message || 'Erro ao criar comentário')
       }
     } catch (err: any) {
-      console.error('❌ [InfoCashNovoComentario] Erro ao criar post:', err)
-      console.error('❌ [InfoCashNovoComentario] Erro response:', err.response)
-      console.error('❌ [InfoCashNovoComentario] Erro response.data:', err.response?.data)
-      console.error('❌ [InfoCashNovoComentario] Erro status:', err.response?.status)
-      console.error('❌ [InfoCashNovoComentario] Erro message:', err.message)
+      // Usar console.warn em vez de console.error para não confundir usuário
+      console.warn('⚠️ [InfoCashNovoComentario] Catch acionado:', err.message)
+      console.warn('⚠️ [InfoCashNovoComentario] Status:', err.response?.status)
+      console.warn('⚠️ [InfoCashNovoComentario] Response:', err.response?.data)
       
-      // Mostra erro detalhado
+      // Mostra erro na UI
       const errorMessage = err.response?.data?.message 
         || err.response?.data?.error 
         || err.message 
-        || 'Erro desconhecido ao criar comentário'
+        || 'Erro ao criar comentário'
       
-      setError(`Erro: ${errorMessage} (Status: ${err.response?.status || 'N/A'})`)
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
