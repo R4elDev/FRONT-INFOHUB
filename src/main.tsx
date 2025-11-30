@@ -73,6 +73,10 @@ import TesteProdutos from './pages/teste/TesteProdutos'
 // Páginas de Chat
 import ChatPage from './pages/chat/ChatPage'
 
+// Páginas de Avaliação
+import AvaliarProduto from './pages/avaliacao/AvaliarProduto'
+import AvaliarEstabelecimento from './pages/avaliacao/AvaliarEstabelecimento'
+
 
 
 createRoot(document.getElementById('root')!).render(
@@ -188,6 +192,28 @@ createRoot(document.getElementById('root')!).render(
         
         {/* Rota do Chat IA */}
         <Route path="/chat" element={<ChatPage />} />
+        
+        {/* Rotas de Avaliação */}
+        <Route path="/avaliar-produto" element={
+          <ProtectedRoute requireAuth={true}>
+            <AvaliarProduto />
+          </ProtectedRoute>
+        } />
+        <Route path="/avaliar-produto/:id" element={
+          <ProtectedRoute requireAuth={true}>
+            <AvaliarProduto />
+          </ProtectedRoute>
+        } />
+        <Route path="/avaliar-estabelecimento" element={
+          <ProtectedRoute requireAuth={true}>
+            <AvaliarEstabelecimento />
+          </ProtectedRoute>
+        } />
+        <Route path="/avaliar-estabelecimento/:id" element={
+          <ProtectedRoute requireAuth={true}>
+            <AvaliarEstabelecimento />
+          </ProtectedRoute>
+        } />
               </Routes>
             </SessionManager>
           </BrowserRouter>

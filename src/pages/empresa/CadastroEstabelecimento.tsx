@@ -78,7 +78,10 @@ export function CadastroEstabelecimento() {
     complemento: '',
     bairro: '',
     cidade: '',
-    estado: ''
+    estado: '',
+    // Coordenadas geográficas
+    latitude: '',
+    longitude: ''
   })
 
   // Verificar se usuário já tem estabelecimento e pré-preencher CNPJ
@@ -179,7 +182,34 @@ export function CadastroEstabelecimento() {
     verificarEstabelecimentoCompleto()
   }, [user])
 
-  // Busca CEP via ViaCEP
+  // Busca coordenadas via Nominatim (OpenStreetMap) usando proxy do Vite
+  const buscarCoordenadasNominatim = async (endereco: string): Promise<{ lat: number; lng: number } | null> => {
+    try {
+      console.log('📍 Buscando coordenadas via Nominatim para:', endereco)
+      // Usa proxy /nominatim configurado no vite.config.ts para evitar CORS
+      const url = `/nominatim/search?format=json&q=${encodeURIComponent(endereco)}&countrycodes=br&limit=1`
+      
+      const response = await fetch(url)
+      
+      const data = await response.json()
+      
+      if (data && data.length > 0) {
+        const result = {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon)
+        }
+        console.log('✅ Coordenadas encontradas via Nominatim:', result)
+        return result
+      }
+      
+      return null
+    } catch (error) {
+      console.error('❌ Erro ao buscar coordenadas via Nominatim:', error)
+      return null
+    }
+  }
+
+  // Busca CEP via ViaCEP e coordenadas via Nominatim
   const buscarCep = async (cep: string) => {
     if (cep.length !== 8) return
 
@@ -192,6 +222,8 @@ export function CadastroEstabelecimento() {
       
       if (!data.erro) {
         console.log('✅ CEP encontrado:', data)
+        
+        // Atualiza dados do endereço
         setFormData(prev => ({
           ...prev,
           logradouro: data.logradouro || '',
@@ -199,7 +231,34 @@ export function CadastroEstabelecimento() {
           cidade: data.localidade || '',
           estado: data.uf || ''
         }))
-        setMessage({ type: 'success', text: 'CEP encontrado! Dados preenchidos automaticamente.' })
+        
+        // Busca coordenadas usando endereço completo
+        const enderecoCompleto = `${data.logradouro}, ${data.bairro}, ${data.localidade}, ${data.uf}, Brasil`
+        const coordenadas = await buscarCoordenadasNominatim(enderecoCompleto)
+        
+        if (coordenadas) {
+          setFormData(prev => ({
+            ...prev,
+            latitude: coordenadas.lat.toString(),
+            longitude: coordenadas.lng.toString()
+          }))
+          setMessage({ type: 'success', text: `CEP encontrado! Coordenadas: ${coordenadas.lat.toFixed(4)}, ${coordenadas.lng.toFixed(4)}` })
+        } else {
+          // Tenta buscar apenas por cidade/estado
+          const enderecoSimples = `${data.localidade}, ${data.uf}, Brasil`
+          const coordenadasSimples = await buscarCoordenadasNominatim(enderecoSimples)
+          
+          if (coordenadasSimples) {
+            setFormData(prev => ({
+              ...prev,
+              latitude: coordenadasSimples.lat.toString(),
+              longitude: coordenadasSimples.lng.toString()
+            }))
+            setMessage({ type: 'success', text: `CEP encontrado! Coordenadas aproximadas.` })
+          } else {
+            setMessage({ type: 'success', text: 'CEP encontrado! Coordenadas não disponíveis.' })
+          }
+        }
       } else {
         console.log('❌ CEP não encontrado')
         setMessage({ type: 'error', text: 'CEP não encontrado. Verifique e tente novamente.' })
@@ -315,6 +374,11 @@ export function CadastroEstabelecimento() {
     try {
       setLoading(true)
 
+      // DEBUG: Mostrar coordenadas do formData
+      console.log('🗺️ COORDENADAS NO FORMDATA:')
+      console.log('   latitude:', formData.latitude, '| tipo:', typeof formData.latitude)
+      console.log('   longitude:', formData.longitude, '| tipo:', typeof formData.longitude)
+
       const estabelecimentoData: estabelecimentoRequest = {
         nome: formData.nome.trim(),
         cnpj: formData.cnpj.replace(/\D/g, ''),
@@ -332,12 +396,14 @@ export function CadastroEstabelecimento() {
         const estabelecimentoId = response.id
         console.log('✅ ID do estabelecimento:', estabelecimentoId)
         
-        // Salva o ID, NOME e USER_ID do estabelecimento no localStorage
+        // Salva o ID, NOME, CNPJ e USER_ID do estabelecimento no localStorage
         if (estabelecimentoId && user) {
           localStorage.setItem('estabelecimentoId', estabelecimentoId.toString())
           localStorage.setItem('estabelecimentoNome', formData.nome)
+          localStorage.setItem('estabelecimentoCNPJ', formData.cnpj.replace(/\D/g, ''))
           localStorage.setItem('estabelecimentoUserId', user.id.toString())
           console.log('✅ Estabelecimento salvo para usuário:', user.id)
+          console.log('✅ CNPJ salvo no localStorage:', formData.cnpj)
           
           // ATUALIZA os dados do usuário no localStorage com CNPJ e telefone
           const userData = localStorage.getItem('user_data')
@@ -375,20 +441,25 @@ export function CadastroEstabelecimento() {
             logradouro: formData.logradouro,
             bairro: formData.bairro,
             cidade: formData.cidade,
-            estado: formData.estado
+            estado: formData.estado,
+            latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+            longitude: formData.longitude ? parseFloat(formData.longitude) : null
           })
           
           // Se tem dados completos do ViaCEP, usa eles
           if (formData.cep && formData.logradouro && formData.bairro && formData.cidade && formData.estado) {
             const enderecoData = {
               id_usuario: user.id,
+              id_estabelecimento: estabelecimentoId,
               cep: formData.cep.replace(/\D/g, ''),
               logradouro: formData.logradouro,
               numero: formData.numero || 'S/N',
               complemento: formData.complemento || '',
               bairro: formData.bairro,
               cidade: formData.cidade,
-              estado: formData.estado
+              estado: formData.estado,
+              latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+              longitude: formData.longitude ? parseFloat(formData.longitude) : null
             }
             
             console.log('📍 Usando dados completos do formulário:', enderecoData)
@@ -398,21 +469,24 @@ export function CadastroEstabelecimento() {
               console.log('✅ Endereço completo criado com sucesso!')
               setMessage({ type: 'success', text: 'Estabelecimento e endereço cadastrados com sucesso!' })
             } else {
-              console.log('⚠️ Falha ao criar endereço completo, criando padrão...')
-              throw new Error('Falha no endereço completo')
+              console.log('⚠️ Falha ao criar endereço completo')
+              setMessage({ type: 'success', text: 'Estabelecimento cadastrado! Endereço salvo localmente.' })
             }
           } else {
             // Se não tem dados completos, cria endereço padrão
             console.log('📍 Dados incompletos, criando endereço padrão...')
             const enderecoDefault = {
               id_usuario: user.id,
+              id_estabelecimento: estabelecimentoId,
               cep: '00000000',
               logradouro: 'Endereço não informado',
               numero: 'S/N',
               complemento: '',
               bairro: 'Centro',
               cidade: 'Cidade não informada',
-              estado: 'Estado não informado'
+              estado: 'SP',
+              latitude: null,
+              longitude: null
             }
             
             console.log('📍 Criando endereço padrão:', enderecoDefault)

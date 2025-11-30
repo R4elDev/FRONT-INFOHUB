@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
-import { TrendingUp, Package, Settings, Loader2, LogOut, ShoppingBag, User, MapPin, BarChart3, Zap, Sparkles, Eye, Heart, Star, ArrowUpRight, Clock, CheckCircle2, Users, Edit2, Trash2, Play, Pause, Calendar, Tag, Target, TrendingDown, Plus } from "lucide-react"
+import { TrendingUp, Package, Settings, Loader2, LogOut, User, MapPin, BarChart3, Zap, Sparkles, Star, ArrowUpRight, Clock, CheckCircle2, Edit2, Play, Pause, Calendar, Tag, Plus } from "lucide-react"
 import { buscarDadosEstabelecimentoAtualizado } from "../../services/apiServicesFixed"
 
 type TabType = 'promocoes' | 'pedidos' | 'relatorio' | 'sistema'
@@ -15,6 +15,15 @@ function DashboardEmpresa() {
   const [emailEmpresa, setEmailEmpresa] = useState("carregando@email.com")
   const [localizacao, setLocalizacao] = useState("Carregando...")
   const [loading, setLoading] = useState(true)
+  
+  // Estados para métricas dinâmicas
+  const [totalProdutos, setTotalProdutos] = useState(0)
+  const [totalPromocoes, setTotalPromocoes] = useState(0)
+  const [loadingMetricas, setLoadingMetricas] = useState(true)
+  const [produtosDoEstabelecimento, setProdutosDoEstabelecimento] = useState<any[]>([])
+  const [promocoesAtivas, setPromocoesAtivas] = useState<any[]>([])
+  const [promocoesPausadas, setPromocoesPausadas] = useState<any[]>([])
+  const [promocoesExpiradas, setPromocoesExpiradas] = useState<any[]>([])
   
   // Carrega dados da empresa ao montar o componente
   useEffect(() => {
@@ -109,6 +118,143 @@ function DashboardEmpresa() {
     }
     
     carregarDadosEmpresa()
+  }, [])
+
+  // Carrega métricas (produtos e promoções) do estabelecimento
+  useEffect(() => {
+    const carregarMetricas = async () => {
+      setLoadingMetricas(true)
+      try {
+        // Busca o ID do estabelecimento do localStorage
+        let estabelecimentoId = localStorage.getItem('estabelecimentoId')
+        
+        // Se não tiver no localStorage, tenta buscar pelo user_data
+        if (!estabelecimentoId) {
+          console.log('⚠️ [Dashboard] estabelecimentoId não encontrado, buscando do user_data...')
+          
+          const userDataStr = localStorage.getItem('user_data')
+          if (userDataStr) {
+            try {
+              const userData = JSON.parse(userDataStr)
+              const userId = userData?.user?.id || userData?.id
+              
+              if (userId) {
+                console.log('🔍 [Dashboard] Buscando estabelecimento do usuário:', userId)
+                
+                // Busca TODOS os estabelecimentos e filtra pelo usuário
+                const api = (await import('../../lib/api')).default
+                const response = await api.get<any>(`/estabelecimentos/todos`)
+                
+                console.log('📦 [Dashboard] Resposta estabelecimentos/todos:', response.data)
+                
+                // A resposta pode vir em diferentes formatos
+                const estabelecimentos = response.data?.data || response.data?.estabelecimentos || []
+                console.log('📦 [Dashboard] Estabelecimentos encontrados:', estabelecimentos.length)
+                
+                // Debug: mostrar estrutura do primeiro estabelecimento
+                if (estabelecimentos.length > 0) {
+                  console.log('📦 [Dashboard] Estrutura do estabelecimento:', JSON.stringify(estabelecimentos[0], null, 2))
+                }
+                
+                if (estabelecimentos.length > 0) {
+                  // Filtra pelo id_usuario (pode ter diferentes nomes de campo)
+                  const estabDoUsuario = estabelecimentos.find((e: any) => {
+                    const estabUserId = Number(e.id_usuario || e.idUsuario || e.usuario_id || e.user_id || 0)
+                    console.log(`   Estab ${e.nome}: id_usuario=${e.id_usuario}, comparando com ${userId}`)
+                    return estabUserId === Number(userId)
+                  })
+                  
+                  console.log('🔍 [Dashboard] Buscando id_usuario:', userId, 'Encontrado:', estabDoUsuario)
+                  
+                  if (estabDoUsuario) {
+                    estabelecimentoId = String(estabDoUsuario.id_estabelecimento)
+                    localStorage.setItem('estabelecimentoId', estabelecimentoId)
+                    console.log('✅ [Dashboard] Estabelecimento encontrado e salvo:', estabelecimentoId, estabDoUsuario.nome)
+                  } else {
+                    console.log('⚠️ [Dashboard] Usuário não possui estabelecimento cadastrado')
+                  }
+                } else {
+                  console.log('⚠️ [Dashboard] Nenhum estabelecimento retornado pela API')
+                }
+              }
+            } catch (e) {
+              console.error('❌ [Dashboard] Erro ao buscar estabelecimento:', e)
+            }
+          }
+        }
+        
+        if (!estabelecimentoId) {
+          console.log('⚠️ [Dashboard] Nenhum estabelecimento encontrado')
+          setLoadingMetricas(false)
+          return
+        }
+        
+        console.log('📊 [Dashboard] Carregando métricas do estabelecimento:', estabelecimentoId)
+        
+        // Usa o serviço listarProdutos que já tem mapeamento correto de promoções
+        const { listarProdutos } = await import('../../services/apiServicesFixed')
+        
+        // Busca TODOS os produtos (o backend pode não filtrar corretamente)
+        const produtosResponse = await listarProdutos({})
+        console.log('📦 [Dashboard] Resposta da API:', produtosResponse)
+        
+        if (produtosResponse.status && produtosResponse.data) {
+          // Filtra produtos do estabelecimento correto no frontend
+          const estabId = Number(estabelecimentoId)
+          const produtosDoEstab = produtosResponse.data.filter((p: any) => {
+            const prodEstabId = Number(p.estabelecimento?.id || p.id_estabelecimento || 0)
+            console.log(`   Produto ${p.nome}: estab_id=${prodEstabId} === ${estabId} ? ${prodEstabId === estabId}`)
+            return prodEstabId === estabId
+          })
+          
+          setTotalProdutos(produtosDoEstab.length)
+          setProdutosDoEstabelecimento(produtosDoEstab)
+          console.log(`📦 [Dashboard] Produtos filtrados do estabelecimento ${estabId}: ${produtosDoEstab.length}`)
+          console.log('📦 [Dashboard] Produtos:', produtosDoEstab.map((p: any) => ({ nome: p.nome, promocao: p.promocao })))
+          
+          // Separa promoções por status
+          const agora = new Date()
+          
+          const ativas = produtosDoEstab.filter((p: any) => {
+            if (!p.promocao) return false
+            const inicio = new Date(p.promocao.data_inicio)
+            const fim = new Date(p.promocao.data_fim)
+            const isAtiva = agora >= inicio && agora <= fim
+            console.log(`   Promoção ${p.nome}: ${inicio.toLocaleDateString()} - ${fim.toLocaleDateString()} | Ativa: ${isAtiva}`)
+            return isAtiva
+          })
+          
+          const expiradas = produtosDoEstab.filter((p: any) => {
+            if (!p.promocao) return false
+            const fim = new Date(p.promocao.data_fim)
+            return agora > fim
+          })
+          
+          // Produtos sem promoção
+          const semPromocao = produtosDoEstab.filter((p: any) => !p.promocao)
+          
+          setPromocoesAtivas(ativas)
+          setPromocoesExpiradas(expiradas)
+          setPromocoesPausadas(semPromocao) // Produtos sem promoção
+          setTotalPromocoes(ativas.length)
+          
+          console.log(`🎁 [Dashboard] Promoções: ${ativas.length} ativas, ${expiradas.length} expiradas, ${semPromocao.length} sem promoção`)
+        } else {
+          console.log('⚠️ [Dashboard] Nenhum produto retornado')
+          setProdutosDoEstabelecimento([])
+          setPromocoesAtivas([])
+          setPromocoesExpiradas([])
+          setPromocoesPausadas([])
+        }
+        
+      } catch (error) {
+        console.error('❌ [Dashboard] Erro ao carregar métricas:', error)
+      } finally {
+        setLoadingMetricas(false)
+      }
+    }
+    
+    carregarMetricas()
   }, [])
 
   return (
@@ -207,15 +353,15 @@ function DashboardEmpresa() {
                   </span>
                 </div>
                 
-                {/* Stats Badges */}
+                {/* Stats Badges - Dados do estabelecimento */}
                 <div className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full shadow-lg hover:scale-105 transition-all">
-                  <Eye className="w-4 h-4" />
-                  <span className="text-xs font-bold">1.2k visualizações</span>
+                  <Package className="w-4 h-4" />
+                  <span className="text-xs font-bold">{totalProdutos} produto(s)</span>
                 </div>
                 
-                <div className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-full shadow-lg hover:scale-105 transition-all">
-                  <Users className="w-4 h-4" />
-                  <span className="text-xs font-bold">248 seguidores</span>
+                <div className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full shadow-lg hover:scale-105 transition-all">
+                  <TrendingUp className="w-4 h-4" />
+                  <span className="text-xs font-bold">{totalPromocoes} promoção(ões)</span>
                 </div>
               </div>
             </div>
@@ -234,15 +380,21 @@ function DashboardEmpresa() {
                 </div>
               </div>
               <div className="flex items-end gap-2 mb-2">
-                <p className="text-5xl font-black">0</p>
-                <div className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded-lg mb-2">
-                  <ArrowUpRight className="w-4 h-4" />
-                  <span className="text-xs font-bold">0%</span>
-                </div>
+                {loadingMetricas ? (
+                  <Loader2 className="w-10 h-10 animate-spin" />
+                ) : (
+                  <p className="text-5xl font-black">{totalPromocoes}</p>
+                )}
+                {totalPromocoes > 0 && (
+                  <div className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded-lg mb-2">
+                    <ArrowUpRight className="w-4 h-4" />
+                    <span className="text-xs font-bold">Ativas</span>
+                  </div>
+                )}
               </div>
               <p className="text-sm opacity-90 font-semibold flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4" />
-                Cadastre suas promoções
+                {totalPromocoes > 0 ? 'Suas promoções estão ativas!' : 'Cadastre suas promoções'}
               </p>
             </div>
 
@@ -256,40 +408,25 @@ function DashboardEmpresa() {
                 </div>
               </div>
               <div className="flex items-end gap-2 mb-2">
-                <p className="text-5xl font-black">0</p>
-                <div className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded-lg mb-2">
-                  <Clock className="w-4 h-4" />
-                  <span className="text-xs font-bold">Hoje</span>
-                </div>
+                {loadingMetricas ? (
+                  <Loader2 className="w-10 h-10 animate-spin" />
+                ) : (
+                  <p className="text-5xl font-black">{totalProdutos}</p>
+                )}
+                {totalProdutos > 0 && (
+                  <div className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded-lg mb-2">
+                    <Package className="w-4 h-4" />
+                    <span className="text-xs font-bold">Cadastrados</span>
+                  </div>
+                )}
               </div>
               <p className="text-sm opacity-90 font-semibold flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4" />
-                Adicione seus produtos
+                {totalProdutos > 0 ? `${totalProdutos} produto(s) cadastrado(s)` : 'Adicione seus produtos'}
               </p>
             </div>
 
-            {/* Pedidos */}
-            <div className="relative bg-gradient-to-br from-blue-500 to-blue-700 rounded-3xl shadow-[0_4px_16px_rgba(59,130,246,0.3)] border-2 border-blue-200 p-8 text-white animate-fadeInUp animate-delay-300 hover:scale-105 hover:shadow-[0_8px_30px_rgba(59,130,246,0.5)] hover:-translate-y-2 transition-all duration-300 cursor-pointer group overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-bold opacity-95">Pedidos</h3>
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                  <ShoppingBag className="opacity-90" size={28} />
-                </div>
-              </div>
-              <div className="flex items-end gap-2 mb-2">
-                <p className="text-5xl font-black">0</p>
-                <div className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded-lg mb-2">
-                  <Heart className="w-4 h-4 fill-white" />
-                  <span className="text-xs font-bold">100%</span>
-                </div>
-              </div>
-              <p className="text-sm opacity-90 font-semibold flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4" />
-                Gerencie seus pedidos
-              </p>
             </div>
-          </div>
 
           {/* Menu de Ações Rápidas */}
           <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgba(0,0,0,0.12)] border-2 border-white/60 p-8 animate-fadeInUp hover:shadow-[0_12px_40px_rgba(0,0,0,0.15)] transition-all duration-300">
@@ -305,7 +442,7 @@ function DashboardEmpresa() {
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="font-medium">4 ações disponíveis</span>
+                <span className="font-medium">3 ações disponíveis</span>
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -321,21 +458,6 @@ function DashboardEmpresa() {
                 <div className="text-left">
                   <p className="font-bold text-gray-800 text-lg">Promoções</p>
                   <p className="text-sm text-gray-600">Gerenciar promoções</p>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigate('/pedidos')}
-                className="relative flex items-center gap-4 p-5 rounded-2xl border-2 border-blue-200 hover:border-blue-500 hover:bg-gradient-to-br hover:from-blue-50 hover:to-blue-100 transition-all group hover:shadow-xl hover:-translate-y-1 overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                <div className="relative w-14 h-14 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 group-hover:from-blue-500 group-hover:to-blue-700 flex items-center justify-center transition-all group-hover:scale-110 group-hover:rotate-3 shadow-md">
-                  <ShoppingBag className="text-blue-600 group-hover:text-white transition-colors" size={28} />
-                </div>
-                <div className="text-left">
-                  <p className="font-bold text-gray-800 text-lg">Pedidos</p>
-                  <p className="text-sm text-gray-600">Ver pedidos recebidos</p>
                 </div>
               </button>
 
@@ -440,7 +562,7 @@ function DashboardEmpresa() {
                 </button>
               </div>
 
-              {/* Estatísticas Rápidas */}
+              {/* Estatísticas Rápidas - DINÂMICO */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-4 border-2 border-green-200">
                   <div className="flex items-center justify-between mb-2">
@@ -449,17 +571,17 @@ function DashboardEmpresa() {
                       <Play className="w-4 h-4 text-white" />
                     </div>
                   </div>
-                  <p className="text-3xl font-black text-green-700">2</p>
+                  <p className="text-3xl font-black text-green-700">{promocoesAtivas.length}</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-2xl p-4 border-2 border-yellow-200">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-yellow-700 uppercase">Pausadas</span>
+                    <span className="text-xs font-semibold text-yellow-700 uppercase">Sem Promo</span>
                     <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
                       <Pause className="w-4 h-4 text-white" />
                     </div>
                   </div>
-                  <p className="text-3xl font-black text-yellow-700">1</p>
+                  <p className="text-3xl font-black text-yellow-700">{promocoesPausadas.length}</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-4 border-2 border-red-200">
@@ -469,17 +591,17 @@ function DashboardEmpresa() {
                       <Clock className="w-4 h-4 text-white" />
                     </div>
                   </div>
-                  <p className="text-3xl font-black text-red-700">0</p>
+                  <p className="text-3xl font-black text-red-700">{promocoesExpiradas.length}</p>
                 </div>
 
                 <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-4 border-2 border-blue-200">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-blue-700 uppercase">Total</span>
+                    <span className="text-xs font-semibold text-blue-700 uppercase">Produtos</span>
                     <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                      <Target className="w-4 h-4 text-white" />
+                      <Package className="w-4 h-4 text-white" />
                     </div>
                   </div>
-                  <p className="text-3xl font-black text-blue-700">3</p>
+                  <p className="text-3xl font-black text-blue-700">{produtosDoEstabelecimento.length}</p>
                 </div>
               </div>
 
@@ -499,285 +621,153 @@ function DashboardEmpresa() {
                 </button>
               </div>
 
-              {/* Lista de Promoções Aprimorada */}
+              {/* Lista de Promoções - DINÂMICO */}
               <div className="space-y-4">
-                {/* Promoção 1 - Ativa */}
-                <div className="group relative bg-gradient-to-br from-white to-gray-50 rounded-3xl p-6 border-2 border-gray-200 hover:border-[#FFA726] hover:shadow-xl transition-all duration-300">
-                  {/* Badge de Status */}
-                  <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                    ATIVA
+                {loadingMetricas ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                    <span className="ml-3 text-gray-600">Carregando promoções...</span>
                   </div>
+                ) : promocoesAtivas.length === 0 && promocoesExpiradas.length === 0 ? (
+                  <div className="text-center py-12 bg-gradient-to-br from-gray-50 to-gray-100 rounded-3xl border-2 border-dashed border-gray-300">
+                    <Tag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-gray-600 mb-2">Nenhuma promoção cadastrada</h3>
+                    <p className="text-gray-500 mb-6">Crie sua primeira promoção para atrair mais clientes!</p>
+                    <button 
+                      onClick={() => navigate('/cadastro-promocao')}
+                      className="bg-gradient-to-r from-[#FFA726] to-[#FF8C00] text-white px-6 py-3 rounded-2xl font-bold hover:scale-105 transition-all shadow-lg"
+                    >
+                      <Plus className="w-5 h-5 inline mr-2" />
+                      Criar Promoção
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Promoções Ativas */}
+                    {promocoesAtivas.map((produto: any) => {
+                      const preco = Number(produto.preco || 0)
+                      const precoPromo = Number(produto.promocao?.preco_promocional || 0)
+                      const desconto = preco > 0 ? Math.round(((preco - precoPromo) / preco) * 100) : 0
+                      return (
+                        <div key={produto.id} className="group relative bg-gradient-to-br from-white to-gray-50 rounded-3xl p-6 border-2 border-gray-200 hover:border-[#FFA726] hover:shadow-xl transition-all duration-300">
+                          <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
+                            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                            ATIVA
+                          </div>
 
-                  <div className="flex flex-col md:flex-row gap-6">
-                    {/* Ícone e Info Principal */}
-                    <div className="flex-1">
-                      <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                          <Tag className="w-8 h-8 text-orange-600" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold text-gray-800 mb-1">Oferta Supermercado</h3>
-                          <p className="text-sm text-gray-600 mb-3">Produtos selecionados com desconto especial</p>
-                          
-                          {/* Metadados */}
-                          <div className="flex flex-wrap gap-3">
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                              <Calendar className="w-4 h-4" />
-                              <span>Criado em 13/01/2024</span>
+                          <div className="flex flex-col md:flex-row gap-6">
+                            <div className="flex-1">
+                              <div className="flex items-start gap-4">
+                                <div className="w-16 h-16 bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform overflow-hidden">
+                                  {produto.imagem ? (
+                                    <img src={produto.imagem} alt={produto.nome} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <Tag className="w-8 h-8 text-orange-600" />
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="text-lg font-bold text-gray-800 mb-1">{produto.nome}</h3>
+                                  <p className="text-sm text-gray-600 mb-3">{produto.descricao || 'Produto em promoção'}</p>
+                                  
+                                  <div className="flex flex-wrap gap-3">
+                                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                      <Calendar className="w-4 h-4" />
+                                      <span>Até {new Date(produto.promocao?.data_fim).toLocaleDateString('pt-BR')}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 text-xs text-green-600 font-semibold">
+                                      <TrendingUp className="w-4 h-4" />
+                                      <span>Promoção ativa</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                              <Eye className="w-4 h-4" />
-                              <span>1.2k visualizações</span>
+
+                            <div className="flex items-center justify-center md:justify-end">
+                              <div className="relative">
+                                <div className="absolute inset-0 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl blur-lg opacity-50" />
+                                <div className="relative bg-gradient-to-br from-green-500 to-green-600 text-white px-8 py-6 rounded-2xl shadow-xl">
+                                  <p className="text-sm font-bold mb-1 text-center">Desconto</p>
+                                  <p className="text-4xl font-black text-center">{desconto}%</p>
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1.5 text-xs text-green-600 font-semibold">
-                              <TrendingUp className="w-4 h-4" />
-                              <span>+15% esta semana</span>
+                          </div>
+
+                          <div className="flex items-center justify-between mt-6 pt-6 border-t-2 border-gray-100">
+                            <div className="flex items-center gap-4">
+                              <span className="text-sm text-gray-500 line-through">R$ {Number(produto.preco || 0).toFixed(2)}</span>
+                              <span className="text-lg font-bold text-green-600">R$ {Number(produto.promocao?.preco_promocional || 0).toFixed(2)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button className="p-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all hover:scale-110 shadow-md" title="Editar">
+                                <Edit2 className="w-4 h-4" />
+                              </button>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
+                      )
+                    })}
 
-                    {/* Desconto em Destaque */}
-                    <div className="flex items-center justify-center md:justify-end">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl blur-lg opacity-50" />
-                        <div className="relative bg-gradient-to-br from-green-500 to-green-600 text-white px-8 py-6 rounded-2xl shadow-xl">
-                          <p className="text-sm font-bold mb-1 text-center">Desconto</p>
-                          <p className="text-5xl font-black text-center">25%</p>
+                    {/* Promoções Expiradas */}
+                    {promocoesExpiradas.map((produto: any) => (
+                      <div key={produto.id} className="group relative bg-gradient-to-br from-white to-gray-50 rounded-3xl p-6 border-2 border-gray-200 opacity-60">
+                        <div className="absolute top-4 right-4 flex items-center gap-2 bg-red-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
+                          <Clock className="w-3 h-3" />
+                          EXPIRADA
                         </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Ações */}
-                  <div className="flex items-center justify-between mt-6 pt-6 border-t-2 border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 font-medium">Válida até:</span>
-                      <span className="text-sm font-bold text-gray-800">31/12/2024</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button className="p-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all hover:scale-110 shadow-md" title="Editar">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button className="p-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl transition-all hover:scale-110 shadow-md" title="Pausar">
-                        <Pause className="w-4 h-4" />
-                      </button>
-                      <button className="p-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all hover:scale-110 shadow-md" title="Excluir">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Promoção 2 - Ativa */}
-                <div className="group relative bg-gradient-to-br from-white to-gray-50 rounded-3xl p-6 border-2 border-gray-200 hover:border-[#FFA726] hover:shadow-xl transition-all duration-300">
-                  <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                    ATIVA
-                  </div>
-
-                  <div className="flex flex-col md:flex-row gap-6">
-                    <div className="flex-1">
-                      <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-purple-100 to-purple-200 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                          <Sparkles className="w-8 h-8 text-purple-600" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold text-gray-800 mb-1">Black Friday Eletrônicos</h3>
-                          <p className="text-sm text-gray-600 mb-3">Mega desconto em produtos selecionados</p>
-                          
-                          <div className="flex flex-wrap gap-3">
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                              <Calendar className="w-4 h-4" />
-                              <span>Criado em 15/01/2024</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                              <Eye className="w-4 h-4" />
-                              <span>3.5k visualizações</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs text-green-600 font-semibold">
-                              <TrendingUp className="w-4 h-4" />
-                              <span>+45% esta semana</span>
-                            </div>
+                        <div className="flex items-start gap-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-red-100 to-red-200 rounded-xl flex items-center justify-center">
+                            <Tag className="w-6 h-6 text-red-600" />
+                          </div>
+                          <div>
+                            <h3 className="text-lg font-bold text-gray-800">{produto.nome}</h3>
+                            <p className="text-sm text-red-600">Promoção expirada em {new Date(produto.promocao?.data_fim).toLocaleDateString('pt-BR')}</p>
                           </div>
                         </div>
                       </div>
-                    </div>
+                    ))}
 
-                    <div className="flex items-center justify-center md:justify-end">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-green-400 to-green-600 rounded-2xl blur-lg opacity-50" />
-                        <div className="relative bg-gradient-to-br from-green-500 to-green-600 text-white px-8 py-6 rounded-2xl shadow-xl">
-                          <p className="text-sm font-bold mb-1 text-center">Desconto</p>
-                          <p className="text-5xl font-black text-center">50%</p>
+                    {/* Produtos Sem Promoção */}
+                    {promocoesPausadas.length > 0 && (
+                      <div className="mt-6 pt-6 border-t-2 border-gray-200">
+                        <h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
+                          <Package className="w-5 h-5" />
+                          Produtos sem promoção ({promocoesPausadas.length})
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {promocoesPausadas.map((produto: any) => (
+                            <div key={produto.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-200 hover:border-orange-300 transition-all">
+                              <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center overflow-hidden">
+                                {produto.imagem ? (
+                                  <img src={produto.imagem} alt={produto.nome} className="w-full h-full object-cover" />
+                                ) : (
+                                  <Package className="w-6 h-6 text-gray-500" />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <h4 className="font-bold text-gray-800">{produto.nome}</h4>
+                                <p className="text-sm text-gray-600">R$ {Number(produto.preco || 0).toFixed(2)}</p>
+                              </div>
+                              <button 
+                                onClick={() => navigate('/cadastro-promocao')}
+                                className="px-3 py-1.5 bg-orange-100 text-orange-600 rounded-lg text-xs font-bold hover:bg-orange-200 transition-all"
+                              >
+                                + Promo
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-6 pt-6 border-t-2 border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 font-medium">Válida até:</span>
-                      <span className="text-sm font-bold text-gray-800">28/02/2024</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button className="p-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all hover:scale-110 shadow-md" title="Editar">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button className="p-2.5 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl transition-all hover:scale-110 shadow-md" title="Pausar">
-                        <Pause className="w-4 h-4" />
-                      </button>
-                      <button className="p-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all hover:scale-110 shadow-md" title="Excluir">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Promoção 3 - Pausada */}
-                <div className="group relative bg-gradient-to-br from-white to-gray-50 rounded-3xl p-6 border-2 border-gray-200 hover:border-yellow-500 hover:shadow-xl transition-all duration-300 opacity-75">
-                  <div className="absolute top-4 right-4 flex items-center gap-2 bg-yellow-500 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg">
-                    <Pause className="w-3 h-3" />
-                    PAUSADA
-                  </div>
-
-                  <div className="flex flex-col md:flex-row gap-6">
-                    <div className="flex-1">
-                      <div className="flex items-start gap-4">
-                        <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center shadow-md group-hover:scale-110 transition-transform">
-                          <ShoppingBag className="w-8 h-8 text-blue-600" />
-                        </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold text-gray-800 mb-1">Desconto Roupas Verão</h3>
-                          <p className="text-sm text-gray-600 mb-3">Coleção verão com preços especiais</p>
-                          
-                          <div className="flex flex-wrap gap-3">
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                              <Calendar className="w-4 h-4" />
-                              <span>Criado em 14/01/2024</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                              <Eye className="w-4 h-4" />
-                              <span>892 visualizações</span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-xs text-orange-600 font-semibold">
-                              <TrendingDown className="w-4 h-4" />
-                              <span>Pausada temporariamente</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-center md:justify-end">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl blur-lg opacity-50" />
-                        <div className="relative bg-gradient-to-br from-yellow-500 to-yellow-600 text-white px-8 py-6 rounded-2xl shadow-xl">
-                          <p className="text-sm font-bold mb-1 text-center">Desconto</p>
-                          <p className="text-5xl font-black text-center">30%</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-6 pt-6 border-t-2 border-gray-100">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 font-medium">Válida até:</span>
-                      <span className="text-sm font-bold text-gray-800">15/03/2024</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button className="p-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all hover:scale-110 shadow-md" title="Editar">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button className="p-2.5 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all hover:scale-110 shadow-md" title="Reativar">
-                        <Play className="w-4 h-4" />
-                      </button>
-                      <button className="p-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-all hover:scale-110 shadow-md" title="Excluir">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                    )}
+                  </>
+                )}
               </div>
             </div>
           )}
 
-          {activeTab === 'pedidos' && (
-            <div className="bg-white rounded-3xl shadow-lg p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <Package className="text-purple-500" size={24} />
-                <h2 className="text-xl font-bold text-gray-800">Gestão de Pedidos</h2>
-              </div>
-
-              <p className="text-gray-500 text-sm mb-4">Pedidos recentes</p>
-
-              {/* Header da Tabela */}
-              <div className="grid grid-cols-4 gap-4 mb-4 text-sm font-medium text-gray-600">
-                <div>Pedido</div>
-                <div>Cliente</div>
-                <div className="text-right">Total</div>
-                <div className="text-right">Status</div>
-              </div>
-
-              {/* Lista de Pedidos */}
-              <div className="space-y-3">
-                <div className="bg-gray-50 rounded-2xl p-4">
-                  <div className="grid grid-cols-4 gap-4 items-center">
-                    <div className="text-gray-600 font-mono text-sm">#12345</div>
-                    <div className="font-medium text-gray-800">Ana Silva</div>
-                    <div className="text-right font-medium text-gray-800">R$ 156.90</div>
-                    <div className="text-right">
-                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium">
-                        Entregue
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-2xl p-4">
-                  <div className="grid grid-cols-4 gap-4 items-center">
-                    <div className="text-gray-600 font-mono text-sm">#12346</div>
-                    <div className="font-medium text-gray-800">Carlos Santos</div>
-                    <div className="text-right font-medium text-gray-800">R$ 89.50</div>
-                    <div className="text-right">
-                      <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
-                        Processando
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-2xl p-4">
-                  <div className="grid grid-cols-4 gap-4 items-center">
-                    <div className="text-gray-600 font-mono text-sm">#12347</div>
-                    <div className="font-medium text-gray-800">Maria Oliveira</div>
-                    <div className="text-right font-medium text-gray-800">R$ 203.75</div>
-                    <div className="text-right">
-                      <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-medium">
-                        Enviado
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gray-50 rounded-2xl p-4">
-                  <div className="grid grid-cols-4 gap-4 items-center">
-                    <div className="text-gray-600 font-mono text-sm">#12348</div>
-                    <div className="font-medium text-gray-800">João Costa</div>
-                    <div className="text-right font-medium text-gray-800">R$ 67.30</div>
-                    <div className="text-right">
-                      <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-medium">
-                        Cancelado
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
+          
           {activeTab === 'relatorio' && (
             <div className="space-y-6">
               {/* Vendas por Período */}

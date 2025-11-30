@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import BotaoFavorito from "../../components/favoritos/BotaoFavorito"
 import { listarProdutos, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
+import { useCarrinho } from "../../contexts/CarrinhoContext"
 import type { Product } from "../../types"
 import iconJarra from "../../assets/icon de jara.png"
 
@@ -77,6 +78,7 @@ interface Produto {
 function DetalhesProduto() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { addToCart } = useCarrinho() // IMPORTANTE: hooks devem vir antes de qualquer return
   const [quantidade, setQuantidade] = useState(1)
   const [produto, setProduto] = useState<Produto | null>(null)
   const [loading, setLoading] = useState(true)
@@ -172,9 +174,18 @@ function DetalhesProduto() {
   const handleAdicionarCarrinho = async () => {
     if (!produto) return
     
-    console.log(`✅ Adicionado ${quantidade} unidade(s) ao carrinho`)
-    // Aqui você pode integrar com um contexto de carrinho ou API
-    alert(`${quantidade} unidade(s) de ${produto.nome} adicionado ao carrinho!`)
+    try {
+      // Converter para o formato Product esperado pelo contexto
+      const productToAdd: Product = converterParaProduct(produto)
+      
+      // Adicionar ao carrinho usando o contexto
+      await addToCart(productToAdd, quantidade)
+      
+      console.log(`✅ Adicionado ${quantidade} unidade(s) ao carrinho via contexto`)
+    } catch (error) {
+      console.error('❌ Erro ao adicionar ao carrinho:', error)
+      alert('Erro ao adicionar ao carrinho. Tente novamente.')
+    }
   }
 
   const incrementarQuantidade = () => {
@@ -411,6 +422,24 @@ function DetalhesProduto() {
             <div className="mt-4 flex items-center justify-center gap-2 text-green-600">
               <Check className="w-5 h-5" />
               <span className="text-sm font-bold">Compra 100% Segura e Garantida</span>
+            </div>
+
+            {/* Botões de Avaliação */}
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => navigate(`/avaliar-produto/${produto.id}?nome=${encodeURIComponent(produto.nome)}&estabelecimento=${encodeURIComponent(produto.estabelecimento.nome)}`)}
+                className="flex items-center justify-center gap-2 py-4 px-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105"
+              >
+                <Star className="w-5 h-5" />
+                <span>Avaliar Produto</span>
+              </button>
+              <button
+                onClick={() => navigate(`/avaliar-estabelecimento/${produto.estabelecimento.id}?nome=${encodeURIComponent(produto.estabelecimento.nome)}`)}
+                className="flex items-center justify-center gap-2 py-4 px-4 bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-600 hover:to-violet-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all hover:scale-105"
+              >
+                <Store className="w-5 h-5" />
+                <span>Avaliar Loja</span>
+              </button>
             </div>
 
             {/* Informações Adicionais */}

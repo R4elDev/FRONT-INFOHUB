@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { Button } from "../../components/ui/button"
 import { Input } from "../../components/ui/input"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { Search, Heart, Plus, ChevronLeft, ChevronRight, ShoppingBag, Sparkles, Tag, CheckCircle, AlertCircle, XCircle, Package } from "lucide-react"
+import { Search, Heart, Plus, ChevronLeft, ChevronRight, ShoppingBag, Sparkles, Tag, CheckCircle, AlertCircle, XCircle, Package, Store } from "lucide-react"
 import iconJarra from "../../assets/icon de jara.png"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 import { listarProdutos, listarCategorias, formatarPreco, calcularDesconto, isProdutoEmPromocao } from "../../services/apiServicesFixed"
@@ -86,8 +86,10 @@ function Promocoes() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [produtos, setProdutos] = useState<Array<any>>([])
   const [categorias, setCategorias] = useState<Array<any>>([])
+  const [estabelecimentos, setEstabelecimentos] = useState<Array<{ id: number; nome: string }>>([])
   const [busca, setBusca] = useState('')
   const [categoriaFiltro, setCategoriaFiltro] = useState('')
+  const [estabelecimentoFiltro, setEstabelecimentoFiltro] = useState('')
   const [loading, setLoading] = useState(false)
   const [mostrarPromocoes, setMostrarPromocoes] = useState(false)
   const [feedback, setFeedback] = useState<{ tipo: 'sucesso' | 'aviso' | 'erro' | null, mensagem: string }>({ tipo: null, mensagem: '' })
@@ -157,6 +159,31 @@ function Promocoes() {
     carregarCategorias()
   }, [])
 
+  // Carrega estabelecimentos do banco de dados
+  useEffect(() => {
+    const carregarEstabelecimentos = async () => {
+      try {
+        const api = (await import('../../lib/api')).default
+        const response = await api.get<any>('/estabelecimentos/todos')
+        
+        if (response.data?.status && response.data?.data?.length > 0) {
+          const estabs = response.data.data.map((e: any) => ({
+            id: e.id_estabelecimento,
+            nome: e.nome
+          }))
+          setEstabelecimentos(estabs)
+        } else {
+          setEstabelecimentos([])
+        }
+      } catch (error) {
+        console.error('Erro ao carregar estabelecimentos:', error)
+        setEstabelecimentos([])
+      }
+    }
+    
+    carregarEstabelecimentos()
+  }, [])
+
   // Carrega produtos quando filtros mudam
   useEffect(() => {
     const carregarProdutos = async () => {
@@ -208,6 +235,17 @@ function Promocoes() {
               const categoriaId = produto.categoria?.id || produto.id_categoria
               return categoriaId === novosFiltros.categoria
             })
+          }
+          
+          // FILTRO POR ESTABELECIMENTO
+          const estabelecimentoParam = searchParams.get('estabelecimento')
+          if (estabelecimentoParam) {
+            const estabId = parseInt(estabelecimentoParam)
+            produtosFiltrados = produtosFiltrados.filter(produto => {
+              const produtoEstabId = Number(produto.estabelecimento?.id || produto.id_estabelecimento || 0)
+              return produtoEstabId === estabId
+            })
+            console.log(`🏪 Filtro por estabelecimento ${estabId}: ${produtosFiltrados.length} produtos`)
           }
           
           // Busca inteligente - case-insensitive e busca parcial
@@ -574,6 +612,60 @@ function Promocoes() {
         </div>
       )}
 
+      {/* Filtro por Estabelecimento */}
+      <section className="mb-6">
+        <div className="bg-white rounded-2xl shadow-lg p-4 border border-blue-100">
+          <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 mb-4">
+            <Store className="w-5 h-5 text-blue-600" />
+            Filtrar por Estabelecimento
+          </h2>
+          
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            {/* Botão "Todos" */}
+            <button 
+              onClick={() => {
+                setEstabelecimentoFiltro('')
+                const params = new URLSearchParams(searchParams)
+                params.delete('estabelecimento')
+                setSearchParams(params)
+              }}
+              className={`px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md whitespace-nowrap flex-shrink-0 flex items-center gap-2 ${
+                !estabelecimentoFiltro && !searchParams.get('estabelecimento')
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' 
+                  : 'bg-white hover:bg-blue-50 text-gray-700 border-2 border-gray-200 hover:border-blue-400'
+              }`}
+            >
+              🏪 Todos
+            </button>
+            
+            {/* Estabelecimentos da API */}
+            {estabelecimentos.map((estab) => {
+              const isActive = estabelecimentoFiltro === estab.id.toString() || searchParams.get('estabelecimento') === estab.id.toString()
+              
+              return (
+                <button 
+                  key={estab.id}
+                  onClick={() => {
+                    const novoEstab = estab.id.toString()
+                    setEstabelecimentoFiltro(novoEstab)
+                    const params = new URLSearchParams(searchParams)
+                    params.set('estabelecimento', novoEstab)
+                    setSearchParams(params)
+                  }}
+                  className={`px-5 py-2.5 rounded-xl font-semibold transition-all shadow-md whitespace-nowrap flex-shrink-0 flex items-center gap-2 ${
+                    isActive 
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white ring-2 ring-blue-200' 
+                      : 'bg-white hover:bg-blue-50 text-gray-700 border-2 border-gray-200 hover:border-blue-400'
+                  }`}
+                >
+                  🏬 {estab.nome}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* Loading Indicator Moderno */}
       {loading && (
         <div className="flex flex-col justify-center items-center py-16">
@@ -701,9 +793,19 @@ function Promocoes() {
                 </div>
 
                 {/* Nome do Produto */}
-                <h3 className="text-sm font-bold text-gray-800 mb-2 line-clamp-2 min-h-[2.5rem] group-hover:text-[#FFA500] transition-colors">
+                <h3 className="text-sm font-bold text-gray-800 mb-1 line-clamp-2 min-h-[2.5rem] group-hover:text-[#FFA500] transition-colors">
                   {produto.nome}
                 </h3>
+
+                {/* Estabelecimento */}
+                {produto.estabelecimento && (
+                  <div className="flex items-center gap-1.5 mb-2 bg-blue-50 rounded-lg px-2 py-1">
+                    <Store className="w-3 h-3 text-blue-600" />
+                    <span className="text-xs text-blue-700 font-medium truncate">
+                      {produto.estabelecimento.nome || 'Estabelecimento'}
+                    </span>
+                  </div>
+                )}
 
                 {/* Preço antigo */}
                 {emPromocao && (

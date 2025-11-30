@@ -34,10 +34,12 @@ export default function ListaPromocoes() {
   const navigate = useNavigate()
   const [produtos, setProdutos] = useState<Produto[]>([])
   const [categorias, setCategorias] = useState<Array<{ id: number; nome: string }>>([]) 
+  const [estabelecimentos, setEstabelecimentos] = useState<Array<{ id: number; nome: string }>>([])
   const [loading, setLoading] = useState(true)
   // Removido filtros e setFiltros pois agora usamos URL params
   const [busca, setBusca] = useState('')
   const [categoriaFiltro, setCategoriaFiltro] = useState('')
+  const [estabelecimentoFiltro, setEstabelecimentoFiltro] = useState('')
   const [apenasPromocoes, setApenasPromocoes] = useState(false)
 
   // Inicializa filtros com base nos parâmetros da URL
@@ -45,11 +47,13 @@ export default function ListaPromocoes() {
     const categoriaParam = searchParams.get('categoria')
     const buscaParam = searchParams.get('busca')
     const promocaoParam = searchParams.get('promocao')
+    const estabelecimentoParam = searchParams.get('estabelecimento')
     
     console.log('🔍 Inicializando filtros da URL:', {
       categoriaParam,
       buscaParam,
-      promocaoParam
+      promocaoParam,
+      estabelecimentoParam
     })
     
     if (categoriaParam) {
@@ -69,7 +73,42 @@ export default function ListaPromocoes() {
     } else {
       setApenasPromocoes(false)
     }
+    
+    if (estabelecimentoParam) {
+      setEstabelecimentoFiltro(estabelecimentoParam)
+    } else {
+      setEstabelecimentoFiltro('')
+    }
   }, [searchParams])
+
+  // Carrega estabelecimentos uma vez
+  useEffect(() => {
+    const carregarEstabelecimentos = async () => {
+      try {
+        console.log('🏪 CARREGANDO ESTABELECIMENTOS DO BANCO DE DADOS...')
+        const api = (await import('../../lib/api')).default
+        const response = await api.get<any>('/estabelecimentos/todos')
+        console.log('🏪 Resposta da API de estabelecimentos:', response.data)
+        
+        if (response.data?.status && response.data?.data?.length > 0) {
+          const estabs = response.data.data.map((e: any) => ({
+            id: e.id_estabelecimento,
+            nome: e.nome
+          }))
+          console.log('✅ Estabelecimentos carregados:', estabs)
+          setEstabelecimentos(estabs)
+        } else {
+          console.log('⚠️ API não retornou estabelecimentos válidos')
+          setEstabelecimentos([])
+        }
+      } catch (error) {
+        console.error('❌ Erro ao carregar estabelecimentos:', error)
+        setEstabelecimentos([])
+      }
+    }
+    
+    carregarEstabelecimentos()
+  }, [])
 
   // Carrega categorias uma vez
   useEffect(() => {
@@ -112,6 +151,7 @@ export default function ListaPromocoes() {
         const categoriaParam = searchParams.get('categoria')
         const buscaParam = searchParams.get('busca')
         const promocaoParam = searchParams.get('promocao')
+        const estabelecimentoParam = searchParams.get('estabelecimento')
         
         // Prioriza parâmetros da URL, depois estado local
         if (categoriaParam) {
@@ -138,6 +178,18 @@ export default function ListaPromocoes() {
           console.log('🎁 Filtro de promoção do estado: true')
         }
         
+        // Filtro de estabelecimento
+        let filtroEstabelecimento: number | null = null
+        if (estabelecimentoParam) {
+          filtroEstabelecimento = parseInt(estabelecimentoParam)
+          novosFiltros.estabelecimento = filtroEstabelecimento
+          console.log('🏪 Filtro de estabelecimento da URL:', estabelecimentoParam)
+        } else if (estabelecimentoFiltro) {
+          filtroEstabelecimento = parseInt(estabelecimentoFiltro)
+          novosFiltros.estabelecimento = filtroEstabelecimento
+          console.log('🏪 Filtro de estabelecimento do estado:', estabelecimentoFiltro)
+        }
+        
         console.log('🔍 Filtros finais aplicados:', novosFiltros)
         
         const produtosResponse = await listarProdutos(novosFiltros)
@@ -153,13 +205,22 @@ export default function ListaPromocoes() {
               id: produto.id,
               nome: produto.nome,
               preco: produto.preco,
-              temPromocao: !!produto.promocao,
-              promocao: produto.promocao,
-              promocaoCompleta: JSON.stringify(produto.promocao, null, 2)
+              estabelecimento: produto.estabelecimento,
+              temPromocao: !!produto.promocao
             })
           })
           
-          setProdutos(produtosResponse.data)
+          // FILTRO FRONTEND: Garante que só mostra produtos do estabelecimento correto
+          let produtosFiltrados = produtosResponse.data
+          if (filtroEstabelecimento) {
+            produtosFiltrados = produtosResponse.data.filter((p: any) => {
+              const produtoEstabId = Number(p.estabelecimento?.id || p.id_estabelecimento || 0)
+              return produtoEstabId === filtroEstabelecimento
+            })
+            console.log(`🏪 Filtrado por estabelecimento ${filtroEstabelecimento}: ${produtosFiltrados.length} de ${produtosResponse.data.length} produtos`)
+          }
+          
+          setProdutos(produtosFiltrados)
         } else {
           console.log('⚠️ Resposta da API sem produtos válidos:', produtosResponse)
           setProdutos([])
@@ -173,12 +234,13 @@ export default function ListaPromocoes() {
     }
     
     carregarProdutos()
-  }, [searchParams, categoriaFiltro, busca, apenasPromocoes])
+  }, [searchParams, categoriaFiltro, busca, apenasPromocoes, estabelecimentoFiltro])
 
   // Limpa filtros
   const limparFiltros = () => {
     setBusca('')
     setCategoriaFiltro('')
+    setEstabelecimentoFiltro('')
     setApenasPromocoes(false)
     setSearchParams({})
   }
@@ -460,6 +522,70 @@ export default function ListaPromocoes() {
             </div>
           </section>
 
+          {/* Filtro por Estabelecimento */}
+          <section className="mb-6">
+            <div className="bg-white rounded-2xl shadow-md p-4 border border-orange-100">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <Store className="w-5 h-5 text-orange-600" />
+                  Filtrar por Estabelecimento
+                </h2>
+              </div>
+              
+              <div className="flex gap-3 overflow-x-auto pb-2 mt-4">
+                {/* Botão "Todos" */}
+                <button 
+                  onClick={() => {
+                    setEstabelecimentoFiltro('')
+                    const params = new URLSearchParams(searchParams)
+                    params.delete('estabelecimento')
+                    setSearchParams(params)
+                  }}
+                  className={`px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0 ${
+                    !estabelecimentoFiltro && !searchParams.get('estabelecimento')
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' 
+                      : 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-200'
+                  }`}
+                >
+                  🏪 Todos
+                </button>
+                
+                {/* Estabelecimentos da API */}
+                {estabelecimentos.map((estab) => {
+                  const isActive = estabelecimentoFiltro === estab.id.toString() || searchParams.get('estabelecimento') === estab.id.toString()
+                  
+                  return (
+                    <button 
+                      key={estab.id}
+                      onClick={() => {
+                        const novoEstab = estab.id.toString()
+                        setEstabelecimentoFiltro(novoEstab)
+                        const params = new URLSearchParams(searchParams)
+                        params.set('estabelecimento', novoEstab)
+                        setSearchParams(params)
+                      }}
+                      className={`px-6 py-3 rounded-2xl font-semibold transition-all hover:scale-105 shadow-md whitespace-nowrap flex-shrink-0 ${
+                        isActive 
+                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white ring-2 ring-white ring-offset-2' 
+                          : 'bg-white hover:bg-blue-50 text-gray-700 border border-blue-200'
+                      }`}
+                    >
+                      🏬 {estab.nome}
+                    </button>
+                  )
+                })}
+                
+                {/* Loading de estabelecimentos */}
+                {estabelecimentos.length === 0 && (
+                  <div className="flex items-center gap-2 text-gray-500 text-sm">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    <span>Carregando estabelecimentos...</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
           {/* Loading */}
           {loading && (
             <div className="flex justify-center items-center py-12">
@@ -569,17 +695,24 @@ export default function ListaPromocoes() {
                         </p>
                         
                         {/* Informações do produto */}
-                        <div className="space-y-2 mb-4">
+                        <div className="space-y-3 mb-4">
+                          {/* Estabelecimento - DESTAQUE */}
+                          <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-3 border border-blue-200">
+                            <div className="flex items-center gap-2">
+                              <div className="bg-blue-500 p-1.5 rounded-lg">
+                                <Store className="w-4 h-4 text-white" />
+                              </div>
+                              <div>
+                                <span className="text-xs text-blue-600 font-medium">Vendido por</span>
+                                <p className="text-sm text-blue-800 font-bold">{produto.estabelecimento?.nome || 'Estabelecimento'}</p>
+                              </div>
+                            </div>
+                          </div>
+                          
                           {/* Categoria */}
                           <div className="flex items-center gap-2">
                             <Tag className="w-4 h-4 text-[#F9A01B]" />
-                            <span className="text-sm text-gray-700 font-medium">{produto.categoria.nome}</span>
-                          </div>
-                          
-                          {/* Estabelecimento */}
-                          <div className="flex items-center gap-2">
-                            <Store className="w-4 h-4 text-green-600" />
-                            <span className="text-sm text-gray-700 font-medium">{produto.estabelecimento.nome}</span>
+                            <span className="text-sm text-gray-700 font-medium">{produto.categoria?.nome || 'Categoria'}</span>
                           </div>
                         </div>
                         

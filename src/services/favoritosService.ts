@@ -46,7 +46,8 @@ export async function buscarFavoritos(idUsuario: number): Promise<FavoritoRespon
     const { data } = await api.get<FavoritoResponse>(`/favoritos/${idUsuario}`)
     return data
   } catch (error: any) {
-    console.error('Erro ao buscar favoritos:', error)
+    // Usar warn em vez de error pois há fallback para localStorage
+    console.warn('⚠️ API favoritos indisponível:', error.response?.status || error.message)
     throw error
   }
 }

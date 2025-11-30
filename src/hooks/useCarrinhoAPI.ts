@@ -33,12 +33,16 @@ export const useCarrinhoAPI = () => {
       setCarrinho(dados)
       console.log(`✅ Carrinho carregado: ${dados.resumo.total_itens} itens`)
     } catch (err: any) {
-      setError(err.message || 'Erro ao carregar carrinho')
+      // Backend indisponível - não é erro crítico, usaremos localStorage
       setCarrinho({
         itens: [],
         resumo: { total_itens: 0, total_produtos: 0, valor_total: "0.00" }
       })
-      console.error('❌ Erro ao carregar carrinho:', err)
+      // Não mostrar erro na UI se for 500 do backend
+      if (err.response?.status !== 500) {
+        setError(err.message || 'Erro ao carregar carrinho')
+      }
+      console.warn('⚠️ API carrinho indisponível, usando fallback local')
     } finally {
       setLoading(false)
     }

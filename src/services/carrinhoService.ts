@@ -16,6 +16,7 @@ export interface CarrinhoItem {
   preco_promocional?: number | null
   promocao_valida_ate?: string
   data_adicionado: string
+  imagem?: string | null
 }
 
 export interface CarrinhoResumo {
@@ -118,7 +119,8 @@ export class CarrinhoAPI {
         throw new Error(data.message)
       }
     } catch (error: any) {
-      console.error('❌ Erro ao listar carrinho:', error.response?.data?.message || error.message)
+      // Usar warn em vez de error pois há fallback para localStorage
+      console.warn('⚠️ API carrinho indisponível:', error.response?.status || error.message)
       throw error
     }
   }
@@ -134,8 +136,18 @@ export class CarrinhoAPI {
         throw new Error(data.message)
       }
     } catch (error: any) {
-      console.error('❌ Erro ao contar itens:', error.response?.data?.message || error.message)
-      throw error
+      // Se falhar, tenta obter do listarCarrinho ou retorna valores padrão
+      console.warn('⚠️ Endpoint count indisponível, usando fallback')
+      try {
+        const carrinhoData = await this.listarCarrinho(idUsuario)
+        return {
+          total_itens: carrinhoData.resumo?.total_itens || 0,
+          total_produtos: carrinhoData.resumo?.total_produtos || 0
+        }
+      } catch {
+        // Se tudo falhar, retorna zeros (localStorage será usado pelo contexto)
+        return { total_itens: 0, total_produtos: 0 }
+      }
     }
   }
 

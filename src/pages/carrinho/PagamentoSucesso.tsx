@@ -1,6 +1,6 @@
 import { Button } from "../../components/ui/button"
 import { useNavigate } from "react-router-dom"
-import { CheckCircle, Package, MapPin, CreditCard, Clock, Sparkles, ShoppingBag, Home, Loader2 } from "lucide-react"
+import { CheckCircle, Package, MapPin, CreditCard, Clock, Sparkles, ShoppingBag, Home, Loader2, Star, Store } from "lucide-react"
 import { useEffect, useState } from "react"
 import SidebarLayout from "../../components/layouts/SidebarLayout"
 
@@ -187,15 +187,36 @@ function PagamentoSucesso() {
     }
   }, [showContent])
 
-  // Dados do pedido (virão do contexto depois)
-  const pedido = {
+  // Dados do pedido do localStorage
+  const [pedidoData, setPedidoData] = useState<any>(null)
+  
+  useEffect(() => {
+    const ultimoPedido = localStorage.getItem('ultimo_pedido')
+    if (ultimoPedido) {
+      setPedidoData(JSON.parse(ultimoPedido))
+    }
+  }, [])
+
+  const pedido = pedidoData ? {
+    numero: `#${pedidoData.id}`,
+    data: new Date(pedidoData.data_pedido).toLocaleDateString('pt-BR'),
+    hora: new Date(pedidoData.data_pedido).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    total: pedidoData.total,
+    formaPagamento: pedidoData.pagamento === 'credito' ? 'Cartão de Crédito' : 
+                    pedidoData.pagamento === 'debito' ? 'Cartão de Débito' :
+                    pedidoData.pagamento === 'pix' ? 'PIX' : 'Dinheiro',
+    endereco: `${pedidoData.endereco?.endereco}, ${pedidoData.endereco?.numero} - ${pedidoData.endereco?.bairro}, ${pedidoData.endereco?.cidade} - ${pedidoData.endereco?.estado}`,
+    previsaoEntrega: "Pedido Entregue! ✅",
+    itens: pedidoData.itens || []
+  } : {
     numero: "#12345",
     data: new Date().toLocaleDateString('pt-BR'),
     hora: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-    total: 31.97,
+    total: 0,
     formaPagamento: "Cartão de Crédito",
-    endereco: "Rua Exemplo, 123 - Centro, São Paulo - SP",
-    previsaoEntrega: "30-45 minutos"
+    endereco: "Endereço não informado",
+    previsaoEntrega: "Pedido Entregue! ✅",
+    itens: []
   }
 
   return (
@@ -377,6 +398,46 @@ function PagamentoSucesso() {
                   <p className="text-3xl font-black text-green-600">R$ {pedido.total.toFixed(2)}</p>
                 </div>
               </div>
+            </div>
+
+            {/* Seção de Avaliação - PEDIDO ENTREGUE */}
+            <div className="bg-gradient-to-r from-yellow-50 via-orange-50 to-amber-50 rounded-2xl p-6 mb-8 border-2 border-yellow-300 animate-slide-up relative z-10" style={{ animationDelay: '0.35s' }}>
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
+                <p className="text-xl font-black text-gray-800">Avalie sua compra!</p>
+                <Star className="w-6 h-6 text-yellow-500 fill-yellow-500" />
+              </div>
+              <p className="text-gray-700 leading-relaxed font-medium mb-6 text-center">
+                Seu pedido foi entregue! Sua opinião é muito importante para nós. Avalie os produtos e o estabelecimento.
+              </p>
+              
+              {/* Produtos para avaliar */}
+              {pedido.itens && pedido.itens.length > 0 && (
+                <div className="space-y-3 mb-4">
+                  <p className="text-sm font-bold text-gray-700">Produtos comprados:</p>
+                  {pedido.itens.map((item: any) => (
+                    <div key={item.id} className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-200">
+                      <span className="font-medium text-gray-800">{item.nome}</span>
+                      <Button
+                        onClick={() => navigate(`/avaliar-produto/${item.id}`)}
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 text-sm"
+                      >
+                        <Star className="w-4 h-4" />
+                        Avaliar
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Botão avaliar estabelecimento */}
+              <Button
+                onClick={() => navigate('/avaliar-estabelecimento/1')}
+                className="w-full bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-3 shadow-lg hover:scale-105 transition-all"
+              >
+                <Store className="w-5 h-5" />
+                Avaliar Estabelecimento
+              </Button>
             </div>
 
             {/* Mensagem */}
