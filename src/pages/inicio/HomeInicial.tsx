@@ -37,45 +37,45 @@ if (!document.head.querySelector('style[data-home-animations]')) {
 const promocoesCarrossel = [
   {
     id: 1,
-    titulo: 'Promoção Tenda Atacado - Ofertas Especiais',
-    imagem: 'https://cdn2.newtail.com.br/retail_media/ads/2025/11/05/4958717408875ad204e81c9a4c727d4a.jpeg',
+    titulo: 'Promoção InfoHub - Ofertas Especiais',
+    imagem: 'https://d3gdr9n5lqb5z7.cloudfront.net/fotos/1178x406-home-01-12-2025-13-16-18-510.jpg',
     descricao: 'Aproveite as melhores ofertas em produtos selecionados'
   },
   {
     id: 2,
-    titulo: 'Promoção Tenda Atacado - Bebidas Geladas',
-    imagem: 'https://cdn2.newtail.com.br/retail_media/ads/2025/11/06/a647bf102e88be794547e10242cd240c.jpeg',
-    descricao: 'Descontos imperdíveis em bebidas'
+    titulo: 'Promoção Tenda Atacado - Ofertas Especiais 1',
+    imagem: 'https://d3gdr9n5lqb5z7.cloudfront.net/fotos/ofertas-tenda-home-1178x406-03-28-11-2025-17-17-02-388.jpg',
+    descricao: 'Descontos imperdíveis em diversos produtos'
   },
   {
     id: 3,
-    titulo: 'Promoção Tenda Atacado - Alimentos',
-    imagem: 'https://cdn2.newtail.com.br/retail_media/ads/2025/11/04/281745a556d26b864f7dcc41d1ea1c6a.jpeg',
+    titulo: 'Promoção Tenda Atacado - Ofertas Especiais 2',
+    imagem: 'https://d3gdr9n5lqb5z7.cloudfront.net/fotos/ofertas-tenda-home-1178x406-02-28-11-2025-17-17-31-04.jpg',
     descricao: 'Economize em sua compra mensal'
   },
   {
     id: 4,
-    titulo: 'Promoção Tenda Atacado - Limpeza com até 60% OFF',
-    imagem: 'https://d3gdr9n5lqb5z7.cloudfront.net/fotos/omo-comfort-e-cif-com-ate-60-de-desconto-na-2%E2%94%AC%C2%AC-unidade_1178x406-home-05-11-2025-15-33-32-522.jpg',
-    descricao: 'Omo, Comfort e Cif com descontos incríveis'
+    titulo: 'Promoção Tenda Atacado - Ofertas Especiais 4',
+    imagem: 'https://d3gdr9n5lqb5z7.cloudfront.net/fotos/ofertas-tenda-home-1178x406-04-28-11-2025-17-17-58-669.jpg',
+    descricao: 'Confira as ofertas imperdíveis'
   },
   {
     id: 5,
-    titulo: 'Promoção Tenda Atacado - Ofertas da Semana',
-    imagem: 'https://d3gdr9n5lqb5z7.cloudfront.net/fotos/arte1_1178x406-home-06-11-2025-10-18-46-350.jpg',
-    descricao: 'Confira as ofertas válidas até domingo'
+    titulo: 'Promoção Tenda Atacado - Ofertas Especiais 5',
+    imagem: 'https://d3gdr9n5lqb5z7.cloudfront.net/fotos/ofertas-tenda-home-1178x406-05-28-11-2025-17-18-46-491.jpg',
+    descricao: 'Aproveite as melhores ofertas'
   },
   {
     id: 6,
-    titulo: 'Extra Mercado - Promoção de Carnes',
-    imagem: 'https://static.clubeextra.com.br/static/ex/1762439666056-desk-desk-carne.png?im=Resize,width=1600',
-    descricao: 'Carnes nobres com preços especiais'
+    titulo: 'Promoção Tenda Atacado - Ofertas Especiais 6',
+    imagem: 'https://d3gdr9n5lqb5z7.cloudfront.net/fotos/ofertas-tenda-home-1178x406-06-28-11-2025-17-19-14-127.jpg',
+    descricao: 'Descontos especiais para você'
   },
   {
     id: 7,
-    titulo: 'Extra Mercado - Cervejas em Oferta',
-    imagem: 'https://static.clubeextra.com.br/static/ex/1762440605486-desk-desk-cervejas.png?im=Resize,width=1600',
-    descricao: 'As melhores marcas com descontos'
+    titulo: 'Stranger Things - Ofertas Especiais',
+    imagem: 'https://d3gdr9n5lqb5z7.cloudfront.net/fotos/w48_aea_stranger_things_tenda_1178x406-home-01-12-2025-10-23-15-701.jpg',
+    descricao: 'Promoção especial Stranger Things'
   },
   {
     id: 8,
@@ -99,7 +99,6 @@ const promocoesCarrossel = [
 
 function HomeInicial() {
   const navigate = useNavigate()
-  const [bannerAtual, setBannerAtual] = useState(0)
   const [produtos, setProdutos] = useState<any[]>([])
   const [busca, setBusca] = useState('')
   const [produtoHover, setProdutoHover] = useState<number | null>(null)
